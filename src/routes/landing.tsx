@@ -114,6 +114,12 @@ function Header({ onCta }: { onCta: () => void }) {
           >
             {t("nav_ranking")}
           </a>
+          <a
+            href="/admin"
+            className="hidden sm:inline text-sm font-semibold text-primary hover:underline px-2 py-2"
+          >
+            Admin
+          </a>
           <LangToggle />
           <Button variant="wine" size="sm" onClick={onCta} className="hidden sm:inline-flex">
             {t("nav_cta")}

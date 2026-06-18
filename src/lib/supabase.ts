@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
 // Public config (VITE_ prefix → readable on client). Never put service_role here.
 // Env vars win when set; the literals are public fallbacks (the publishable key is
@@ -14,16 +15,16 @@ const key =
 /** True when the Supabase env vars are present. Routes use this to show a setup notice. */
 export const supabaseConfigured = Boolean(url && key);
 
-let client: SupabaseClient | null = null;
+let client: SupabaseClient<Database> | null = null;
 
 /**
- * Lazily creates a singleton browser Supabase client.
+ * Lazily creates a singleton browser Supabase client (typed con la BD).
  * Returns null when env vars are missing (so the UI can degrade gracefully).
  */
-export function getSupabase(): SupabaseClient | null {
+export function getSupabase(): SupabaseClient<Database> | null {
   if (!supabaseConfigured) return null;
   if (!client) {
-    client = createClient(url!, key!, {
+    client = createClient<Database>(url!, key!, {
       realtime: { params: { eventsPerSecond: 10 } },
     });
   }
