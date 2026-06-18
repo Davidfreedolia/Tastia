@@ -20,8 +20,8 @@ pedid los valores por el canal del equipo — la publishable key es pública).
 - **Documentos en castellano.**
 - **Copy honesta:** nada de testimonios, métricas o integraciones inventadas. Lo no construido = "Próximamente".
 - **Nunca commitear secretos** (`.env`, `service_role`). La `publishable key` sí es pública.
-- **Trabajar en ramas + PR** para revisión entre los 5 (no empujéis features a medias a `main`;
-  `main` despliega a producción automáticamente).
+- **Ramas:** feature → PR a `dev` (test/preview) → PR `dev` → `main` (producción). **Nunca directo
+  a `main`** (`main` despliega solo a producción). Detalle en `CONTRIBUTING.md`.
 - Dinero siempre en `*_cents` (integer).
 
 ## Estructura
@@ -31,6 +31,8 @@ pedid los valores por el canal del equipo — la publishable key es pública).
 - `docs/` — `ARCHITECTURE.md` (realtime), `BACKEND.md` (BD), `ROADMAP.md`.
 
 ## Docs clave
+- **Cómo trabajamos** (ramas, arquitectura modular, skills): `CONTRIBUTING.md`
+- **Aprendizajes / errores resueltos:** `docs/LEARNINGS.md` ← léelo antes de tocar deploy/DNS/Supabase
 - Arquitectura de la cata en vivo: `docs/ARCHITECTURE.md`
 - Diseño del backend: `docs/BACKEND.md`
 - Roadmap: `docs/ROADMAP.md`
