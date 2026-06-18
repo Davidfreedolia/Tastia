@@ -48,7 +48,7 @@ function PlayPage() {
 
 function Companion({ code, name }: { code: string; name: string }) {
   const room = useRoomChannel({ code, role: "player", name });
-  const { state, connected, submitAnswer, participants } = room;
+  const { state, connected, submitAnswer, participants, meId } = room;
   const [guess, setGuess] = useState<Guess>({});
   const [sent, setSent] = useState(false);
 
@@ -110,9 +110,25 @@ function Companion({ code, name }: { code: string; name: string }) {
           </form>
         )}
 
-        {(state.phase === "reveal" || state.phase === "scoring") && (
-          <Msg>Mira la pantalla para la revelación y los puntos.</Msg>
-        )}
+        {(state.phase === "reveal" || state.phase === "scoring") &&
+          (state.lastReveal ? (
+            <div className="mt-4 rounded-none border border-primary/40 bg-card p-4 text-center">
+              <p className="text-xs uppercase tracking-wider text-foreground/55">
+                Vino {state.lastReveal.wineIndex + 1}
+              </p>
+              <p className="serif text-xl font-bold">{state.lastReveal.wine.name}</p>
+              <p className="text-sm text-foreground/70">
+                {state.lastReveal.wine.grape} · {state.lastReveal.wine.region} ·{" "}
+                {state.lastReveal.wine.vintage}
+              </p>
+              <p className="mt-3 serif text-3xl font-bold text-primary">
+                +{state.lastReveal.awarded[meId] ?? 0} pts
+              </p>
+              <p className="text-xs text-foreground/60">Total: {state.scores[meId] ?? 0} pts</p>
+            </div>
+          ) : (
+            <Msg>Mira la pantalla para la revelación y los puntos.</Msg>
+          ))}
         {state.phase === "finished" && <Msg>¡Cata terminada! Mira el podio en la pantalla. 🍷</Msg>}
 
         {participants.length > 0 && (

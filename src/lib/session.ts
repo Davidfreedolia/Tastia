@@ -35,11 +35,25 @@ export type Guess = {
   vintage?: string; // añada
 };
 
+/** Ficha de un vino (se revela al final de cada ronda). */
+export type Wine = {
+  index: number; // 0..WINE_COUNT-1
+  name: string;
+  bodega: string;
+  region: string; // D.O.
+  grape: string; // variedad
+  priceRange: string; // p. ej. "10-25€"
+  vintage: number;
+  note: string; // curiosidad / nota de cata
+};
+
 /** Estado autoritativo de la sala, lo posee la Sala (host) y se difunde a todos. */
 export type RoomState = {
   phase: SessionPhase;
   currentWineIndex: number; // 0..WINE_COUNT-1
   scores: Record<string, number>; // participantId -> puntos
+  // Resultado de la última revelación: vino + puntos otorgados a cada jugador.
+  lastReveal?: { wineIndex: number; wine: Wine; awarded: Record<string, number> };
   updatedAt: number;
 };
 

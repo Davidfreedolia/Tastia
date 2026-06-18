@@ -8,6 +8,7 @@ import {
   type PlayerEvent,
   type RoomState,
 } from "./session";
+import { DEMO_WINES, scoreGuess } from "./wines";
 
 function makeId() {
   const c = (globalThis as { crypto?: Crypto }).crypto;
@@ -39,6 +40,8 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
   const meIdRef = useRef<string>("");
   const stateRef = useRef<RoomState>(state);
   stateRef.current = state;
+  const answersRef = useRef<RoomAnswer[]>(answers);
+  answersRef.current = answers;
 
   const broadcastState = useCallback((next: RoomState) => {
     channelRef.current?.send({ type: "broadcast", event: "state", payload: next });
@@ -56,6 +59,26 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
     },
     [role, broadcastState],
   );
+
+  /** Host: cierra apuestas del vino actual, reparte puntos y revela la ficha. */
+  const revealCurrentWine = useCallback(() => {
+    if (role !== "host") return;
+    const wine = DEMO_WINES[stateRef.current.currentWineIndex];
+    if (!wine) return;
+    const awarded: Record<string, number> = {};
+    const scores = { ...stateRef.current.scores };
+    for (const a of answersRef.current) {
+      if (a.wineIndex !== wine.index) continue;
+      const pts = scoreGuess(a.guess, wine);
+      awarded[a.playerId] = pts;
+      scores[a.playerId] = (scores[a.playerId] ?? 0) + pts;
+    }
+    updateState({
+      phase: "reveal",
+      scores,
+      lastReveal: { wineIndex: wine.index, wine, awarded },
+    });
+  }, [role, updateState]);
 
   useEffect(() => {
     if (!supabaseConfigured) return;
@@ -154,6 +177,7 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
     state,
     answers,
     updateState, // host
+    revealCurrentWine, // host
     submitAnswer, // player
     sendReady, // player
   };

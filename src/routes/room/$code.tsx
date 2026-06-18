@@ -13,7 +13,7 @@ function RoomPage() {
 
   if (!room.configured) return <SetupNotice />;
 
-  const { state, participants, answers, updateState, connected } = room;
+  const { state, participants, answers, updateState, revealCurrentWine, connected } = room;
   const players = participants.filter((p) => !p.isHost);
 
   const setPhase = (phase: SessionPhase) => updateState({ phase });
@@ -56,6 +56,21 @@ function RoomPage() {
             </div>
           </div>
 
+          {state.phase === "reveal" && state.lastReveal && (
+            <div className="rounded-none border border-primary/40 bg-card p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">
+                Vino {state.lastReveal.wineIndex + 1} revelado
+              </p>
+              <p className="serif text-2xl font-bold mt-1">{state.lastReveal.wine.name}</p>
+              <p className="text-sm text-foreground/70">
+                {state.lastReveal.wine.bodega} · {state.lastReveal.wine.region} ·{" "}
+                {state.lastReveal.wine.grape} · {state.lastReveal.wine.vintage} ·{" "}
+                {state.lastReveal.wine.priceRange}
+              </p>
+              <p className="mt-2 text-sm italic text-foreground/60">{state.lastReveal.wine.note}</p>
+            </div>
+          )}
+
           {/* Controles del anfitrión */}
           <div className="rounded-none border border-border/60 bg-card p-4">
             <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">Control del anfitrión</p>
@@ -75,6 +90,9 @@ function RoomPage() {
                     {PHASE_LABEL[p]}
                   </Button>
                 ))}
+                <Button variant="wine" size="sm" onClick={revealCurrentWine}>
+                  Revelar vino + puntos ▸
+                </Button>
                 <Button variant="outlineWine" size="sm" onClick={nextWine}>
                   Vino siguiente ▸
                 </Button>
@@ -98,11 +116,11 @@ function RoomPage() {
               <ul className="space-y-2">
                 {players
                   .slice()
-                  .sort((a, b) => b.score - a.score)
+                  .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0))
                   .map((p) => (
                     <li key={p.id} className="flex items-center justify-between text-sm">
                       <span className="font-medium">{p.name}</span>
-                      <span className="serif font-bold text-primary">{p.score} pts</span>
+                      <span className="serif font-bold text-primary">{state.scores[p.id] ?? 0} pts</span>
                     </li>
                   ))}
               </ul>
