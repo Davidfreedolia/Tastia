@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useRoomChannel } from "@/lib/use-room-channel";
 import { PHASE_LABEL, WINE_COUNT, type Guess } from "@/lib/session";
@@ -51,6 +51,12 @@ function Companion({ code, name }: { code: string; name: string }) {
   const { state, connected, submitAnswer, participants, meId } = room;
   const [guess, setGuess] = useState<Guess>({});
   const [sent, setSent] = useState(false);
+
+  // Reset the guess form when the host moves to a new wine.
+  useEffect(() => {
+    setGuess({});
+    setSent(false);
+  }, [state.currentWineIndex]);
 
   const field = (key: keyof Guess, label: string, placeholder: string) => (
     <label className="block text-left">
@@ -129,7 +135,26 @@ function Companion({ code, name }: { code: string; name: string }) {
           ) : (
             <Msg>Mira la pantalla para la revelación y los puntos.</Msg>
           ))}
-        {state.phase === "finished" && <Msg>¡Cata terminada! Mira el podio en la pantalla. 🍷</Msg>}
+        {state.phase === "finished" &&
+          (() => {
+            const ranked = participants
+              .filter((p) => !p.isHost)
+              .slice()
+              .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0));
+            const rank = ranked.findIndex((p) => p.id === meId) + 1;
+            return (
+              <div className="mt-4 rounded-none border border-primary/40 bg-card p-5 text-center">
+                <p className="serif text-2xl font-bold">¡Cata terminada! 🍷</p>
+                <p className="mt-3 serif text-4xl font-bold text-primary">{state.scores[meId] ?? 0} pts</p>
+                {rank > 0 && (
+                  <p className="mt-1 text-sm text-foreground/70">
+                    {["🥇 ¡Ganas!", "🥈 2º puesto", "🥉 3er puesto"][rank - 1] ??
+                      `Puesto ${rank} de ${ranked.length}`}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
         {participants.length > 0 && (
           <div className="mt-6 rounded-none border border-border/60 bg-card p-3">

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useRoomChannel } from "@/lib/use-room-channel";
-import { PHASE_LABEL, WINE_COUNT, type SessionPhase } from "@/lib/session";
+import { PHASE_LABEL, WINE_COUNT } from "@/lib/session";
 
 export const Route = createFileRoute("/room/$code")({
   component: RoomPage,
@@ -16,12 +16,33 @@ function RoomPage() {
   const { state, participants, answers, updateState, revealCurrentWine, connected } = room;
   const players = participants.filter((p) => !p.isHost);
 
-  const setPhase = (phase: SessionPhase) => updateState({ phase });
-  const nextWine = () =>
-    updateState({
-      currentWineIndex: (state.currentWineIndex + 1) % WINE_COUNT,
-      phase: "tasting",
-    });
+  const i = state.currentWineIndex;
+  const isLastWine = i >= WINE_COUNT - 1;
+
+  // Single guided "next step" button for the host (lobby → 4 vinos → podio).
+  const step: { label: string; disabled?: boolean; action: () => void } =
+    state.phase === "lobby"
+      ? {
+          label: players.length ? "Empezar la cata ▸" : "Esperando jugadores…",
+          disabled: players.length === 0,
+          action: () => updateState({ phase: "intro" }),
+        }
+      : state.phase === "intro"
+        ? { label: "Catar vino 1 ▸", action: () => updateState({ phase: "tasting", currentWineIndex: 0 }) }
+        : state.phase === "tasting"
+          ? { label: `Revelar vino ${i + 1} + puntos ▸`, action: revealCurrentWine }
+          : state.phase === "reveal"
+            ? isLastWine
+              ? { label: "Ver podio final 🏆", action: () => updateState({ phase: "finished" }) }
+              : {
+                  label: `Catar vino ${i + 2} ▸`,
+                  action: () => updateState({ phase: "tasting", currentWineIndex: i + 1 }),
+                }
+            : {
+                label: "Reiniciar cata",
+                action: () =>
+                  updateState({ phase: "lobby", currentWineIndex: 0, scores: {}, lastReveal: undefined }),
+              };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -71,33 +92,34 @@ function RoomPage() {
             </div>
           )}
 
+          {state.phase === "finished" && (
+            <div className="rounded-none border border-primary/40 bg-card p-5">
+              <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">Podio final 🏆</p>
+              <ol className="mt-3 space-y-2">
+                {players
+                  .slice()
+                  .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0))
+                  .map((p, idx) => (
+                    <li
+                      key={p.id}
+                      className={`flex items-center justify-between rounded-none px-3 py-2 ${idx === 0 ? "bg-gold text-ink" : "bg-secondary/50"}`}
+                    >
+                      <span className="font-semibold">
+                        {["🥇", "🥈", "🥉"][idx] ?? `${idx + 1}.`} {p.name}
+                      </span>
+                      <span className="serif font-bold">{state.scores[p.id] ?? 0} pts</span>
+                    </li>
+                  ))}
+              </ol>
+            </div>
+          )}
+
           {/* Controles del anfitrión */}
           <div className="rounded-none border border-border/60 bg-card p-4">
             <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">Control del anfitrión</p>
-            {state.phase === "lobby" ? (
-              <Button variant="wine" size="lg" onClick={() => setPhase("intro")} disabled={players.length === 0}>
-                Empezar la cata {players.length === 0 && "(esperando jugadores…)"}
-              </Button>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {(["intro", "tasting", "reveal", "scoring", "finished"] as SessionPhase[]).map((p) => (
-                  <Button
-                    key={p}
-                    variant={state.phase === p ? "wine" : "outlineWine"}
-                    size="sm"
-                    onClick={() => setPhase(p)}
-                  >
-                    {PHASE_LABEL[p]}
-                  </Button>
-                ))}
-                <Button variant="wine" size="sm" onClick={revealCurrentWine}>
-                  Revelar vino + puntos ▸
-                </Button>
-                <Button variant="outlineWine" size="sm" onClick={nextWine}>
-                  Vino siguiente ▸
-                </Button>
-              </div>
-            )}
+            <Button variant="wine" size="lg" disabled={step.disabled} onClick={step.action}>
+              {step.label}
+            </Button>
             <p className="mt-3 text-xs text-foreground/55">
               Los jugadores se unen en <span className="font-semibold">tastia.app/play/{code}</span>
             </p>
