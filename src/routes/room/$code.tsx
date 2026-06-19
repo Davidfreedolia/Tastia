@@ -1,11 +1,39 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useRoomChannel } from "@/lib/use-room-channel";
-import { PHASE_LABEL, WINE_COUNT } from "@/lib/session";
+import {
+  FASE_LABEL,
+  STAGE_LABEL,
+  WINE_COUNT,
+  type Participant,
+  type RoomState,
+} from "@/lib/session";
 
 export const Route = createFileRoute("/room/$code")({
   component: RoomPage,
 });
+
+/** Label del botón guiado único según `(stage, fase, step)`. */
+function nextLabel(state: RoomState, hasPlayers: boolean): string {
+  switch (state.stage) {
+    case "lobby":
+      return hasPlayers ? "Empezar la cata ▸" : "Esperando jugadores…";
+    case "playing": {
+      const n = state.wineIndex + 1;
+      const fase = FASE_LABEL[state.fase];
+      if (state.step === "quiz") return `Revelar ${fase.toLowerCase()} ▸`;
+      // reveal → siguiente fase o, tras gamificación, podio parcial.
+      if (state.fase === "gamificacion") return `Ver podio del vino ${n} ▸`;
+      return `Siguiente fase (vino ${n}) ▸`;
+    }
+    case "wine_podium":
+      return state.wineIndex >= WINE_COUNT - 1
+        ? "Ver podio final 🏆"
+        : `Catar vino ${state.wineIndex + 2} ▸`;
+    case "final_podium":
+      return "Cata terminada 🍷";
+  }
+}
 
 function RoomPage() {
   const { code } = Route.useParams();
@@ -13,36 +41,15 @@ function RoomPage() {
 
   if (!room.configured) return <SetupNotice />;
 
-  const { state, participants, answers, updateState, revealCurrentWine, connected } = room;
+  const { state, participants, advance, reset, connected } = room;
   const players = participants.filter((p) => !p.isHost);
 
-  const i = state.currentWineIndex;
-  const isLastWine = i >= WINE_COUNT - 1;
-
-  // Single guided "next step" button for the host (lobby → 4 vinos → podio).
-  const step: { label: string; disabled?: boolean; action: () => void } =
-    state.phase === "lobby"
-      ? {
-          label: players.length ? "Empezar la cata ▸" : "Esperando jugadores…",
-          disabled: players.length === 0,
-          action: () => updateState({ phase: "intro" }),
-        }
-      : state.phase === "intro"
-        ? { label: "Catar vino 1 ▸", action: () => updateState({ phase: "tasting", currentWineIndex: 0 }) }
-        : state.phase === "tasting"
-          ? { label: `Revelar vino ${i + 1} + puntos ▸`, action: revealCurrentWine }
-          : state.phase === "reveal"
-            ? isLastWine
-              ? { label: "Ver podio final 🏆", action: () => updateState({ phase: "finished" }) }
-              : {
-                  label: `Catar vino ${i + 2} ▸`,
-                  action: () => updateState({ phase: "tasting", currentWineIndex: i + 1 }),
-                }
-            : {
-                label: "Reiniciar cata",
-                action: () =>
-                  updateState({ phase: "lobby", currentWineIndex: 0, scores: {}, lastReveal: undefined }),
-              };
+  const isLobby = state.stage === "lobby";
+  const isFinal = state.stage === "final_podium";
+  // En el podio final el botón reinicia la cata; en el resto avanza la máquina.
+  const disabled = isLobby && players.length === 0;
+  const onAdvance = isFinal ? reset : advance;
+  const label = isFinal ? "Nueva cata ▸" : nextLabel(state, players.length > 0);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -56,9 +63,11 @@ function RoomPage() {
             <span className={`inline-block h-2.5 w-2.5 rounded-full ${connected ? "bg-green-500" : "bg-amber-500"}`} />
             {connected ? "conectado" : "conectando…"}
           </span>
-          <span className="font-semibold">{PHASE_LABEL[state.phase]}</span>
-          {state.phase === "tasting" && (
-            <span className="text-foreground/70">Vino {state.currentWineIndex + 1}/{WINE_COUNT}</span>
+          <span className="font-semibold">{STAGE_LABEL[state.stage]}</span>
+          {state.stage === "playing" && (
+            <span className="text-foreground/70">
+              Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]}
+            </span>
           )}
         </div>
       </header>
@@ -77,48 +86,46 @@ function RoomPage() {
             </div>
           </div>
 
-          {state.phase === "reveal" && state.lastReveal && (
+          {/* Fase en juego: placeholder de quiz / revelación (el contenido real = §5.2) */}
+          {state.stage === "playing" && (
             <div className="rounded-none border border-primary/40 bg-card p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">
-                Vino {state.lastReveal.wineIndex + 1} revelado
+                Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]}
               </p>
-              <p className="serif text-2xl font-bold mt-1">{state.lastReveal.wine.name}</p>
-              <p className="text-sm text-foreground/70">
-                {state.lastReveal.wine.bodega} · {state.lastReveal.wine.region} ·{" "}
-                {state.lastReveal.wine.grape} · {state.lastReveal.wine.vintage} ·{" "}
-                {state.lastReveal.wine.priceRange}
+              {state.step === "quiz" ? (
+                <p className="serif text-2xl font-bold mt-1">Pregunta de {FASE_LABEL[state.fase].toLowerCase()}</p>
+              ) : (
+                <p className="serif text-2xl font-bold mt-1">
+                  Revelación de {FASE_LABEL[state.fase].toLowerCase()}
+                </p>
+              )}
+              <p className="mt-2 text-sm italic text-foreground/60">
+                {state.step === "quiz"
+                  ? "Aquí irá la pregunta y sus opciones (próximamente · §5.2)."
+                  : "Aquí irá la respuesta correcta + los puntos (próximamente · §5.2 / §5.5)."}
               </p>
-              <p className="mt-2 text-sm italic text-foreground/60">{state.lastReveal.wine.note}</p>
             </div>
           )}
 
-          {state.phase === "finished" && (
-            <div className="rounded-none border border-primary/40 bg-card p-5">
-              <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">Podio final 🏆</p>
-              <ol className="mt-3 space-y-2">
-                {players
-                  .slice()
-                  .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0))
-                  .map((p, idx) => (
-                    <li
-                      key={p.id}
-                      className={`flex items-center justify-between rounded-none px-3 py-2 ${idx === 0 ? "bg-gold text-ink" : "bg-secondary/50"}`}
-                    >
-                      <span className="font-semibold">
-                        {["🥇", "🥈", "🥉"][idx] ?? `${idx + 1}.`} {p.name}
-                      </span>
-                      <span className="serif font-bold">{state.scores[p.id] ?? 0} pts</span>
-                    </li>
-                  ))}
-              </ol>
-            </div>
+          {/* Podio parcial tras cerrar el vino N */}
+          {state.stage === "wine_podium" && (
+            <Podium
+              title={`Podio parcial · tras el vino ${state.wineIndex + 1}/${WINE_COUNT}`}
+              players={players}
+              scores={state.scores}
+            />
+          )}
+
+          {/* Podio final */}
+          {state.stage === "final_podium" && (
+            <Podium title="Podio final 🏆" players={players} scores={state.scores} highlightTop />
           )}
 
           {/* Controles del anfitrión */}
           <div className="rounded-none border border-border/60 bg-card p-4">
             <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">Control del anfitrión</p>
-            <Button variant="wine" size="lg" disabled={step.disabled} onClick={step.action}>
-              {step.label}
+            <Button variant="wine" size="lg" disabled={disabled} onClick={onAdvance}>
+              {label}
             </Button>
             <p className="mt-3 text-xs text-foreground/55">
               Los jugadores se unen en <span className="font-semibold">tastia.app/play/{code}</span>
@@ -126,7 +133,7 @@ function RoomPage() {
           </div>
         </section>
 
-        {/* Marcador + apuestas */}
+        {/* Marcador */}
         <aside className="flex flex-col gap-4">
           <div className="rounded-none border border-border/60 bg-card p-4">
             <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">
@@ -148,30 +155,47 @@ function RoomPage() {
               </ul>
             )}
           </div>
-
-          <div className="rounded-none border border-border/60 bg-card p-4">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">
-              Apuestas · vino {state.currentWineIndex + 1}
-            </p>
-            {answers.length === 0 ? (
-              <p className="text-sm text-foreground/55">Sin apuestas todavía.</p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {answers.map((a) => (
-                  <li key={a.playerId} className="rounded-none bg-secondary/50 px-3 py-2">
-                    <span className="font-semibold">{a.name}: </span>
-                    <span className="text-foreground/75">
-                      {[a.guess.grape, a.guess.region, a.guess.priceRange, a.guess.vintage]
-                        .filter(Boolean)
-                        .join(" · ") || "—"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </aside>
       </main>
+    </div>
+  );
+}
+
+/** Podio (parcial o final) calculado desde `scores`. */
+function Podium({
+  title,
+  players,
+  scores,
+  highlightTop = false,
+}: {
+  title: string;
+  players: Participant[];
+  scores: Record<string, number>;
+  highlightTop?: boolean;
+}) {
+  const ranked = players.slice().sort((a, b) => (scores[b.id] ?? 0) - (scores[a.id] ?? 0));
+  return (
+    <div className="rounded-none border border-primary/40 bg-card p-5">
+      <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">{title}</p>
+      {ranked.length === 0 ? (
+        <p className="mt-3 text-sm text-foreground/55">Sin jugadores.</p>
+      ) : (
+        <ol className="mt-3 space-y-2">
+          {ranked.map((p, idx) => (
+            <li
+              key={p.id}
+              className={`flex items-center justify-between rounded-none px-3 py-2 ${
+                highlightTop && idx === 0 ? "bg-gold text-ink" : "bg-secondary/50"
+              }`}
+            >
+              <span className="font-semibold">
+                {["🥇", "🥈", "🥉"][idx] ?? `${idx + 1}.`} {p.name}
+              </span>
+              <span className="serif font-bold">{scores[p.id] ?? 0} pts</span>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

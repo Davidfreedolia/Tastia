@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useRoomChannel } from "@/lib/use-room-channel";
-import { PHASE_LABEL, WINE_COUNT, type Guess } from "@/lib/session";
+import { FASE_LABEL, STAGE_LABEL, WINE_COUNT, type Participant, type RoomState } from "@/lib/session";
 import { supabaseConfigured } from "@/lib/supabase";
 
 export const Route = createFileRoute("/play/$code")({
@@ -48,30 +48,7 @@ function PlayPage() {
 
 function Companion({ code, name }: { code: string; name: string }) {
   const room = useRoomChannel({ code, role: "player", name });
-  const { state, connected, submitAnswer, participants, meId } = room;
-  const [guess, setGuess] = useState<Guess>({});
-  const [sent, setSent] = useState(false);
-
-  // Reset the guess form when the host moves to a new wine.
-  useEffect(() => {
-    setGuess({});
-    setSent(false);
-  }, [state.currentWineIndex]);
-
-  const field = (key: keyof Guess, label: string, placeholder: string) => (
-    <label className="block text-left">
-      <span className="text-xs font-semibold uppercase tracking-wider text-foreground/55">{label}</span>
-      <input
-        value={guess[key] ?? ""}
-        onChange={(e) => {
-          setGuess((g) => ({ ...g, [key]: e.target.value }));
-          setSent(false);
-        }}
-        placeholder={placeholder}
-        className="mt-1 w-full rounded-none border border-border bg-background px-3 py-2.5 outline-none focus:border-primary"
-      />
-    </label>
-  );
+  const { state, connected, participants, meId } = room;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -85,76 +62,16 @@ function Companion({ code, name }: { code: string; name: string }) {
 
       <main className="mx-auto max-w-md px-4 py-6">
         <div className="rounded-none border border-border/60 bg-card p-3 text-center text-sm">
-          <span className="font-semibold">{PHASE_LABEL[state.phase]}</span>
-          {state.phase === "tasting" && (
-            <span className="text-foreground/60"> · Vino {state.currentWineIndex + 1}/{WINE_COUNT}</span>
+          <span className="font-semibold">{STAGE_LABEL[state.stage]}</span>
+          {state.stage === "playing" && (
+            <span className="text-foreground/60">
+              {" "}
+              · Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]}
+            </span>
           )}
         </div>
 
-        {state.phase === "lobby" && (
-          <Msg>Estás dentro. Esperando a que el anfitrión empiece la cata…</Msg>
-        )}
-        {state.phase === "intro" && <Msg>Mira la pantalla: el sommelier os da la bienvenida.</Msg>}
-
-        {state.phase === "tasting" && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              submitAnswer(guess);
-              setSent(true);
-            }}
-            className="mt-4 space-y-3"
-          >
-            <p className="text-sm text-foreground/70">¿Qué crees que es el vino {state.currentWineIndex + 1}?</p>
-            {field("grape", "Variedad", "Tempranillo, Garnacha…")}
-            {field("region", "D.O.", "Rioja, Priorat…")}
-            {field("priceRange", "Precio", "10-25€, 25-40€…")}
-            {field("vintage", "Añada", "2019, 2021…")}
-            <Button type="submit" variant="wine" size="lg" className="w-full">
-              {sent ? "Apuesta enviada ✓ (editar y reenviar)" : "Enviar apuesta"}
-            </Button>
-          </form>
-        )}
-
-        {(state.phase === "reveal" || state.phase === "scoring") &&
-          (state.lastReveal ? (
-            <div className="mt-4 rounded-none border border-primary/40 bg-card p-4 text-center">
-              <p className="text-xs uppercase tracking-wider text-foreground/55">
-                Vino {state.lastReveal.wineIndex + 1}
-              </p>
-              <p className="serif text-xl font-bold">{state.lastReveal.wine.name}</p>
-              <p className="text-sm text-foreground/70">
-                {state.lastReveal.wine.grape} · {state.lastReveal.wine.region} ·{" "}
-                {state.lastReveal.wine.vintage}
-              </p>
-              <p className="mt-3 serif text-3xl font-bold text-primary">
-                +{state.lastReveal.awarded[meId] ?? 0} pts
-              </p>
-              <p className="text-xs text-foreground/60">Total: {state.scores[meId] ?? 0} pts</p>
-            </div>
-          ) : (
-            <Msg>Mira la pantalla para la revelación y los puntos.</Msg>
-          ))}
-        {state.phase === "finished" &&
-          (() => {
-            const ranked = participants
-              .filter((p) => !p.isHost)
-              .slice()
-              .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0));
-            const rank = ranked.findIndex((p) => p.id === meId) + 1;
-            return (
-              <div className="mt-4 rounded-none border border-primary/40 bg-card p-5 text-center">
-                <p className="serif text-2xl font-bold">¡Cata terminada! 🍷</p>
-                <p className="mt-3 serif text-4xl font-bold text-primary">{state.scores[meId] ?? 0} pts</p>
-                {rank > 0 && (
-                  <p className="mt-1 text-sm text-foreground/70">
-                    {["🥇 ¡Ganas!", "🥈 2º puesto", "🥉 3er puesto"][rank - 1] ??
-                      `Puesto ${rank} de ${ranked.length}`}
-                  </p>
-                )}
-              </div>
-            );
-          })()}
+        <CompanionBody state={state} participants={participants} meId={meId} />
 
         {participants.length > 0 && (
           <div className="mt-6 rounded-none border border-border/60 bg-card p-3">
@@ -170,6 +87,99 @@ function Companion({ code, name }: { code: string; name: string }) {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+/** Refleja `(stage, fase, step)` con placeholders (el quiz real = §5.2). */
+function CompanionBody({
+  state,
+  participants,
+  meId,
+}: {
+  state: RoomState;
+  participants: Participant[];
+  meId: string;
+}) {
+  if (state.stage === "lobby") {
+    return <Msg>Estás dentro. Esperando a que el anfitrión empiece la cata…</Msg>;
+  }
+
+  if (state.stage === "playing") {
+    if (state.step === "quiz") {
+      return (
+        <div className="mt-4 rounded-none border border-primary/40 bg-card p-4 text-center">
+          <p className="text-xs uppercase tracking-wider text-foreground/55">
+            Vino {state.wineIndex + 1} · {FASE_LABEL[state.fase]}
+          </p>
+          <p className="serif mt-1 text-xl font-bold">Atención a la pantalla</p>
+          <p className="mt-2 text-sm text-foreground/70">
+            Aquí aparecerá la pregunta de {FASE_LABEL[state.fase].toLowerCase()} y sus opciones (próximamente).
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div className="mt-4 rounded-none border border-primary/40 bg-card p-4 text-center">
+        <p className="text-xs uppercase tracking-wider text-foreground/55">
+          Vino {state.wineIndex + 1} · {FASE_LABEL[state.fase]}
+        </p>
+        <p className="serif mt-1 text-xl font-bold">Revelación</p>
+        <p className="mt-2 text-sm text-foreground/70">
+          Mira la pantalla para la respuesta y los puntos (próximamente).
+        </p>
+      </div>
+    );
+  }
+
+  if (state.stage === "wine_podium") {
+    return (
+      <CompanionScore
+        title={`Podio parcial · vino ${state.wineIndex + 1}/${WINE_COUNT}`}
+        state={state}
+        participants={participants}
+        meId={meId}
+      />
+    );
+  }
+
+  // final_podium
+  return (
+    <CompanionScore title="¡Cata terminada! 🍷" state={state} participants={participants} meId={meId} final />
+  );
+}
+
+/** Resumen de puntos del jugador + su puesto (parcial o final). */
+function CompanionScore({
+  title,
+  state,
+  participants,
+  meId,
+  final = false,
+}: {
+  title: string;
+  state: RoomState;
+  participants: Participant[];
+  meId: string;
+  final?: boolean;
+}) {
+  const ranked = participants
+    .filter((p) => !p.isHost)
+    .slice()
+    .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0));
+  const rank = ranked.findIndex((p) => p.id === meId) + 1;
+
+  return (
+    <div className="mt-4 rounded-none border border-primary/40 bg-card p-5 text-center">
+      <p className="serif text-2xl font-bold">{title}</p>
+      <p className="mt-3 serif text-4xl font-bold text-primary">{state.scores[meId] ?? 0} pts</p>
+      {rank > 0 && (
+        <p className="mt-1 text-sm text-foreground/70">
+          {final
+            ? (["🥇 ¡Ganas!", "🥈 2º puesto", "🥉 3er puesto"][rank - 1] ?? `Puesto ${rank} de ${ranked.length}`)
+            : `Vas ${rank}º de ${ranked.length}`}
+        </p>
+      )}
     </div>
   );
 }

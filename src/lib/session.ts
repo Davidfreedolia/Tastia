@@ -1,23 +1,53 @@
 // Contrato de la sesión de cata en vivo. Sincronizado por Supabase Realtime
 // en el canal `room:{code}`. Ver docs/ARCHITECTURE.md.
+//
+// Máquina de estados (§5.1):
+//   lobby → (por vino N: [vista, olfato, gusto, gamificacion] cada una {quiz → reveal}
+//            → wine_podium) ×4 → final_podium
+// El quiz real (§5.2), el temporizador (§5.3) y el reparto de puntos (§5.5) se acoplan
+// a este contrato más adelante; aquí solo la estructura/máquina de estados.
 
-export type SessionPhase =
+/** Etapa global de la sesión. */
+export type Stage =
   | "lobby" // sala de espera, los jugadores se unen
-  | "intro" // bienvenida del sommelier
-  | "tasting" // cata a ciegas del vino actual (se reciben apuestas)
-  | "reveal" // se revela la ficha del vino + puntos
-  | "scoring" // marcador
-  | "finished"; // podio final
+  | "playing" // catando un vino (avanza por fases y subestados)
+  | "wine_podium" // podio parcial: ranking acumulado tras cerrar el vino N
+  | "final_podium"; // podio final tras el último vino
+
+/** Fase sensorial dentro de un vino (orden fijo en `FASES`). */
+export type Fase =
+  | "vista" // examen visual
+  | "olfato" // examen olfativo
+  | "gusto" // examen gustativo
+  | "gamificacion"; // ronda de gamificación / quiniela
+
+/** Subestado dentro de una fase: la pregunta y su revelación. */
+export type Step =
+  | "quiz" // se plantea la pregunta de la fase
+  | "reveal"; // el avatar revela la respuesta de esa pregunta
+
+/** Orden autoritativo de las fases dentro de cada vino. */
+export const FASES: readonly Fase[] = ["vista", "olfato", "gusto", "gamificacion"];
 
 export const WINE_COUNT = 4;
 
-export const PHASE_LABEL: Record<SessionPhase, string> = {
+export const STAGE_LABEL: Record<Stage, string> = {
   lobby: "Sala de espera",
-  intro: "Bienvenida",
-  tasting: "Cata a ciegas",
+  playing: "En juego",
+  wine_podium: "Podio parcial",
+  final_podium: "Podio final",
+};
+
+export const FASE_LABEL: Record<Fase, string> = {
+  vista: "Vista",
+  olfato: "Olfato",
+  gusto: "Gusto",
+  gamificacion: "Gamificación",
+};
+
+export const STEP_LABEL: Record<Step, string> = {
+  quiz: "Pregunta",
   reveal: "Revelación",
-  scoring: "Puntuación",
-  finished: "Podio final",
 };
 
 export type Participant = {
@@ -27,47 +57,79 @@ export type Participant = {
   score: number;
 };
 
-/** Apuesta de un jugador para un vino. */
-export type Guess = {
-  grape?: string; // variedad
-  region?: string; // D.O.
-  priceRange?: string; // rango de precio
-  vintage?: string; // añada
-};
-
-/** Ficha de un vino (se revela al final de cada ronda). */
-export type Wine = {
-  index: number; // 0..WINE_COUNT-1
-  name: string;
-  bodega: string;
-  region: string; // D.O.
-  grape: string; // variedad
-  priceRange: string; // p. ej. "10-25€"
-  vintage: number;
-  note: string; // curiosidad / nota de cata
-};
-
-/** Estado autoritativo de la sala, lo posee la Sala (host) y se difunde a todos. */
+/**
+ * Estado autoritativo de la sala, lo posee la Sala (host) y se difunde a todos.
+ *
+ * `wineIndex`, `fase` y `step` solo son significativos cuando `stage === "playing"`;
+ * en `lobby`/`wine_podium`/`final_podium` se conservan para saber qué vino acaba de
+ * cerrarse (N = `wineIndex`).
+ */
 export type RoomState = {
-  phase: SessionPhase;
-  currentWineIndex: number; // 0..WINE_COUNT-1
-  scores: Record<string, number>; // participantId -> puntos
-  // Resultado de la última revelación: vino + puntos otorgados a cada jugador.
-  lastReveal?: { wineIndex: number; wine: Wine; awarded: Record<string, number> };
+  stage: Stage;
+  wineIndex: number; // 0..WINE_COUNT-1
+  fase: Fase;
+  step: Step;
+  scores: Record<string, number>; // participantId -> puntos acumulados (contrato §5.5)
   updatedAt: number;
 };
 
 export function initialRoomState(): RoomState {
-  return { phase: "lobby", currentWineIndex: 0, scores: {}, updatedAt: 0 };
+  return { stage: "lobby", wineIndex: 0, fase: "vista", step: "quiz", scores: {}, updatedAt: 0 };
+}
+
+/**
+ * Transición pura host-autoritativa de la máquina de estados (§5.1). Recibe el estado
+ * actual y devuelve el siguiente; no muta el original ni toca `updatedAt` (eso lo hace
+ * el hook al difundir). Implementa la I/O & Edge-Case Matrix:
+ *
+ *   lobby                         → playing, vino 0, vista/quiz
+ *   playing · quiz                → reveal (misma fase)
+ *   playing · reveal (fase<gamif) → siguiente fase, quiz
+ *   playing · gamificacion/reveal → wine_podium (ranking parcial del vino N)
+ *   wine_podium · N<últim         → playing, vino N+1, vista/quiz
+ *   wine_podium · N=últim         → final_podium
+ *   final_podium                  → final_podium (estado terminal; sin cambios)
+ *
+ * El reparto real de puntos lo añade §5.5: `scores` se transporta sin tocar.
+ */
+export function advanceState(state: RoomState): RoomState {
+  switch (state.stage) {
+    case "lobby":
+      return { ...state, stage: "playing", wineIndex: 0, fase: "vista", step: "quiz" };
+
+    case "playing": {
+      // quiz → reveal dentro de la misma fase.
+      if (state.step === "quiz") {
+        return { ...state, step: "reveal" };
+      }
+      // reveal → siguiente fase (quiz); si era la última fase → podio parcial del vino N.
+      const faseIdx = FASES.indexOf(state.fase);
+      const nextFase = FASES[faseIdx + 1];
+      if (nextFase) {
+        return { ...state, fase: nextFase, step: "quiz" };
+      }
+      return { ...state, stage: "wine_podium" };
+    }
+
+    case "wine_podium": {
+      // Vino N+1, o podio final si era el último.
+      if (state.wineIndex >= WINE_COUNT - 1) {
+        return { ...state, stage: "final_podium" };
+      }
+      return {
+        ...state,
+        stage: "playing",
+        wineIndex: state.wineIndex + 1,
+        fase: "vista",
+        step: "quiz",
+      };
+    }
+
+    case "final_podium":
+      // Estado terminal: avanzar no hace nada.
+      return state;
+  }
 }
 
 /** Eventos que envía el Companion (jugador) → recibidos por la Sala (host). */
-export type PlayerEvent =
-  | { kind: "ready"; playerId: string; name: string }
-  | {
-      kind: "answer";
-      playerId: string;
-      name: string;
-      wineIndex: number;
-      guess: Guess;
-    };
+export type PlayerEvent = { kind: "ready"; playerId: string; name: string };

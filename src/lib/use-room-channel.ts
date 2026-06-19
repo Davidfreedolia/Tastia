@@ -2,20 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabase, supabaseConfigured } from "./supabase";
 import {
+  advanceState,
   initialRoomState,
-  type Guess,
   type Participant,
   type PlayerEvent,
   type RoomState,
 } from "./session";
-import { DEMO_WINES, scoreGuess } from "./wines";
 
 function makeId() {
   const c = (globalThis as { crypto?: Crypto }).crypto;
   return c?.randomUUID ? c.randomUUID() : `p_${Math.random().toString(36).slice(2, 10)}`;
 }
-
-export type RoomAnswer = Extract<PlayerEvent, { kind: "answer" }>;
 
 type Role = "host" | "player";
 
@@ -23,10 +20,10 @@ type Role = "host" | "player";
  * Conecta a un canal Realtime `room:{code}`.
  * - presence → lista de participantes (quién está en la sala).
  * - broadcast "state" → estado autoritativo (lo emite el host, lo adoptan los jugadores).
- * - broadcast "player" → eventos del jugador (apuesta / listo), los procesa el host.
+ * - broadcast "player" → eventos del jugador (listo), los procesa el host.
  *
  * No requiere tablas en la BD: presence + broadcast funcionan solo con el canal.
- * La persistencia (tasting_sessions, etc.) se añade después.
+ * El estado de la sesión es efímero (no se persiste). La persistencia se añade después.
  */
 export function useRoomChannel(opts: { code: string; role: Role; name?: string }) {
   const { code, role, name } = opts;
@@ -34,14 +31,11 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
   const [connected, setConnected] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [state, setState] = useState<RoomState>(initialRoomState());
-  const [answers, setAnswers] = useState<RoomAnswer[]>([]); // host: apuestas del vino actual
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const meIdRef = useRef<string>("");
   const stateRef = useRef<RoomState>(state);
   stateRef.current = state;
-  const answersRef = useRef<RoomAnswer[]>(answers);
-  answersRef.current = answers;
 
   const broadcastState = useCallback((next: RoomState) => {
     channelRef.current?.send({ type: "broadcast", event: "state", payload: next });
@@ -51,34 +45,35 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
   const updateState = useCallback(
     (patch: Partial<RoomState>) => {
       if (role !== "host") return;
-      setState((prev) => {
-        const next = { ...prev, ...patch, updatedAt: Date.now() };
-        broadcastState(next);
-        return next;
-      });
+      // El broadcast va FUERA del updater de setState: un updater debe ser puro
+      // (en StrictMode se invoca dos veces y duplicaría la emisión de red).
+      const next = { ...stateRef.current, ...patch, updatedAt: Date.now() };
+      setState(next);
+      broadcastState(next);
     },
     [role, broadcastState],
   );
 
-  /** Host: cierra apuestas del vino actual, reparte puntos y revela la ficha. */
-  const revealCurrentWine = useCallback(() => {
+  /**
+   * Host: única transición de la máquina de estados (§5.1). Aplica `advanceState()`
+   * y difunde el resultado. En §5.3 el paso `quiz → reveal` también se disparará por
+   * temporizador; aquí solo lo dispara el host (el jugador nunca controla el avance).
+   */
+  const advance = useCallback(() => {
     if (role !== "host") return;
-    const wine = DEMO_WINES[stateRef.current.currentWineIndex];
-    if (!wine) return;
-    const awarded: Record<string, number> = {};
-    const scores = { ...stateRef.current.scores };
-    for (const a of answersRef.current) {
-      if (a.wineIndex !== wine.index) continue;
-      const pts = scoreGuess(a.guess, wine);
-      awarded[a.playerId] = pts;
-      scores[a.playerId] = (scores[a.playerId] ?? 0) + pts;
-    }
-    updateState({
-      phase: "reveal",
-      scores,
-      lastReveal: { wineIndex: wine.index, wine, awarded },
-    });
-  }, [role, updateState]);
+    // Igual que updateState: efecto de red fuera del updater (StrictMode-safe).
+    const next = { ...advanceState(stateRef.current), updatedAt: Date.now() };
+    setState(next);
+    broadcastState(next);
+  }, [role, broadcastState]);
+
+  /** Host: reinicia la sesión (vuelve al lobby y limpia puntuaciones). */
+  const reset = useCallback(() => {
+    if (role !== "host") return;
+    const next = { ...initialRoomState(), updatedAt: Date.now() };
+    setState(next);
+    broadcastState(next);
+  }, [role, broadcastState]);
 
   useEffect(() => {
     if (!supabaseConfigured) return;
@@ -104,25 +99,24 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
         };
       });
       setParticipants(list);
-      // El host reenvía el estado cuando alguien entra/sale (para los que llegan tarde).
+      // El host reenvía el estado cuando alguien entra/sale (para los que llegan tarde
+      // o reconectan): adoptan el estado actual y conservan sus puntos.
       if (role === "host") broadcastState(stateRef.current);
     });
 
     channel.on("broadcast", { event: "state" }, ({ payload }) => {
-      if (role === "player") setState(payload as RoomState);
+      if (role !== "player") return;
+      // Guarda de monotonía: ignora estados más antiguos que el ya adoptado
+      // (broadcasts reordenados o reenvíos de catch-up retrasados).
+      const next = payload as RoomState;
+      setState((prev) => (next.updatedAt < prev.updatedAt ? prev : next));
     });
 
     channel.on("broadcast", { event: "player" }, ({ payload }) => {
       if (role !== "host") return;
       const ev = payload as PlayerEvent;
-      if (ev.kind === "answer") {
-        setAnswers((prev) => {
-          const others = prev.filter(
-            (a) => !(a.playerId === ev.playerId && a.wineIndex === ev.wineIndex),
-          );
-          return [...others, ev];
-        });
-      }
+      // Eventos del jugador (p. ej. "ready"). El reparto de respuestas del quiz = §5.2.
+      void ev;
     });
 
     channel.subscribe(async (status) => {
@@ -143,26 +137,6 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
     };
   }, [code, role, name, broadcastState]);
 
-  // El host limpia las apuestas al cambiar de vino.
-  useEffect(() => {
-    if (role === "host") setAnswers([]);
-  }, [state.currentWineIndex, role]);
-
-  /** Jugador: envía su apuesta para el vino actual. */
-  const submitAnswer = useCallback(
-    (guess: Guess) => {
-      const ev: PlayerEvent = {
-        kind: "answer",
-        playerId: meIdRef.current,
-        name: name ?? "Invitado",
-        wineIndex: stateRef.current.currentWineIndex,
-        guess,
-      };
-      channelRef.current?.send({ type: "broadcast", event: "player", payload: ev });
-    },
-    [name],
-  );
-
   /** Jugador: señal de "listo". */
   const sendReady = useCallback(() => {
     const ev: PlayerEvent = { kind: "ready", playerId: meIdRef.current, name: name ?? "Invitado" };
@@ -175,10 +149,9 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
     meId: meIdRef.current,
     participants,
     state,
-    answers,
     updateState, // host
-    revealCurrentWine, // host
-    submitAnswer, // player
+    advance, // host
+    reset, // host
     sendReady, // player
   };
 }
