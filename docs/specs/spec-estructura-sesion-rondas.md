@@ -2,7 +2,8 @@
 title: 'Cata gamificada — Estructura de Sesión y Rondas (máquina de estados)'
 type: 'feature'
 created: '2026-06-18'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'b850668'
 context: ['docs/prd-cata-gamificada/prd.md']
 ---
 
@@ -66,11 +67,11 @@ reparto de puntos detallado (§5.5); app nativa; tocar el flujo de compra.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/session.ts` -- reemplazar `SessionPhase` por el modelo de estado: `Stage` (`lobby`|`playing`|`wine_podium`|`final_podium`), `Fase` (`vista`|`olfato`|`gusto`|`gamificacion`), `Step` (`quiz`|`reveal`); `RoomState = { stage, wineIndex, fase, step, scores, updatedAt }`; `initialRoomState()` = lobby; constantes `FASES` (orden) y `WINE_COUNT=4`.
-- [ ] `src/lib/use-room-channel.ts` -- sustituir la lógica de fase por una acción host `advance()` que aplica las transiciones de la matriz; mantener broadcast "state" + presence + adopción por jugadores; dejar `scores` como contrato (el reparto real lo añade §5.5); retirar la dependencia de `revealCurrentWine`/`scoreGuess` texto libre.
-- [ ] `src/routes/room/$code.tsx` -- botón guiado único que llama `advance()` con label según `(stage,fase,step)`; render del estado actual (vino N/4 · fase · `quiz`/`reveal` con placeholder) y de los podios (parcial y final) desde `scores`.
-- [ ] `src/routes/play/$code.tsx` -- reflejar `(stage,fase,step)` con placeholders (esperando · quiz · revelación · podio parcial · podio final); retirar el formulario de texto libre (el quiz real = §5.2).
-- [ ] Test unitario de las transiciones de la I/O Matrix (función `advance()` pura).
+- [x] `src/lib/session.ts` -- reemplazar `SessionPhase` por el modelo de estado: `Stage` (`lobby`|`playing`|`wine_podium`|`final_podium`), `Fase` (`vista`|`olfato`|`gusto`|`gamificacion`), `Step` (`quiz`|`reveal`); `RoomState = { stage, wineIndex, fase, step, scores, updatedAt }`; `initialRoomState()` = lobby; constantes `FASES` (orden) y `WINE_COUNT=4`.
+- [x] `src/lib/use-room-channel.ts` -- sustituir la lógica de fase por una acción host `advance()` que aplica las transiciones de la matriz; mantener broadcast "state" + presence + adopción por jugadores; dejar `scores` como contrato (el reparto real lo añade §5.5); retirar la dependencia de `revealCurrentWine`/`scoreGuess` texto libre.
+- [x] `src/routes/room/$code.tsx` -- botón guiado único que llama `advance()` con label según `(stage,fase,step)`; render del estado actual (vino N/4 · fase · `quiz`/`reveal` con placeholder) y de los podios (parcial y final) desde `scores`.
+- [x] `src/routes/play/$code.tsx` -- reflejar `(stage,fase,step)` con placeholders (esperando · quiz · revelación · podio parcial · podio final); retirar el formulario de texto libre (el quiz real = §5.2).
+- [x] Test unitario de las transiciones de la I/O Matrix (función `advance()` pura).
 
 **Acceptance Criteria:**
 - Given lobby con ≥1 jugador, when el host avanza, then `stage=playing`, vino 1/4, fase `vista`, step `quiz`, y los companions lo reflejan en <1,5 s.
@@ -103,3 +104,43 @@ se acoplan en §5.2/§5.3/§5.5; aquí solo placeholders + el contrato `RoomStat
 
 - 2026-06-18 · Aprobada por David → `status: ready-for-dev`. Bloque `<frozen-after-approval>` bloqueado.
   Lista para `nch-dev`. (Añadido durante discovery: podio parcial tras cada vino.)
+- 2026-06-18 · nch-dev: implementada en `feat/cata-estructura-sesion-rondas` (baseline b850668).
+  Build + 10 tests OK. Revisión adversarial (3 revisores) → patches: **A** (broadcast fuera del updater
+  de `setState`, StrictMode-safe), **B** (guarda de `updatedAt` al adoptar estado en el jugador),
+  **D** (restaurado "Nueva cata"/`reset()` desde el podio final). Diferidos a `deferred-work.md`:
+  **C** (estado efímero / recarga del host), **G** (evento `ready` inerte). Resto rechazado. → `done`.
+
+## Suggested Review Order
+
+**Máquina de estados (núcleo)**
+
+- Punto de entrada: la única transición; toda la progresión por-vino vive aquí.
+  [`session.ts:95`](../../src/lib/session.ts#L95)
+- El modelo de estado (`Stage`/`Fase`/`Step`/`RoomState`) y el orden de fases.
+  [`session.ts:67`](../../src/lib/session.ts#L67)
+
+**Capa Realtime / host autoritativo**
+
+- `advance()`: aplica la transición FUERA del updater de `setState` (StrictMode-safe) y difunde.
+  [`use-room-channel.ts:62`](../../src/lib/use-room-channel.ts#L62)
+- `reset()`: reinicia al lobby (restaura "Nueva cata" desde el podio final).
+  [`use-room-channel.ts:71`](../../src/lib/use-room-channel.ts#L71)
+- Guarda de monotonía `updatedAt` al adoptar estado en el jugador (anti-regresión por reordenación).
+  [`use-room-channel.ts:107`](../../src/lib/use-room-channel.ts#L107)
+
+**UI Sala (host)**
+
+- Botón guiado único: avanza la máquina o reinicia en el podio final.
+  [`room/$code.tsx:51`](../../src/routes/room/$code.tsx#L51)
+- Label contextual según `(stage, fase, step)`.
+  [`room/$code.tsx:17`](../../src/routes/room/$code.tsx#L17)
+
+**UI Companion (jugador)**
+
+- Placeholders por `(stage, fase, step)` (el quiz real = §5.2).
+  [`play/$code.tsx:95`](../../src/routes/play/$code.tsx#L95)
+
+**Periféricos**
+
+- Test de las transiciones (I/O Matrix + recorrido end-to-end).
+  [`session.test.ts`](../../src/lib/session.test.ts)

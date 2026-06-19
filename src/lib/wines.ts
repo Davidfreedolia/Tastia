@@ -1,8 +1,23 @@
-import type { Guess, Wine } from "./session";
-
-// PLACEHOLDER — pack de muestra (Winelover). Sustituir por los 4 vinos reales de la cata.
+// Ficha de los vinos de la cata. El contenido del quiz (§5.2) se acopla sobre estos datos.
 // Nota: vive solo en el chunk de la Sala (/room) para no filtrar las respuestas al
 // cliente del jugador; en producción esto debería resolverse en el servidor.
+//
+// El scoring por texto libre (`scoreGuess`) quedó superado al pasar a la máquina de
+// estados por fases (§5.1); el reparto real de puntos lo define §5.5.
+
+/** Ficha de un vino. */
+export type Wine = {
+  index: number; // 0..WINE_COUNT-1
+  name: string;
+  bodega: string;
+  region: string; // D.O.
+  grape: string; // variedad
+  priceRange: string; // p. ej. "10-25€"
+  vintage: number;
+  note: string; // curiosidad / nota de cata
+};
+
+// PLACEHOLDER — pack de muestra (Winelover). Sustituir por los 4 vinos reales de la cata.
 export const DEMO_WINES: Wine[] = [
   {
     index: 0,
@@ -45,16 +60,3 @@ export const DEMO_WINES: Wine[] = [
     note: "Garnacha de viñas viejas sobre suelos de grava. El 'caprichito' que sube el listón.",
   },
 ];
-
-const norm = (s?: string) => (s ?? "").trim().toLowerCase();
-
-/** Puntúa una apuesta contra la ficha real del vino. */
-export function scoreGuess(guess: Guess, wine: Wine): number {
-  let pts = 0;
-  if (guess.grape && norm(wine.grape).includes(norm(guess.grape))) pts += 20; // variedad
-  if (guess.region && norm(wine.region).includes(norm(guess.region))) pts += 30; // D.O.
-  if (guess.priceRange && norm(guess.priceRange) === norm(wine.priceRange)) pts += 15; // precio
-  const v = parseInt((guess.vintage ?? "").replace(/\D/g, ""), 10);
-  if (!Number.isNaN(v) && Math.abs(v - wine.vintage) <= 1) pts += 25; // añada ±1
-  return pts;
-}

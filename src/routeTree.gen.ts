@@ -9,10 +9,28 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as LandingRouteImport } from './routes/landing'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RoomCodeRouteImport } from './routes/room/$code'
 import { Route as PlayCodeRouteImport } from './routes/play/$code'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandingRoute = LandingRouteImport.update({
+  id: '/landing',
+  path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,36 +49,82 @@ const PlayCodeRoute = PlayCodeRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/landing': typeof LandingRoute
+  '/login': typeof LoginRoute
   '/play/$code': typeof PlayCodeRoute
   '/room/$code': typeof RoomCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/landing': typeof LandingRoute
+  '/login': typeof LoginRoute
   '/play/$code': typeof PlayCodeRoute
   '/room/$code': typeof RoomCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/landing': typeof LandingRoute
+  '/login': typeof LoginRoute
   '/play/$code': typeof PlayCodeRoute
   '/room/$code': typeof RoomCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/play/$code' | '/room/$code'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/landing'
+    | '/login'
+    | '/play/$code'
+    | '/room/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/play/$code' | '/room/$code'
-  id: '__root__' | '/' | '/play/$code' | '/room/$code'
+  to: '/' | '/admin' | '/landing' | '/login' | '/play/$code' | '/room/$code'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/landing'
+    | '/login'
+    | '/play/$code'
+    | '/room/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  LandingRoute: typeof LandingRoute
+  LoginRoute: typeof LoginRoute
   PlayCodeRoute: typeof PlayCodeRoute
   RoomCodeRoute: typeof RoomCodeRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landing': {
+      id: '/landing'
+      path: '/landing'
+      fullPath: '/landing'
+      preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,6 +151,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  LandingRoute: LandingRoute,
+  LoginRoute: LoginRoute,
   PlayCodeRoute: PlayCodeRoute,
   RoomCodeRoute: RoomCodeRoute,
 }
