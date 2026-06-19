@@ -3,7 +3,7 @@ title: Tastia — Cata gamificada (modo de juego en vivo)
 client: Tastia (producto propio · equipo de 5; David representa la visión)
 status: final
 created: 2026-06-18
-updated: 2026-06-18
+updated: 2026-06-19
 ---
 
 # PRD: Tastia — Cata gamificada (modo de juego en vivo)
@@ -279,6 +279,34 @@ El Jugador juega toda la Sesión desde el móvil sin instalar nada. Realiza UJ-2
 - Estados claros: esperando, Pregunta activa (con Cuenta atrás), respuesta enviada, Solución/Puntos, entre fases, Podio.
 - Funciona como PWA (sin app nativa).
 
+### 5.11 Registro de participante (foto) y panel de participantes en la Sala
+**Descripción:** al unirse, el Jugador indica su **nombre** y, opcionalmente, se hace una **foto** con
+la cámara del dispositivo. Su foto + nombre + Puntos aparecen siempre en la Sala, junto al Avatar.
+Durante una Pregunta activa, cada participante muestra un **estado de respuesta visual**: halo verde
+si ya respondió, rojo/opaco si aún no. Realiza UJ-2, UJ-3.
+`[ASSUMPTION: foto opcional; sin foto, inicial/avatar por defecto.]`
+
+**Functional Requirements:**
+
+#### FR-18: Registro con nombre y foto opcional
+El Jugador, al unirse, indica su nombre y puede capturar una foto con la cámara. Realiza UJ-2.
+**Consecuencias:**
+- La foto es **opcional**; sin foto se usa una inicial/avatar por defecto.
+- La foto se guarda en **Supabase Storage** (no se incrusta en el estado ni en presence). `[ASSUMPTION]`
+- La foto se **elimina al terminar la Sesión** (privacidad). `[ASSUMPTION]`
+
+#### FR-19: Panel de participantes en la Sala
+La Sala muestra, junto al Avatar, una tesela por participante con su foto, nombre y Puntos acumulados. Realiza UJ-3.
+**Consecuencias:**
+- Las teselas reflejan los Puntos en vivo (se reordenan/actualizan al repartir Puntos).
+- Un participante sin foto muestra su inicial/avatar.
+
+#### FR-20: Estado de respuesta visual durante el Quiz
+Durante una Pregunta activa, cada tesela refleja si su Jugador ya respondió: halo verde = respondió; rojo/opaco = aún no. Realiza UJ-2.
+**Consecuencias:**
+- Al pasar a la siguiente Pregunta, el estado vuelve a neutro.
+- Requiere la señal de "respondido" del Motor de Quiz. `[NOTA PM: depende de §5.2; el halo se implementa con o después de §5.2.]`
+
 ## 6. Non-Goals (explícitos)
 - **No** es app nativa (iOS/Android) — solo PWA.
 - El Jugador **no** configura ni ve la lógica del juego (tiempos, respuestas, Banco de preguntas).
@@ -291,7 +319,8 @@ El Jugador juega toda la Sesión desde el móvil sin instalar nada. Realiza UJ-2
 ### 7.1 Dentro
 - 5.1 Estructura de Sesión y Rondas · 5.2 Motor de Quiz cronometrado · 5.3 Temporizador autoritativo
   + sincronización · 5.4 Flujo del Avatar · 5.5 Puntuación/Marcador/Podio · 5.6 Banco de preguntas y
-  derivación · 5.7 Taxonomía · 5.8 Admin del juego · 5.9 Persistencia y ranking · 5.10 Companion pulido.
+  derivación · 5.7 Taxonomía · 5.8 Admin del juego · 5.9 Persistencia y ranking · 5.10 Companion pulido ·
+  5.11 Registro con foto + panel de participantes en la Sala.
 
 ### 7.2 Fuera del MVP
 - Modalidad de pregunta de **texto libre** puntuada → solo "notas" no puntuadas, o v2. *Razón: el Quiz cronometrado usa opción múltiple.*
@@ -326,6 +355,10 @@ El Jugador juega toda la Sesión desde el móvil sin instalar nada. Realiza UJ-2
 - **A6** [equipo]: **sin límite duro** de Jugadores (~20 razonable); **rotación automática** de la
   Pregunta de gamificación (variedad→clasificación→precio) con override del Admin.
 - **A7** [equipo]: ranking **mensual**; trivia/curiosidad escrita/ajustada a mano por el Admin.
+- **A8** [equipo]: foto del Jugador = **opcional** (inicial/avatar si no hay); se guarda en **Supabase
+  Storage** (no en presence) y se **elimina al terminar la Sesión**.
+- **A9** [equipo]: el **halo de respuesta** (FR-20) depende de la señal de "respondido" del Motor de
+  Quiz (§5.2); se implementa con/después de §5.2.
 
 ---
 
