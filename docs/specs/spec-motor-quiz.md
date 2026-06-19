@@ -2,7 +2,8 @@
 title: 'Cata gamificada — Motor de Quiz cronometrado (§5.2)'
 type: 'feature'
 created: '2026-06-19'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'ae1fb28'
 context: ['docs/prd-cata-gamificada/prd.md', 'docs/specs/spec-estructura-sesion-rondas.md']
 ---
 
@@ -65,12 +66,12 @@ por el banco real gestionado por admin (§5.6).
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/wines.ts` -- extender `DEMO_WINES` con nota de cata estructurada (`vista`/`olfato`/`gusto`); añadir `getQuestion(wineIndex, fase): Question` determinista: enunciado por fase, opción correcta de la nota (sensoriales) o de la ficha (gamificación: rota variedad/clasificación/precio por `wineIndex`), 3 distractores de un pool plausible del catálogo, orden barajado con seed `wineIndex+fase`.
-- [ ] `src/lib/session.ts` -- añadir tipo `Question` (`{ fase, prompt, options: string[], correctIndex }`) y extender `PlayerEvent` con `answer` (`{ kind:"answer", playerId, name, wineIndex, fase, optionIndex }`); helper `isCorrect(answer, question)`.
-- [ ] `src/lib/use-room-channel.ts` -- jugador: `submitAnswer(optionIndex)` (broadcast `answer` con `wineIndex`/`fase` actuales). Host: recoger `answers` (playerId→optionIndex) de la Pregunta actual, exponer `answeredIds` y limpiarlas al cambiar `(wineIndex,fase)`; el jugador conserva su `myAnswer` local hasta `reveal`.
-- [ ] `src/routes/room/$code.tsx` -- en `quiz`: mostrar enunciado + 4 opciones + indicador de cuántos/quiénes han respondido; en `reveal`: resaltar la opción correcta y ✓/✗ por jugador.
-- [ ] `src/routes/play/$code.tsx` -- en `quiz`: 4 opciones pulsables (resalta la elegida, permite cambiar); en `reveal`: opción correcta + tu ✓/✗.
-- [ ] Test unitario: `getQuestion` determinista (mismo orden/correctIndex para `(i,f)`), rotación de gamificación, e `isCorrect`.
+- [x] `src/lib/wines.ts` -- extender `DEMO_WINES` con nota de cata estructurada (`vista`/`olfato`/`gusto`); añadir `getQuestion(wineIndex, fase): Question` determinista: enunciado por fase, opción correcta de la nota (sensoriales) o de la ficha (gamificación: rota variedad/clasificación/precio por `wineIndex`), 3 distractores de un pool plausible del catálogo, orden barajado con seed `wineIndex+fase`.
+- [x] `src/lib/session.ts` -- añadir tipo `Question` (`{ fase, prompt, options: string[], correctIndex }`) y extender `PlayerEvent` con `answer` (`{ kind:"answer", playerId, name, wineIndex, fase, optionIndex }`); helper `isCorrect(answer, question)`.
+- [x] `src/lib/use-room-channel.ts` -- jugador: `submitAnswer(optionIndex)` (broadcast `answer` con `wineIndex`/`fase` actuales). Host: recoger `answers` (playerId→optionIndex) de la Pregunta actual, exponer `answeredIds` y limpiarlas al cambiar `(wineIndex,fase)`; el jugador conserva su `myAnswer` local hasta `reveal`.
+- [x] `src/routes/room/$code.tsx` -- en `quiz`: mostrar enunciado + 4 opciones + indicador de cuántos/quiénes han respondido; en `reveal`: resaltar la opción correcta y ✓/✗ por jugador.
+- [x] `src/routes/play/$code.tsx` -- en `quiz`: 4 opciones pulsables (resalta la elegida, permite cambiar); en `reveal`: opción correcta + tu ✓/✗.
+- [x] Test unitario: `getQuestion` determinista (mismo orden/correctIndex para `(i,f)`), rotación de gamificación, e `isCorrect`.
 
 **Acceptance Criteria:**
 - Given `step=quiz` en vino i/fase f, when la Sala y un Companion la muestran, then ven el mismo enunciado y las mismas 4 opciones en el mismo orden.
@@ -101,3 +102,42 @@ solo se usa para el indicador "respondió" y el ✓/✗ del `reveal`.
   preguntas derivadas de la nota de cata (banco demo desde `DEMO_WINES`), opción múltiple 4 con orden
   determinista, respuesta cambiable hasta `reveal`, sin timer (§5.3) ni puntos (§5.5), el host expone
   "respondió". Bloque `<frozen-after-approval>` bloqueado. **Depende de §5.1 (rama feat).**
+- 2026-06-19 · nch-dev: implementada en `feat/cata-quiz` (baseline `ae1fb28`). Build + 18 tests OK.
+  Revisión adversarial (3 revisores) → patches: **#1** `answers`/`myAnswer` key-tagged por
+  `wineIndex:fase` (elimina el race recoger-y-borrar + selección rancia), **#5** `answeredIds` ⊆
+  participantes presentes, **#2** distractores con pools curados (sin "(variante N)"). Diferido:
+  reconexión por recarga (id no persistido) → `deferred-work.md` (extiende C). → `done`.
+
+## Suggested Review Order
+
+**Derivación determinista de la Pregunta (núcleo)**
+
+- Punto de entrada: la única fuente de la Pregunta; determinista (seed `wineIndex+fase`), no viaja en `RoomState`.
+  [`wines.ts:259`](../../src/lib/wines.ts#L259)
+- Pools de distractores curados (calidad: nunca "(variante N)").
+  [`wines.ts:199`](../../src/lib/wines.ts#L199)
+- Tipo `Question`, `isCorrect` y el evento `answer`.
+  [`session.ts:139`](../../src/lib/session.ts#L139)
+
+**Flujo de respuesta / host autoritativo**
+
+- El host valida y recoge la respuesta (key-tagged → sin race de limpieza).
+  [`use-room-channel.ts:135`](../../src/lib/use-room-channel.ts#L135)
+- `answers`/`myAnswer` derivados contra la clave de pregunta actual (sin efecto de limpieza).
+  [`use-room-channel.ts:214`](../../src/lib/use-room-channel.ts#L214)
+- `answeredIds` ⊆ participantes presentes (contrato para §5.11/§5.5).
+  [`use-room-channel.ts:220`](../../src/lib/use-room-channel.ts#L220)
+- El jugador envía su elección.
+  [`use-room-channel.ts:189`](../../src/lib/use-room-channel.ts#L189)
+
+**UI**
+
+- Sala: enunciado + opciones + "respondió"; en reveal, correcta + ✓/✗.
+  [`room/$code.tsx:156`](../../src/routes/room/$code.tsx#L156)
+- Companion: opciones pulsables (cambiable) + tu ✓/✗.
+  [`play/$code.tsx:154`](../../src/routes/play/$code.tsx#L154)
+
+**Periféricos**
+
+- Tests de determinismo + rotación de gamificación + `isCorrect`.
+  [`wines.test.ts`](../../src/lib/wines.test.ts)

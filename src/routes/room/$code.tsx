@@ -3,11 +3,13 @@ import { Button } from "@/components/ui/button";
 import { useRoomChannel } from "@/lib/use-room-channel";
 import {
   FASE_LABEL,
+  isCorrect,
   STAGE_LABEL,
   WINE_COUNT,
   type Participant,
   type RoomState,
 } from "@/lib/session";
+import { getQuestion } from "@/lib/wines";
 
 export const Route = createFileRoute("/room/$code")({
   component: RoomPage,
@@ -41,7 +43,7 @@ function RoomPage() {
 
   if (!room.configured) return <SetupNotice />;
 
-  const { state, participants, advance, reset, connected } = room;
+  const { state, participants, advance, reset, connected, answers, answeredIds } = room;
   const players = participants.filter((p) => !p.isHost);
 
   const isLobby = state.stage === "lobby";
@@ -86,25 +88,9 @@ function RoomPage() {
             </div>
           </div>
 
-          {/* Fase en juego: placeholder de quiz / revelación (el contenido real = §5.2) */}
+          {/* Fase en juego: Pregunta (quiz) o Revelación (reveal) — §5.2. */}
           {state.stage === "playing" && (
-            <div className="rounded-none border border-primary/40 bg-card p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">
-                Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]}
-              </p>
-              {state.step === "quiz" ? (
-                <p className="serif text-2xl font-bold mt-1">Pregunta de {FASE_LABEL[state.fase].toLowerCase()}</p>
-              ) : (
-                <p className="serif text-2xl font-bold mt-1">
-                  Revelación de {FASE_LABEL[state.fase].toLowerCase()}
-                </p>
-              )}
-              <p className="mt-2 text-sm italic text-foreground/60">
-                {state.step === "quiz"
-                  ? "Aquí irá la pregunta y sus opciones (próximamente · §5.2)."
-                  : "Aquí irá la respuesta correcta + los puntos (próximamente · §5.2 / §5.5)."}
-              </p>
-            </div>
+            <HostQuiz state={state} players={players} answers={answers} answeredIds={answeredIds} />
           )}
 
           {/* Podio parcial tras cerrar el vino N */}
@@ -157,6 +143,85 @@ function RoomPage() {
           </div>
         </aside>
       </main>
+    </div>
+  );
+}
+
+/**
+ * Sala — Pregunta y Revelación de la fase (§5.2). Deriva la Pregunta de forma determinista
+ * con `getQuestion(wineIndex, fase)` (mismo orden que el Companion). En `quiz` muestra el
+ * enunciado + 4 opciones + indicador de quién/cuántos han respondido; en `reveal` resalta la
+ * opción correcta y marca ✓/✗ por jugador (no respondió = ✗).
+ */
+function HostQuiz({
+  state,
+  players,
+  answers,
+  answeredIds,
+}: {
+  state: RoomState;
+  players: Participant[];
+  answers: Record<string, number>;
+  answeredIds: Set<string>;
+}) {
+  const q = getQuestion(state.wineIndex, state.fase);
+  const isReveal = state.step === "reveal";
+  const answeredCount = players.filter((p) => answeredIds.has(p.id)).length;
+
+  return (
+    <div className="rounded-none border border-primary/40 bg-card p-4">
+      <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">
+        Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]} ·{" "}
+        {isReveal ? "Revelación" : "Pregunta"}
+      </p>
+      <p className="serif mt-1 text-2xl font-bold">{q.prompt}</p>
+
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        {q.options.map((opt, i) => {
+          const correct = isReveal && i === q.correctIndex;
+          return (
+            <li
+              key={i}
+              className={`flex items-center justify-between rounded-none border px-3 py-2 text-sm ${
+                correct
+                  ? "border-green-600 bg-green-600/15 font-semibold"
+                  : "border-border/60 bg-secondary/40"
+              }`}
+            >
+              <span>{opt}</span>
+              {correct && <span className="text-green-600">✓ correcta</span>}
+            </li>
+          );
+        })}
+      </ul>
+
+      {!isReveal ? (
+        <p className="mt-3 text-sm text-foreground/70">
+          Han respondido <span className="font-bold text-primary">{answeredCount}</span> de{" "}
+          {players.length} jugador{players.length === 1 ? "" : "es"}.
+          {players.length > 0 && answeredCount > 0 && (
+            <span className="ml-1 text-foreground/55">
+              ({players.filter((p) => answeredIds.has(p.id)).map((p) => p.name).join(", ")})
+            </span>
+          )}
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-1 text-sm">
+          {players.map((p) => {
+            const ans = answers[p.id];
+            const ok = ans !== undefined && isCorrect(ans, q);
+            return (
+              <li key={p.id} className="flex items-center justify-between">
+                <span className="font-medium">{p.name}</span>
+                <span className={ok ? "text-green-600" : "text-primary"}>
+                  {ans === undefined ? "✗ no respondió" : ok ? "✓ acertó" : "✗ falló"}
+                </span>
+              </li>
+            );
+          })}
+          {players.length === 0 && <li className="text-foreground/55">Sin jugadores.</li>}
+        </ul>
+      )}
     </div>
   );
 }

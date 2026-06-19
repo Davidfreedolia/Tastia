@@ -131,5 +131,36 @@ export function advanceState(state: RoomState): RoomState {
   }
 }
 
-/** Eventos que envía el Companion (jugador) → recibidos por la Sala (host). */
-export type PlayerEvent = { kind: "ready"; playerId: string; name: string };
+/**
+ * Pregunta de una fase (§5.2). NO viaja en `RoomState`: ambos lados la derivan de forma
+ * determinista con `getQuestion(wineIndex, fase)` (mismo `options`/`correctIndex` para un
+ * `(wineIndex, fase)` dado), de modo que Sala y Companion la pintan igual sin difundirla.
+ */
+export type Question = {
+  fase: Fase;
+  prompt: string;
+  options: string[]; // 4 opciones en orden determinista (seed `wineIndex+fase`)
+  correctIndex: number; // índice de la opción correcta dentro de `options`
+};
+
+/** ¿La opción `optionIndex` es la correcta de `question`? Índice fuera de rango = falso. */
+export function isCorrect(optionIndex: number, question: Question): boolean {
+  return optionIndex === question.correctIndex;
+}
+
+/**
+ * Eventos que envía el Companion (jugador) → recibidos por la Sala (host).
+ * - `ready`: señal de "listo" en el lobby.
+ * - `answer` (§5.2): elección del jugador en el quiz, etiquetada con el `(wineIndex, fase)`
+ *   actual para que el host solo cuente las respuestas de la Pregunta vigente.
+ */
+export type PlayerEvent =
+  | { kind: "ready"; playerId: string; name: string }
+  | {
+      kind: "answer";
+      playerId: string;
+      name: string;
+      wineIndex: number;
+      fase: Fase;
+      optionIndex: number;
+    };
