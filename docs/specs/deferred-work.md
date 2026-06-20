@@ -53,3 +53,13 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   `wine_classifications`) de cada vino desde `/admin`.
 - Nota: el importador CSV (#8) ya rellena ambos al importar; esto sería edición/corrección manual.
 - → Abordar tras §5.8a/§5.8b.
+
+## §5.6b-B — Persistencia de sesión (cliente): `session-finish`
+
+- Split de §5.6b. §5.6b-A aborda el quiz en vivo desde la BD (bootstrap + quiz-close + fallback).
+- Pendiente: en `final_podium`, llamar a `session-finish` (edge function de Salvador) con host_name,
+  pack_tier, players (name/points/position) + foto del ganador (data-URL) → persiste `game_sessions`/
+  `game_session_players` + sube la foto al bucket `winners`; alimenta `ranking_mensual` (§5.9).
+- Coordinar con Salvador (formato de players/foto) y depende de su deploy. Carril nuestro = la llamada
+  desde el cliente; la function es suya.
+- → Abordar tras §5.6b-A.

@@ -1,0 +1,122 @@
+---
+title: '§5.6b-A — Quiz en vivo desde la BD (bootstrap + quiz-close) con fallback demo'
+type: 'feature'
+created: '2026-06-21'
+status: 'ready-for-dev'
+context: ['{project-root}/docs/edge-functions-contract.md']
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** El bucle de juego está hardcoded en el cliente (`FASE_SECONDS`, `BASE/BONUS`,
+`getQuestion`/`DEMO_WINES`) y el jugador tiene las respuestas en su propio bundle (`/play` importa
+`getQuestion`) → ni es real ni anti-spoiler. David quiere "nada hardcoded, funcionamiento natural".
+
+**Approach:** El **host** carga `quiz-bootstrap` al montar la Sala (settings + vinos + preguntas, SIN
+respuestas), usa los `settings` para tiempos/puntos, y **difunde la pregunta activa y el reveal** (de
+`quiz-close`) dentro de `RoomState`; el **jugador solo renderiza** lo difundido (deja de derivar con
+`getQuestion`). Si la edge function no responde, **fallback completo** a las constantes/`DEMO_WINES`
+actuales con un badge "Datos demo". Anti-spoiler (opción B): el bootstrap no trae respuestas; el reveal
+llega por `quiz-close`.
+
+## Product Decisions
+
+- **Todo §5.6b-A junto** (settings + vinos/preguntas + `quiz-close`) -- decisión de David.
+- **Host-autoritario:** el host llama a bootstrap/quiz-close y difunde `activeQuestion` + `reveal` +
+  `source`; el jugador pasa a renderizador puro (se quita `getQuestion` de `/play` y del render de
+  `/room`) -- coherencia y cierra el leak de respuestas en el bundle del jugador.
+- **BD = fuente de verdad + fallback mínimo** a constantes/`DEMO_WINES` si la function falla -- demoable
+  sin deploy, nunca se rompe.
+- **Badge "Datos demo"** cuando `source === 'demo'` -- honestidad (el equipo ve que no son datos reales).
+- **Anti-spoiler B:** `quiz-bootstrap` sin respuestas; reveal por `quiz-close` (`correctOptionIndex`,
+  `correctLabel`, `revealedWine`).
+
+## Boundaries & Constraints
+
+**Always:** en modo BD el jugador NUNCA recibe la respuesta antes del reveal; el **host** es la única
+autoridad (settings, scoring, reveal, deadline); el fallback demo debe dejar el juego **plenamente
+funcional** sin la edge function; reutilizar `getQuestion`/`computeAwards`/`FASE_SECONDS`/`BASE/BONUS`
+como motor del modo demo (no duplicarlos); **proteger `advance()` de reentrada** durante el `await` de
+`quiz-close` (un solo cierre por pregunta, aunque coincidan timer y botón).
+
+**Ask First:** qué espera `quiz-bootstrap` como `code` (coordinar con Salvador; default asumido: acepta
+el código de sala y devuelve un pack demo/por defecto hasta que exista el flujo de activación/pedido);
+cualquier cambio al contrato de las edge functions.
+
+**Never:** tocar las edge functions (Deno, de Salvador), el ranking de la landing ni el avatar;
+persistir la sesión (`session-finish` = §5.6b-B, diferido); exponer `correct_answer` al cliente en modo BD.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
+|----------|--------------|---------------------------|----------------|
+| Montar Sala (BD OK) | host; `quiz-bootstrap` responde | `source='bd'`; settings y preguntas de la BD; sin respuestas en el cliente | — |
+| Montar Sala (BD falla) | invoke error/timeout / Supabase no configurado | `source='demo'`; usa `FASE_SECONDS`/`BASE` + `getQuestion`/`DEMO_WINES`; badge "Datos demo" | captura error; no rompe |
+| Entrar en quiz | `advance` → `playing/quiz` | host fija `activeQuestion {prompt,options}` + `deadline` (settings o `FASE_SECONDS`) y difunde | sin pregunta para `(i,fase)` → cae a demo de esa pregunta |
+| Cerrar quiz→reveal (BD) | `answers` + `quiz-close` | `reveal {correctOptionIndex, correctLabel, revealedWine?}` + `awards`; acumula `scores`; difunde | si `quiz-close` falla → puntúa ese cierre en local (demo) y marca `source='demo'` |
+| Cerrar quiz→reveal (demo) | `answers` | `computeAwards` local + `correctIndex` de `getQuestion` | — |
+| Jugador renderiza | recibe `state.activeQuestion`/`reveal` | pinta la pregunta y, en reveal, la opción correcta; **nunca antes** | `activeQuestion` ausente → estado de carga |
+| Cierre concurrente | timer y botón a la vez durante el `await` | un solo cierre (guard de reentrada) | ignora el segundo |
+
+</frozen-after-approval>
+
+## Code Map
+
+- `src/lib/use-room-channel.ts` -- hook host/player; `advance()` (se vuelve async), efecto de montaje (bootstrap), broadcast de estado; hoy puntúa con `computeAwards(map, getQuestion(...))` (línea 131).
+- `src/lib/session.ts` -- `RoomState` (añadir `activeQuestion?`, `reveal?`, `source?`); tipo `Question`.
+- `src/lib/quiz-source.ts` -- **NUEVO**: capa que abstrae BD-vs-demo (bootstrap/close + fallback).
+- `src/lib/wines.ts` -- `getQuestion`/`DEMO_WINES`: motor del **modo demo** (reutilizar, no romper).
+- `src/routes/room/$code.tsx` -- render del quiz; hoy `getQuestion(state.wineIndex, state.fase)` (línea 150) → pasar a `state.activeQuestion`/`state.reveal`.
+- `src/routes/play/$code.tsx` -- íd. (línea 248); quitar el import de `getQuestion`.
+- `src/lib/supabase.ts` -- `getSupabase()`; las funciones se llaman con `supabase.functions.invoke`.
+- `docs/edge-functions-contract.md` -- contrato (bootstrap sin respuestas; `quiz-close` → `correctOptionIndex/correctLabel/awards/revealedWine`).
+
+## Tasks & Acceptance
+
+**Execution:**
+- [ ] `src/lib/quiz-source.ts` (NUEVO) -- `loadQuizSource(code): Promise<QuizSource>`: intenta `quiz-bootstrap` (`functions.invoke`); OK → `source:'bd'` con `settings`, `questionFor(i,fase)→{prompt,options}` (de `questions[]`) y `closeQuiz(i,fase,answers,presentIds)→{correctOptionIndex,correctLabel,awards,revealedWine?}` (invoca `quiz-close`); error/timeout/Supabase no configurado → `source:'demo'` que envuelve `getQuestion`/`computeAwards`/`FASE_SECONDS`/`BASE`. Exportar tipos.
+- [ ] `src/lib/quiz-source.test.ts` -- modo demo: `questionFor`/`closeQuiz` coinciden con `getQuestion`/`computeAwards`; `loadQuizSource` cae a `'demo'` si Supabase no está configurado o el invoke lanza.
+- [ ] `src/lib/session.ts` -- `RoomState` += `activeQuestion?: { prompt: string; options: string[] }`, `reveal?: { correctOptionIndex: number; correctLabel: string; revealedWine?: unknown }`, `source?: 'bd' | 'demo'`; documentar que los fija el host y viajan en el broadcast.
+- [ ] `src/lib/use-room-channel.ts` -- host: al montar `loadQuizSource(code)` → ref (`settings`/`source`/`closeQuiz`/`questionFor`); `advance()` async: al entrar en `quiz` fija `activeQuestion` + `deadline` (settings o `FASE_SECONDS`) + `source`; al cerrar `quiz→reveal` `await closeQuiz(...)` → `scores`/`lastAward`/`reveal`; **guard de reentrada** (flag "cerrando"); el efecto del timer invoca la versión async. Player: no deriva; consume `state`.
+- [ ] `src/routes/room/$code.tsx` -- render desde `state.activeQuestion`/`state.reveal`; quitar `getQuestion`; badge "Datos demo" si `state.source==='demo'`.
+- [ ] `src/routes/play/$code.tsx` -- íd.; quitar el import de `getQuestion`; mismo badge.
+
+**Acceptance Criteria:**
+- Given la function desplegada, when se monta la Sala, then juega con settings/vinos/preguntas de la BD (`source='bd'`) y el bundle del jugador no contiene la respuesta antes del reveal.
+- Given un tiempo cambiado en el admin (§5.8a), when se juega en modo BD, then la cuenta atrás usa ese tiempo.
+- Given la function no disponible, when se monta, then cae a modo demo (constantes/`getQuestion`), la Sala muestra "Datos demo" y el juego funciona igual.
+- Given quiz en modo BD, when se cierra una pregunta, then `quiz-close` puntúa y revela (`correctOptionIndex`/`correctLabel`) y en la última fase del vino llega `revealedWine`.
+- Given cierre por timer y por botón a la vez, when coinciden durante el `await`, then solo se cierra una vez.
+- Given los tests existentes (session/wines/taxonomy), when corren, then siguen verdes (modo demo intacto).
+
+## Spec Change Log
+
+- 2026-06-21 — Aprobada (ready-for-dev). Alcance "todo junto" (settings + vinos/preguntas + quiz-close)
+  por decisión de David, pese a ~1800 tokens (sobre la guía de 1600). Host-autoritario, fallback demo
+  con badge "Datos demo", capa `quiz-source.ts`. §5.6b-B (session-finish) diferido a `deferred-work.md`.
+
+## Design Notes
+
+- **Host-autoritario unifica BD y demo:** el host SIEMPRE fija `activeQuestion`/`reveal`/`source` en
+  `RoomState`; solo cambia la **fuente** (`quiz-source`). El jugador pasa a renderizador puro → elimina
+  el leak actual de respuestas en el bundle de `/play`.
+- **`advance()` async + guard:** marcar "cerrando" durante el `await` de `quiz-close`; el timer y el
+  botón comprueban el guard para no cerrar dos veces (hoy `advance` es síncrona y se dispara desde
+  `setTimeout` y desde el botón).
+- **Fallback por-cierre:** si `quiz-close` falla a mitad de partida, ese cierre puntúa en local (demo) y
+  marca `source='demo'` (badge) — nunca se rompe.
+- **`code`→pack:** a coordinar con Salvador (ver *Ask First*); no bloquea el modo demo.
+
+## Verification
+
+**Commands:**
+- `bunx tsc --noEmit` -- expected: sin errores.
+- `bunx vitest run` -- expected: pasan `quiz-source` + los existentes (≥43).
+- `bun run build` -- expected: build OK.
+
+**Manual checks:**
+- Sin deploy: preview → `/room/TEST` juega en modo demo con badge "Datos demo".
+- Con deploy (cuando Salvador despliegue): `/room/TEST` juega con datos de la BD (sin badge); editar un
+  tiempo en `/admin` §5.8a cambia la cuenta atrás; el reveal muestra la opción correcta tras cerrar.
