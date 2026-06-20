@@ -2,7 +2,8 @@
 title: 'Cata gamificada — Registro con foto + panel de participantes en la Sala (§5.11)'
 type: 'feature'
 created: '2026-06-20'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '087afea'
 context: ['docs/prd-cata-gamificada/prd.md', 'docs/specs/spec-estructura-sesion-rondas.md', 'docs/specs/spec-motor-quiz.md']
 ---
 
@@ -61,11 +62,11 @@ o cualquier uso de la foto más allá de mostrarla; persistir TODAS las fotos; t
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/session.ts` -- añadir `photo?: string` a `Participant`; helper `initials(name)` (1–2 letras) para el avatar por defecto.
-- [ ] `src/lib/use-room-channel.ts` -- aceptar `photo?: string` en las opciones; incluirlo en `channel.track({ name, isHost, photo })`; leer `photo` de `presenceState` al construir `participants`.
-- [ ] `src/routes/play/$code.tsx` -- en el join: `<input type="file" accept="image/*" capture="user">` + downscale en cliente (canvas → ~128px, JPEG ~0.7 → data-URL) + botón "Sin foto"; pasar `photo` a `useRoomChannel`. Si la conversión falla, entrar sin foto.
-- [ ] `src/routes/room/$code.tsx` -- reemplazar la lista por un **panel de teselas** (foto o `initials` + nombre + puntos), presente en todas las fases; durante `quiz`, aplicar halo desde `answeredIds` (verde = respondió, rojo/opaco = no); en `wine_podium`/`final_podium` destacar el orden.
-- [ ] Test unitario: `initials(name)` (vacío, una palabra, varias palabras, espacios).
+- [x] `src/lib/session.ts` -- añadir `photo?: string` a `Participant`; helper `initials(name)` (1–2 letras) para el avatar por defecto.
+- [x] `src/lib/use-room-channel.ts` -- aceptar `photo?: string` en las opciones; incluirlo en `channel.track({ name, isHost, photo })`; leer `photo` de `presenceState` al construir `participants`.
+- [x] `src/routes/play/$code.tsx` -- en el join: `<input type="file" accept="image/*" capture="user">` + downscale en cliente (canvas → ~128px, JPEG ~0.7 → data-URL) + botón "Sin foto"; pasar `photo` a `useRoomChannel`. Si la conversión falla, entrar sin foto.
+- [x] `src/routes/room/$code.tsx` -- reemplazar la lista por un **panel de teselas** (foto o `initials` + nombre + puntos), presente en todas las fases; durante `quiz`, aplicar halo desde `answeredIds` (verde = respondió, rojo/opaco = no); en `wine_podium`/`final_podium` destacar el orden.
+- [x] Test unitario: `initials(name)` (vacío, una palabra, varias palabras, espacios).
 
 **Acceptance Criteria:**
 - Given un jugador se une con foto, when entra, then su tesela en la Sala muestra su foto reducida; si pulsa "Sin foto", muestra su inicial.
@@ -97,3 +98,40 @@ foto, ya disponible en presence en el `final_podium`) la hará §5.9 subiendo SO
   la persistencia del ganador (+foto) para el ranking se mueve a **§5.9**. Resto: `<input capture>`,
   foto opcional, halo solo en la Sala, panel único. Depende de §5.1 + §5.2 (rama feat/cata-quiz).
   Bloque `<frozen-after-approval>` bloqueado.
+- 2026-06-20 · nch-dev: implementada en `feat/cata-foto-panel` (baseline `087afea`). Build + 24 tests OK.
+  Revisión adversarial (3 revisores) → 7 patches: timeout de decode, guardas de tamaño in/out de la foto,
+  submit bloqueado mientras procesa, `initials` surrogate-safe, empates en el podio, accesibilidad del
+  avatar. Sin diferidos nuevos. → `done`.
+
+## Suggested Review Order
+
+**Captura y reducción de la foto (núcleo)**
+
+- Punto de entrada: captura → reduce a ~128px JPEG con guardas (tamaño in/out + timeout de decode).
+  [`photo.ts:24`](../../src/lib/photo.ts#L24)
+- `loadImage` con timeout (nunca cuelga el flujo).
+  [`photo.ts:76`](../../src/lib/photo.ts#L76)
+
+**Transporte por presence (no Storage)**
+
+- La foto viaja en la metadata de presence y se lee a `Participant`.
+  [`use-room-channel.ts:169`](../../src/lib/use-room-channel.ts#L169)
+- `initials` (avatar de respaldo, seguro con emojis).
+  [`session.ts:69`](../../src/lib/session.ts#L69)
+
+**Companion (alta)**
+
+- Captura opcional + "Sin foto" + submit bloqueado mientras procesa.
+  [`play/$code.tsx:34`](../../src/routes/play/$code.tsx#L34)
+
+**Sala (panel + halo)**
+
+- Panel de teselas + halo desde `answeredIds` (solo en quiz) + líder con empates.
+  [`room/$code.tsx:217`](../../src/routes/room/$code.tsx#L217)
+- Avatar (foto o iniciales).
+  [`room/$code.tsx:304`](../../src/routes/room/$code.tsx#L304)
+
+**Periféricos**
+
+- Test de `initials` (incl. emoji).
+  [`initials.test.ts`](../../src/lib/initials.test.ts)

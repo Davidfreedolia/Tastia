@@ -55,7 +55,26 @@ export type Participant = {
   name: string;
   isHost: boolean;
   score: number;
+  /** Foto en vivo opcional (§5.11): data-URL reducido (~128px JPEG) que viaja en la
+   *  metadata de presence. Si no hay foto, la Sala pinta el avatar de iniciales. */
+  photo?: string;
 };
+
+/**
+ * Iniciales para el avatar por defecto cuando un participante no tiene foto (§5.11).
+ * Devuelve 1–2 letras MAYÚSCULAS: la inicial de la primera y la última palabra
+ * (una sola letra si solo hay una palabra). Tolera vacío, espacios extra y
+ * espacios al inicio/fin. Cadena vacía / solo espacios → "" (la UI cae a un genérico).
+ */
+export function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  // Primer PUNTO DE CÓDIGO de cada palabra (no `charAt`, que parte emoji / pares
+  // subrogados): los nombres son texto libre y pueden empezar por emoji.
+  const firstCodePoint = (word: string): string => Array.from(word)[0] ?? "";
+  if (words.length === 1) return firstCodePoint(words[0]!).toUpperCase();
+  return (firstCodePoint(words[0]!) + firstCodePoint(words[words.length - 1]!)).toUpperCase();
+}
 
 /**
  * Estado autoritativo de la sala, lo posee la Sala (host) y se difunde a todos.
