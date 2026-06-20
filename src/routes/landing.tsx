@@ -733,7 +733,7 @@ function Footer({ onOpenLegal }: { onOpenLegal: (tab: LegalTab) => void }) {
         </div>
 
         <nav className="flex flex-col gap-1 md:items-start" aria-label="Footer legal">
-          <a href="mailto:hola@tastia.es" className={linkCls}>{t("link_contact")}</a>
+          <a href="mailto:hola@tastia.org" className={linkCls}>{t("link_contact")}</a>
           <button type="button" onClick={() => onOpenLegal("terms")} className={linkCls}>{t("link_terms")}</button>
           <button type="button" onClick={() => onOpenLegal("privacy")} className={linkCls}>{t("link_privacy")}</button>
           <button type="button" onClick={() => onOpenLegal("cookies")} className={linkCls}>{t("link_cookies")}</button>
