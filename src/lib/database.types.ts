@@ -140,12 +140,13 @@ export type Database = {
           active: boolean
           correct_answer: string | null
           created_at: string
+          fase: Database["public"]["Enums"]["question_fase"]
           id: string
           options: Json | null
           points: number
           text_en: string | null
           text_es: string
-          type: Database["public"]["Enums"]["question_type"]
+          type: Database["public"]["Enums"]["question_type"] | null
           updated_at: string
           wine_id: string | null
         }
@@ -153,12 +154,13 @@ export type Database = {
           active?: boolean
           correct_answer?: string | null
           created_at?: string
+          fase: Database["public"]["Enums"]["question_fase"]
           id?: string
           options?: Json | null
           points?: number
           text_en?: string | null
           text_es: string
-          type: Database["public"]["Enums"]["question_type"]
+          type?: Database["public"]["Enums"]["question_type"] | null
           updated_at?: string
           wine_id?: string | null
         }
@@ -166,12 +168,13 @@ export type Database = {
           active?: boolean
           correct_answer?: string | null
           created_at?: string
+          fase?: Database["public"]["Enums"]["question_fase"]
           id?: string
           options?: Json | null
           points?: number
           text_en?: string | null
           text_es?: string
-          type?: Database["public"]["Enums"]["question_type"]
+          type?: Database["public"]["Enums"]["question_type"] | null
           updated_at?: string
           wine_id?: string | null
         }
@@ -184,6 +187,145 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      game_session_players: {
+        Row: {
+          created_at: string
+          id: string
+          is_winner: boolean
+          name: string
+          photo_url: string | null
+          points: number
+          position: number | null
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_winner?: boolean
+          name: string
+          photo_url?: string | null
+          points?: number
+          position?: number | null
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_winner?: boolean
+          name?: string
+          photo_url?: string | null
+          points?: number
+          position?: number | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_session_players_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "game_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_sessions: {
+        Row: {
+          code: string
+          created_at: string
+          finished_at: string | null
+          host_name: string | null
+          id: string
+          order_id: string | null
+          pack_tier: Database["public"]["Enums"]["price_band"] | null
+          player_count: number
+          started_at: string
+          status: Database["public"]["Enums"]["game_session_status"]
+          updated_at: string
+          wine_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          finished_at?: string | null
+          host_name?: string | null
+          id?: string
+          order_id?: string | null
+          pack_tier?: Database["public"]["Enums"]["price_band"] | null
+          player_count?: number
+          started_at?: string
+          status?: Database["public"]["Enums"]["game_session_status"]
+          updated_at?: string
+          wine_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          finished_at?: string | null
+          host_name?: string | null
+          id?: string
+          order_id?: string | null
+          pack_tier?: Database["public"]["Enums"]["price_band"] | null
+          player_count?: number
+          started_at?: string
+          status?: Database["public"]["Enums"]["game_session_status"]
+          updated_at?: string
+          wine_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_sessions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_settings: {
+        Row: {
+          active: boolean
+          bonus_max: number
+          created_at: string
+          id: string
+          pack_tier: Database["public"]["Enums"]["price_band"] | null
+          points_base: number
+          ranking_period: string
+          time_gamificacion_s: number
+          time_gusto_s: number
+          time_olfato_s: number
+          time_vista_s: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          bonus_max?: number
+          created_at?: string
+          id?: string
+          pack_tier?: Database["public"]["Enums"]["price_band"] | null
+          points_base?: number
+          ranking_period?: string
+          time_gamificacion_s?: number
+          time_gusto_s?: number
+          time_olfato_s?: number
+          time_vista_s?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          bonus_max?: number
+          created_at?: string
+          id?: string
+          pack_tier?: Database["public"]["Enums"]["price_band"] | null
+          points_base?: number
+          ranking_period?: string
+          time_gamificacion_s?: number
+          time_gusto_s?: number
+          time_olfato_s?: number
+          time_vista_s?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       inventory: {
         Row: {
@@ -824,11 +966,43 @@ export type Database = {
           },
         ]
       }
+      wine_classifications: {
+        Row: {
+          active: boolean
+          category: Database["public"]["Enums"]["wine_category"]
+          created_at: string
+          id: string
+          label_en: string | null
+          label_es: string
+          slug: string
+        }
+        Insert: {
+          active?: boolean
+          category: Database["public"]["Enums"]["wine_category"]
+          created_at?: string
+          id?: string
+          label_en?: string | null
+          label_es: string
+          slug: string
+        }
+        Update: {
+          active?: boolean
+          category?: Database["public"]["Enums"]["wine_category"]
+          created_at?: string
+          id?: string
+          label_en?: string | null
+          label_es?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       wines: {
         Row: {
           active: boolean
           bodega: string | null
           bottle_price_cents: number | null
+          category: Database["public"]["Enums"]["wine_category"] | null
+          classification_id: string | null
           cost_cents: number | null
           created_at: string
           grape: string | null
@@ -847,6 +1021,8 @@ export type Database = {
           active?: boolean
           bodega?: string | null
           bottle_price_cents?: number | null
+          category?: Database["public"]["Enums"]["wine_category"] | null
+          classification_id?: string | null
           cost_cents?: number | null
           created_at?: string
           grape?: string | null
@@ -865,6 +1041,8 @@ export type Database = {
           active?: boolean
           bodega?: string | null
           bottle_price_cents?: number | null
+          category?: Database["public"]["Enums"]["wine_category"] | null
+          classification_id?: string | null
           cost_cents?: number | null
           created_at?: string
           grape?: string | null
@@ -881,6 +1059,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "wines_classification_id_fkey"
+            columns: ["classification_id"]
+            isOneToOne: false
+            referencedRelation: "wine_classifications"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "wines_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
@@ -890,7 +1075,30 @@ export type Database = {
         ]
       }
     }
-    Views: { [_ in never]: never }
+    Views: {
+      ranking_mensual: {
+        Row: {
+          finished_at: string | null
+          month: string | null
+          name: string | null
+          pack_tier: Database["public"]["Enums"]["price_band"] | null
+          photo_url: string | null
+          points: number | null
+          position: number | null
+          session_id: string | null
+        }
+        Relationships: []
+      }
+      wines_question_readiness: {
+        Row: {
+          fases_cubiertas: number | null
+          name: string | null
+          ready: boolean | null
+          wine_id: string | null
+        }
+        Relationships: []
+      }
+    }
     Functions: {
       assemble_order_pack: {
         Args: { p_order_id: string; p_pack_slug: string }
@@ -900,6 +1108,7 @@ export type Database = {
     }
     Enums: {
       brand_asset_type: "logo" | "tarjeta_impresion" | "etiqueta" | "imagen" | "otro"
+      game_session_status: "in_progress" | "finished" | "abandoned"
       invoice_status: "pendiente" | "pagada" | "vencida"
       order_status: "pendiente" | "pagado" | "enviado" | "entregado" | "cancelado"
       price_band: "basico" | "normal" | "premium"
@@ -913,7 +1122,15 @@ export type Database = {
         | "sobre_lacrado"
         | "otro"
       purchase_status: "borrador" | "pedido" | "recibido" | "pagado"
-      question_type: "variedad" | "denominacion" | "precio" | "anada" | "trivia"
+      question_fase: "vista" | "olfato" | "gusto" | "gamificacion"
+      question_type:
+        | "variedad"
+        | "denominacion"
+        | "precio"
+        | "anada"
+        | "trivia"
+        | "clasificacion"
+      wine_category: "tinto" | "blanco" | "rosado" | "espumoso" | "cava"
     }
     CompositeTypes: { [_ in never]: never }
   }
