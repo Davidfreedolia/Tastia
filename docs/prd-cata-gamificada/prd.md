@@ -292,8 +292,8 @@ si ya respondió, rojo/opaco si aún no. Realiza UJ-2, UJ-3.
 El Jugador, al unirse, indica su nombre y puede capturar una foto con la cámara. Realiza UJ-2.
 **Consecuencias:**
 - La foto es **opcional**; sin foto se usa una inicial/avatar por defecto.
-- La foto se guarda en **Supabase Storage** (no se incrusta en el estado ni en presence). `[ASSUMPTION]`
-- La foto se **elimina al terminar la Sesión** (privacidad). `[ASSUMPTION]`
+- La foto en vivo viaja como **data-URL reducido (~128px) en la metadata de presence** (no Storage); se borra sola al salir el Jugador (sesión efímera). *(Revisado en spec §5.11.)*
+- La **persistencia del ganador** (con su foto) para el ranking la hace **§5.9**, no §5.11.
 
 #### FR-19: Panel de participantes en la Sala
 La Sala muestra, junto al Avatar, una tesela por participante con su foto, nombre y Puntos acumulados. Realiza UJ-3.
@@ -355,8 +355,9 @@ Durante una Pregunta activa, cada tesela refleja si su Jugador ya respondió: ha
 - **A6** [equipo]: **sin límite duro** de Jugadores (~20 razonable); **rotación automática** de la
   Pregunta de gamificación (variedad→clasificación→precio) con override del Admin.
 - **A7** [equipo]: ranking **mensual**; trivia/curiosidad escrita/ajustada a mano por el Admin.
-- **A8** [equipo]: foto del Jugador = **opcional** (inicial/avatar si no hay); se guarda en **Supabase
-  Storage** (no en presence) y se **elimina al terminar la Sesión**.
+- **A8** [equipo] (revisado en spec §5.11): foto del Jugador = **opcional** (inicial/avatar si no hay);
+  foto en vivo = **data-URL reducido en presence** (no Storage; auto-efímera). La **persistencia del
+  ganador (+foto) para el ranking se hace en §5.9**.
 - **A9** [equipo]: el **halo de respuesta** (FR-20) depende de la señal de "respondido" del Motor de
   Quiz (§5.2); se implementa con/después de §5.2.
 
