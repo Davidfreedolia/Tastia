@@ -68,6 +68,30 @@ function pickDistractors(
   return shuffle(uniq, rng).slice(0, n)
 }
 
+// Distractores con preferencia: agota primero `primary` (p. ej. la misma
+// categoría, FR-12) y solo completa con `fallback` si faltan. Cubre el caso de
+// tipos con <4 clasificaciones (espumoso/rosado): se rellena con el resto.
+function pickDistractorsPref(
+  primary: string[],
+  fallback: string[],
+  correct: string,
+  n: number,
+  rng: () => number,
+): string[] {
+  const used = new Set([correct])
+  const out: string[] = []
+  for (const src of [primary, fallback]) {
+    const cands = shuffle([...new Set(src.filter((v) => v && !used.has(v)))], rng)
+    for (const c of cands) {
+      if (out.length >= n) break
+      out.push(c)
+      used.add(c)
+    }
+    if (out.length >= n) break
+  }
+  return out
+}
+
 function finalize(
   prompt: string,
   correct: string,
@@ -129,8 +153,11 @@ export function deriveQuestion(
     const sameCat = ctx.classCatalog
       .filter((c) => c.category === wine.category)
       .map((c) => c.label)
-    const pool = [...sameCat, ...ctx.classCatalog.map((c) => c.label)] // misma categoría primero
-    return finalize("¿Qué clasificación tiene este vino?", correct, pickDistractors(pool, correct, 3, rng), rng)
+    const allLabels = ctx.classCatalog.map((c) => c.label)
+    // Distractores de la MISMA categoría primero (FR-12); si hay <3 (espumoso/
+    // rosado), se completa con el resto del catálogo.
+    const distractors = pickDistractorsPref(sameCat, allLabels, correct, 3, rng)
+    return finalize("¿Qué clasificación tiene este vino?", correct, distractors, rng)
   }
 
   // precio: siempre hay 4 bandas → 4 opciones garantizadas
