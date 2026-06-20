@@ -2,7 +2,8 @@
 title: 'Cata gamificada — Puntuación, Marcador y Podio (§5.5)'
 type: 'feature'
 created: '2026-06-20'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '58dcb9e'
 context: ['docs/prd-cata-gamificada/prd.md', 'docs/specs/spec-motor-quiz.md', 'docs/specs/spec-estructura-sesion-rondas.md']
 ---
 
@@ -57,11 +58,11 @@ banco/admin (§5.6/§5.8); narración del avatar (§5.4).
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/session.ts` -- añadir `lastAward?: Record<string, number>` a `RoomState`; añadir función PURA `computeAwards(answers: Record<string, { optionIndex: number; seq: number }>, question: Question): Record<string, number>` = para cada jugador, `isCorrect` ? `100 + max(0, 50 − (puesto−1)×10)` (puesto entre los correctos ordenados por `seq` ascendente) : sin entrada. Constantes `BASE=100`, `BONUS_MAX=50`, `BONUS_STEP=10`.
-- [ ] `src/lib/use-room-channel.ts` -- en la recogida de `answers` del host, registrar el `seq` de llegada (contador incremental por Pregunta, actualizado en cada respuesta del jugador). En `advance()`, cuando la transición sea `playing/quiz → playing/reveal`: llamar `computeAwards(answersActuales, getQuestion(prev.wineIndex, prev.fase))`, sumar a `scores`, fijar `lastAward` con el reparto, y difundir ese estado (en otras transiciones, dejar `scores`/`lastAward` intactos o limpiar `lastAward` al entrar en un nuevo `quiz`).
-- [ ] `src/routes/room/$code.tsx` -- en `reveal`, mostrar "+X" por acertante (desde `lastAward`); el panel/podios ya leen `scores` (sin cambios de lectura).
-- [ ] `src/routes/play/$code.tsx` -- en `reveal`, mostrar tus "+X" (`lastAward[meId]`) junto al ✓/✗.
-- [ ] Test unitario de `computeAwards`: todos aciertan (orden→bonus), nadie acierta, un solo acertante (100+50), 6º+ acertante (bonus 0), incorrecto sin entrada.
+- [x] `src/lib/session.ts` -- añadir `lastAward?: Record<string, number>` a `RoomState`; añadir función PURA `computeAwards(answers: Record<string, { optionIndex: number; seq: number }>, question: Question): Record<string, number>` = para cada jugador, `isCorrect` ? `100 + max(0, 50 − (puesto−1)×10)` (puesto entre los correctos ordenados por `seq` ascendente) : sin entrada. Constantes `BASE=100`, `BONUS_MAX=50`, `BONUS_STEP=10`.
+- [x] `src/lib/use-room-channel.ts` -- en la recogida de `answers` del host, registrar el `seq` de llegada (contador incremental por Pregunta, actualizado en cada respuesta del jugador). En `advance()`, cuando la transición sea `playing/quiz → playing/reveal`: llamar `computeAwards(answersActuales, getQuestion(prev.wineIndex, prev.fase))`, sumar a `scores`, fijar `lastAward` con el reparto, y difundir ese estado (en otras transiciones, dejar `scores`/`lastAward` intactos o limpiar `lastAward` al entrar en un nuevo `quiz`).
+- [x] `src/routes/room/$code.tsx` -- en `reveal`, mostrar "+X" por acertante (desde `lastAward`); el panel/podios ya leen `scores` (sin cambios de lectura).
+- [x] `src/routes/play/$code.tsx` -- en `reveal`, mostrar tus "+X" (`lastAward[meId]`) junto al ✓/✗.
+- [x] Test unitario de `computeAwards`: todos aciertan (orden→bonus), nadie acierta, un solo acertante (100+50), 6º+ acertante (bonus 0), incorrecto sin entrada.
 
 **Acceptance Criteria:**
 - Given un `quiz` con respuestas correctas, when el host avanza a `reveal`, then cada acertante suma `100 + bonus` y el Marcador/podios reflejan el acumulado.
@@ -92,3 +93,37 @@ Parámetros como constantes (100/50/10); hacerlos configurables es §5.8.
   bonus `max(0,50−(puesto−1)×10)` por orden de llegada (la última cuenta); reparto único en quiz→reveal
   solo a correctos; `lastAward` para el "+X"; parámetros como constantes (config = §5.8). Depende de §5.2
   (answers/isCorrect). Bloque `<frozen-after-approval>` bloqueado.
+- 2026-06-20 · nch-dev: implementada en `feat/cata-puntuacion` (baseline `58dcb9e`). Build + 32 tests OK.
+  Revisión adversarial (3 revisores) → 1 patch: filtrar las respuestas a jugadores PRESENTES antes de
+  repartir (evita puestos de bonus y puntos fantasma de quien se fue). #1 (`seq` reasignado al cambiar
+  de respuesta) = conforme al spec ("la última cuenta"); resto rechazado. → `done`.
+
+## Suggested Review Order
+
+**Lógica de puntos (núcleo, pura)**
+
+- Punto de entrada: 100 base + bonus por orden entre correctos (función pura, testeada).
+  [`session.ts:200`](../../src/lib/session.ts#L200)
+- Constantes (100/50/10) + `lastAward` en el estado.
+  [`session.ts:185`](../../src/lib/session.ts#L185)
+
+**Reparto host-autoritativo**
+
+- `advance()`: reparte en `quiz→reveal`, acumula en `scores`, fija `lastAward`.
+  [`use-room-channel.ts:95`](../../src/lib/use-room-channel.ts#L95)
+- Filtro a participantes presentes antes de repartir (revisión #3).
+  [`use-room-channel.ts:116`](../../src/lib/use-room-channel.ts#L116)
+- Captura del `seq` (orden de llegada; la última cuenta).
+  [`use-room-channel.ts:204`](../../src/lib/use-room-channel.ts#L204)
+
+**UI "+X"**
+
+- Sala: "+X" por acertante en el `reveal`.
+  [`room/$code.tsx:196`](../../src/routes/room/$code.tsx#L196)
+- Companion: tus "+X".
+  [`play/$code.tsx:251`](../../src/routes/play/$code.tsx#L251)
+
+**Periféricos**
+
+- Tests de `computeAwards`.
+  [`session.test.ts`](../../src/lib/session.test.ts)

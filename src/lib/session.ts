@@ -89,11 +89,25 @@ export type RoomState = {
   fase: Fase;
   step: Step;
   scores: Record<string, number>; // participantId -> puntos acumulados (contrato §5.5)
+  /**
+   * Reparto de puntos de la ÚLTIMA Pregunta cerrada (§5.5): participantId → "+X".
+   * Solo significativo durante `reveal` (lo fija el host al cerrar `quiz→reveal` para pintar
+   * el "+X"); se limpia al entrar en una Pregunta nueva. `scores` es el acumulado.
+   */
+  lastAward?: Record<string, number>;
   updatedAt: number;
 };
 
 export function initialRoomState(): RoomState {
-  return { stage: "lobby", wineIndex: 0, fase: "vista", step: "quiz", scores: {}, updatedAt: 0 };
+  return {
+    stage: "lobby",
+    wineIndex: 0,
+    fase: "vista",
+    step: "quiz",
+    scores: {},
+    lastAward: {},
+    updatedAt: 0,
+  };
 }
 
 /**
@@ -165,6 +179,39 @@ export type Question = {
 /** ¿La opción `optionIndex` es la correcta de `question`? Índice fuera de rango = falso. */
 export function isCorrect(optionIndex: number, question: Question): boolean {
   return optionIndex === question.correctIndex;
+}
+
+/** Reparto de puntos por acierto (§5.5). Configurables = §5.8; aquí van como constantes. */
+export const BASE = 100; // puntos base a TODO el que acierta
+export const BONUS_MAX = 50; // bonus del 1.º correcto por orden de llegada
+export const BONUS_STEP = 10; // cuánto baja el bonus por cada puesto (mín. 0)
+
+/**
+ * Reparto PURO de puntos de una Pregunta (§5.5), host-autoritativo, sin React/Realtime.
+ *
+ * Para cada jugador que ACIERTA (`isCorrect(optionIndex, question)`):
+ *   `BASE + max(0, BONUS_MAX − (puesto−1)×BONUS_STEP)`
+ * donde `puesto` es su posición (1-based) entre los CORRECTOS ordenados por `seq` ascendente
+ * (orden de llegada de la respuesta; la última cuenta — §5.3 lo cambiará a tiempo real).
+ * Quien falla o no responde NO recibe entrada. Empate de `seq` se desempata por orden estable.
+ *
+ * Ejemplos: 1.º correcto → 150 (100+50), 2.º → 140, 3.º → 130 … 6.º → 100 (bonus a 0).
+ */
+export function computeAwards(
+  answers: Record<string, { optionIndex: number; seq: number }>,
+  question: Question,
+): Record<string, number> {
+  // Solo los correctos, ordenados por orden de llegada (seq asc) para asignar el bonus.
+  const correct = Object.entries(answers)
+    .filter(([, a]) => isCorrect(a.optionIndex, question))
+    .sort((a, b) => a[1].seq - b[1].seq);
+
+  const awards: Record<string, number> = {};
+  correct.forEach(([playerId], i) => {
+    const bonus = Math.max(0, BONUS_MAX - i * BONUS_STEP); // i = puesto−1
+    awards[playerId] = BASE + bonus;
+  });
+  return awards;
 }
 
 /**

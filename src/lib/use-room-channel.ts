@@ -3,12 +3,14 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabase, supabaseConfigured } from "./supabase";
 import {
   advanceState,
+  computeAwards,
   initialRoomState,
   type Fase,
   type Participant,
   type PlayerEvent,
   type RoomState,
 } from "./session";
+import { getQuestion } from "./wines";
 
 /** Clave intrínseca de la Pregunta actual `(wineIndex, fase)`. Las respuestas/selección
  *  se etiquetan con ella, así que al cambiar de Pregunta los valores viejos se ignoran
@@ -40,14 +42,22 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [state, setState] = useState<RoomState>(initialRoomState());
 
-  // §5.2 — Respuestas de la Pregunta actual, ETIQUETADAS con su clave `(wineIndex, fase)`.
-  // Host: `{ key, map: playerId → optionIndex }` de la Pregunta vigente (efímero).
+  // §5.2/§5.5 — Respuestas de la Pregunta actual, ETIQUETADAS con su clave `(wineIndex, fase)`.
+  // Host: `{ key, map: playerId → { optionIndex, seq }, nextSeq }` de la Pregunta vigente
+  //   (efímero). `seq` = orden de llegada de la respuesta (contador incremental por Pregunta);
+  //   se reasigna en cada respuesta del jugador, así que la ÚLTIMA cuenta también para el orden
+  //   (lo consume el reparto de puntos §5.5; §5.3 lo cambiará a tiempo real).
   //   Companion: `{ key, optionIndex }` con su propia elección local. Al cambiar de
   //   Pregunta la clave deja de coincidir y los valores viejos se descartan al derivar
   //   `answers`/`myAnswer` (sin efecto de limpieza ni carrera recoger-vaciar).
-  const [answersRec, setAnswersRec] = useState<{ key: string; map: Record<string, number> }>({
+  const [answersRec, setAnswersRec] = useState<{
+    key: string;
+    map: Record<string, { optionIndex: number; seq: number }>;
+    nextSeq: number;
+  }>({
     key: "",
     map: {},
+    nextSeq: 0,
   });
   const [myAnswerRec, setMyAnswerRec] = useState<{ key: string; optionIndex: number } | null>(null);
 
@@ -55,6 +65,10 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
   const meIdRef = useRef<string>("");
   const stateRef = useRef<RoomState>(state);
   stateRef.current = state;
+  // Espejo de `answersRec` para que el `advance()` memoizado lea las respuestas vigentes sin
+  // recrearse en cada respuesta (mismo patrón que `stateRef`); el reparto §5.5 lo consume.
+  const answersRecRef = useRef(answersRec);
+  answersRecRef.current = answersRec;
 
   const broadcastState = useCallback((next: RoomState) => {
     channelRef.current?.send({ type: "broadcast", event: "state", payload: next });
@@ -81,7 +95,39 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
   const advance = useCallback(() => {
     if (role !== "host") return;
     // Igual que updateState: efecto de red fuera del updater (StrictMode-safe).
-    const next = { ...advanceState(stateRef.current), updatedAt: Date.now() };
+    const prev = stateRef.current;
+    const next: RoomState = { ...advanceState(prev), updatedAt: Date.now() };
+
+    // §5.5 — Reparto de puntos EXACTAMENTE en el cierre `playing/quiz → playing/reveal`,
+    // una sola vez por Pregunta: las `answers` ya se descartan al cambiar de Pregunta (§5.2),
+    // así que re-entrar a `reveal` no puede re-repartir.
+    if (
+      prev.stage === "playing" &&
+      prev.step === "quiz" &&
+      next.stage === "playing" &&
+      next.step === "reveal"
+    ) {
+      // Solo cuentan las respuestas de la Pregunta que se cierra (su clave `(wineIndex, fase)`).
+      const k = qKey(prev);
+      const rec = answersRecRef.current;
+      const rawMap = rec.key === k ? rec.map : {};
+      // §5.5 (revisión): solo cuentan las respuestas de jugadores AÚN presentes — uno que
+      // respondió y se fue no debe ocupar un puesto del bonus ni acumular puntos fantasma.
+      const presentIds = new Set(Object.keys(channelRef.current?.presenceState() ?? {}));
+      const map = Object.fromEntries(
+        Object.entries(rawMap).filter(([id]) => presentIds.has(id)),
+      );
+      const awards = computeAwards(map, getQuestion(prev.wineIndex, prev.fase));
+      // Acumula sobre `scores` (no muta el previo) y transporta el reparto en `lastAward`.
+      const scores = { ...prev.scores };
+      for (const [id, pts] of Object.entries(awards)) scores[id] = (scores[id] ?? 0) + pts;
+      next.scores = scores;
+      next.lastAward = awards;
+    } else {
+      // Fuera del cierre de quiz, el "+X" no aplica: se limpia al entrar en una Pregunta nueva.
+      next.lastAward = {};
+    }
+
     setState(next);
     broadcastState(next);
   }, [role, broadcastState]);
@@ -91,7 +137,7 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     if (role !== "host") return;
     const next = { ...initialRoomState(), updatedAt: Date.now() };
     setState(next);
-    setAnswersRec({ key: "", map: {} }); // §5.2 — descarta respuestas de la cata anterior.
+    setAnswersRec({ key: "", map: {}, nextSeq: 0 }); // §5.2 — descarta respuestas de la cata anterior.
     broadcastState(next);
   }, [role, broadcastState]);
 
@@ -151,12 +197,17 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
       // Una respuesta por jugador/Pregunta: la última reemplaza a la anterior. El registro
       // va etiquetado con la clave de la Pregunta vigente: si coincide, mergea; si la
       // Pregunta cambió, reemplaza en bloque (sin arrastrar respuestas de la anterior).
+      // `seq` = contador incremental por Pregunta: marca el orden de llegada de ESTA respuesta
+      // (al cambiar/reenviar, la última vuelve a tomar el seq más alto → la última cuenta).
       const k = qKey(s);
-      setAnswersRec((prev) =>
-        prev.key === k
-          ? { key: k, map: { ...prev.map, [ev.playerId]: ev.optionIndex } }
-          : { key: k, map: { [ev.playerId]: ev.optionIndex } },
-      );
+      setAnswersRec((prev) => {
+        const base = prev.key === k ? prev : { key: k, map: {}, nextSeq: 0 };
+        return {
+          key: k,
+          map: { ...base.map, [ev.playerId]: { optionIndex: ev.optionIndex, seq: base.nextSeq } },
+          nextSeq: base.nextSeq + 1,
+        };
+      });
     });
 
     channel.subscribe(async (status) => {
@@ -215,7 +266,11 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
   // registro guardado pertenece a otra `(wineIndex, fase)` (transición a nueva Pregunta,
   // reset o lobby), se ignora y se parte de vacío/sin selección.
   const currentKey = qKey(state);
-  const answers = answersRec.key === currentKey ? answersRec.map : {};
+  // El registro interno guarda `{ optionIndex, seq }` por jugador (seq = orden, §5.5). Hacia
+  // fuera se expone el contrato §5.2 estable `playerId → optionIndex` (para ✓/✗ en reveal).
+  const answersMap = answersRec.key === currentKey ? answersRec.map : {};
+  const answers: Record<string, number> = {};
+  for (const [id, a] of Object.entries(answersMap)) answers[id] = a.optionIndex;
   const myAnswer = myAnswerRec?.key === currentKey ? myAnswerRec.optionIndex : null;
 
   // §5.2 — Contrato "respondió": conjunto de jugadores que han respondido la Pregunta

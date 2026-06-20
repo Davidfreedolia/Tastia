@@ -206,7 +206,7 @@ function CompanionBody({
   }
 
   if (state.stage === "playing") {
-    return <PlayerQuiz state={state} submitAnswer={submitAnswer} myAnswer={myAnswer} />;
+    return <PlayerQuiz state={state} submitAnswer={submitAnswer} myAnswer={myAnswer} meId={meId} />;
   }
 
   if (state.stage === "wine_podium") {
@@ -237,14 +237,18 @@ function PlayerQuiz({
   state,
   submitAnswer,
   myAnswer,
+  meId,
 }: {
   state: RoomState;
   submitAnswer: (optionIndex: number) => void;
   myAnswer: number | null;
+  meId: string;
 }) {
   const q = getQuestion(state.wineIndex, state.fase);
   const isReveal = state.step === "reveal";
   const gotIt = myAnswer !== null && isCorrect(myAnswer, q);
+  // §5.5 — tu "+X" de esta Pregunta (solo si has acertado; en reveal).
+  const myAward = state.lastAward?.[meId];
 
   return (
     <div className="mt-4 rounded-none border border-primary/40 bg-card p-4">
@@ -292,7 +296,9 @@ function PlayerQuiz({
           {myAnswer === null ? (
             <span className="text-primary">✗ No respondiste</span>
           ) : gotIt ? (
-            <span className="text-green-600">✓ ¡Acertaste!</span>
+            <span className="text-green-600">
+              ✓ ¡Acertaste!{myAward ? <span className="ml-1 font-bold">+{myAward}</span> : null}
+            </span>
           ) : (
             <span className="text-primary">✗ Fallaste</span>
           )}

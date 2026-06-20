@@ -4,10 +4,12 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceState,
+  computeAwards,
   FASES,
   initialRoomState,
   WINE_COUNT,
   type Fase,
+  type Question,
   type RoomState,
   type Stage,
   type Step,
@@ -102,5 +104,93 @@ describe("advanceState — I/O & Edge-Case Matrix (§5.1)", () => {
       s = advanceState(s); // wine_podium → siguiente vino o final_podium
     }
     expect(s.stage).toBe<Stage>("final_podium");
+  });
+});
+
+// Pregunta de juguete para el reparto (§5.5): la correcta es la opción 1.
+const QUESTION: Question = {
+  fase: "vista",
+  prompt: "?",
+  options: ["a", "b", "c", "d"],
+  correctIndex: 1,
+};
+
+describe("computeAwards — reparto de puntos (§5.5)", () => {
+  it("todos aciertan: base 100 + bonus por orden de llegada (seq asc) 50/40/30…", () => {
+    const awards = computeAwards(
+      {
+        a: { optionIndex: 1, seq: 0 }, // 1.º correcto
+        b: { optionIndex: 1, seq: 1 }, // 2.º correcto
+        c: { optionIndex: 1, seq: 2 }, // 3.º correcto
+      },
+      QUESTION,
+    );
+    expect(awards).toEqual({ a: 150, b: 140, c: 130 });
+  });
+
+  it("el orden lo fija `seq` (no el orden de inserción del objeto)", () => {
+    const awards = computeAwards(
+      {
+        late: { optionIndex: 1, seq: 5 },
+        early: { optionIndex: 1, seq: 1 },
+      },
+      QUESTION,
+    );
+    expect(awards).toEqual({ early: 150, late: 140 });
+  });
+
+  it("nadie acierta: reparto vacío (todas incorrectas)", () => {
+    const awards = computeAwards(
+      {
+        a: { optionIndex: 0, seq: 0 },
+        b: { optionIndex: 3, seq: 1 },
+      },
+      QUESTION,
+    );
+    expect(awards).toEqual({});
+  });
+
+  it("sin respuestas: reparto vacío", () => {
+    expect(computeAwards({}, QUESTION)).toEqual({});
+  });
+
+  it("un solo acertante: 100 + 50 = 150", () => {
+    expect(computeAwards({ a: { optionIndex: 1, seq: 0 } }, QUESTION)).toEqual({ a: 150 });
+  });
+
+  it("el 6.º correcto en adelante: bonus topado a 0 (solo base 100)", () => {
+    const map: Record<string, { optionIndex: number; seq: number }> = {};
+    for (let i = 0; i < 7; i++) map[`p${i}`] = { optionIndex: 1, seq: i };
+    const awards = computeAwards(map, QUESTION);
+    expect(awards.p0).toBe(150); // 1.º: 100 + 50
+    expect(awards.p4).toBe(110); // 5.º: 100 + 10
+    expect(awards.p5).toBe(100); // 6.º: 100 + 0 (bonus topado)
+    expect(awards.p6).toBe(100); // 7.º: sigue topado a 0
+  });
+
+  it("incorrecto → sin entrada; solo entran los correctos", () => {
+    const awards = computeAwards(
+      {
+        ok1: { optionIndex: 1, seq: 0 }, // correcto
+        bad: { optionIndex: 2, seq: 1 }, // incorrecto → sin entrada
+        ok2: { optionIndex: 1, seq: 2 }, // correcto (2.º entre los correctos)
+      },
+      QUESTION,
+    );
+    expect(awards).toEqual({ ok1: 150, ok2: 140 });
+    expect("bad" in awards).toBe(false);
+  });
+
+  it("el bonus depende del puesto ENTRE correctos, no del seq absoluto", () => {
+    // bad llega antes (seq 0) pero falla; los correctos son 1.º y 2.º pese a seq 1 y 2.
+    const awards = computeAwards(
+      {
+        bad: { optionIndex: 0, seq: 0 },
+        ok1: { optionIndex: 1, seq: 1 },
+        ok2: { optionIndex: 1, seq: 2 },
+      },
+      QUESTION,
+    );
+    expect(awards).toEqual({ ok1: 150, ok2: 140 });
   });
 });
