@@ -2,44 +2,51 @@
 // Sin red ni BD: parseo de CSV, mapeo fila→registro y cálculo de precios. Lo importan tanto
 // `scripts/import-wines.mjs` (upsert real vía Supabase) como `src/lib/import-wines.test.ts`.
 //
+// ESQUEMA REAL (fuente de verdad = Salvador, PR #7, ya aplicado en Supabase):
+//   - enum `wine_category` = tinto | blanco | rosado | espumoso | cava
+//   - tabla `wine_classifications (category wine_category, slug text, ...)`, unique(category, slug)
+//   - `wines.category` (wine_category) + `wines.classification_id` (FK → wine_classifications.id)
+// El importador NO toca el esquema: valida (category, classification_slug) contra el catálogo
+// de Salvador (espejo `WINE_CLASSIFICATIONS` abajo) y el .mjs resuelve `classification_id`
+// consultando `wine_classifications` por (category, slug).
+//
 // REGLA DE PRECIO (§5.6a): cost_cents = round(pvp_eur × 100 × 0.40)  (PVP − 60%).
 //             bottle_price_cents = round(pvp_eur × 100).
 //
-// FORMATO CSV (cabecera obligatoria, en este orden lógico; el parseo es por NOMBRE de columna):
-//   sku,name,bodega,region,grape,vintage,wine_type,classification,pvp_eur,vista,nariz,boca,curiosidad
+// FORMATO CSV (cabecera obligatoria; el parseo es por NOMBRE de columna):
+//   sku,name,bodega,region,grape,vintage,category,classification_slug,pvp_eur,vista,nariz,boca,curiosidad
 // - `region`  → se guarda en wines.region_es.
 // - `vista/nariz/boca/curiosidad` → tasting_notes (_es). Pueden ir vacías.
-// - `wine_type` ∈ WINE_TYPES; `classification` ∈ WINE_TAXONOMY[wine_type] (§5.7).
+// - `category` ∈ WINE_CATEGORIES; `classification_slug` ∈ WINE_CLASSIFICATIONS[category].
 
-// Copia FROZEN de la taxonomía (§5.7, espejo de src/lib/taxonomy.ts). El test cruza esta copia
-// contra taxonomy.ts para que no se desincronicen. Se duplica aquí para que el .mjs sea
-// ejecutable por Node sin pasar por el build de TS.
-export const WINE_TAXONOMY = {
-  tinto: ["joven", "cosecha", "roble", "crianza", "reserva", "gran reserva"],
+// Espejo del seed de Salvador (`wine_classifications`): category → [slug, ...].
+// Es la lista de slugs sembrados en la BD; la validación de pertenencia vive aquí (puro) y la
+// resolución a `classification_id` la hace el .mjs consultando la tabla real.
+export const WINE_CLASSIFICATIONS = {
+  tinto: ["joven", "cosecha", "roble", "crianza", "reserva", "gran_reserva"],
   blanco: [
-    "joven",
-    "barrica",
-    "crianza",
-    "reserva",
-    "gran reserva",
-    "sobre lías",
-    "depósito inerte",
-    "velo de flor",
+    "barrica_crianza",
+    "barrica_reserva",
+    "barrica_gran_reserva",
+    "lias_con_battonage",
+    "lias_sin_battonage",
+    "deposito_inerte",
+    "velo_flor",
   ],
-  rosado: ["joven", "roble", "sobre lías"],
-  espumoso: ["blanco", "rosado"],
+  rosado: ["joven", "roble", "lias_con_battonage", "lias_sin_battonage"],
+  espumoso: ["color_blanco", "color_rosa"],
   cava: [
     "crianza",
     "reserva",
-    "gran reserva",
-    "paraje calificado",
-    "brut nature",
-    "extra brut",
+    "gran_reserva",
+    "paraje_calificado",
+    "brut_nature",
+    "extra_brut",
     "seco",
   ],
 };
 
-export const WINE_TYPES = Object.keys(WINE_TAXONOMY);
+export const WINE_CATEGORIES = Object.keys(WINE_CLASSIFICATIONS);
 
 /** Columnas esperadas en la cabecera del CSV (orden de referencia). */
 export const CSV_COLUMNS = [
@@ -49,8 +56,8 @@ export const CSV_COLUMNS = [
   "region",
   "grape",
   "vintage",
-  "wine_type",
-  "classification",
+  "category",
+  "classification_slug",
   "pvp_eur",
   "vista",
   "nariz",
@@ -68,10 +75,10 @@ export function costCents(pvpEur) {
   return Math.round(pvpEur * 100 * 0.4);
 }
 
-/** ¿`type`+`classification` son miembros válidos de la taxonomía (§5.7)? */
-export function isValidTaxonomy(wineType, classification) {
-  const list = WINE_TAXONOMY[wineType];
-  return Array.isArray(list) && list.includes(classification);
+/** ¿`category`+`classification_slug` son miembros válidos del catálogo de Salvador? */
+export function isValidClassification(category, classificationSlug) {
+  const list = WINE_CLASSIFICATIONS[category];
+  return Array.isArray(list) && list.includes(classificationSlug);
 }
 
 /**
@@ -139,7 +146,7 @@ export function parseWinesCsv(text) {
 
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const idx = (name) => header.indexOf(name);
-  const required = ["sku", "name", "wine_type", "classification", "pvp_eur"];
+  const required = ["sku", "name", "category", "classification_slug", "pvp_eur"];
   const missing = required.filter((c) => idx(c) === -1);
   if (missing.length > 0) {
     return {
@@ -166,13 +173,14 @@ export function parseWinesCsv(text) {
 
 /**
  * Mapea UNA fila (accesor `get(columnName)`) a un registro `{ wine, note }`, o a `{ error }`
- * si es inválida. Función PURA — el corazón testeable del importador.
+ * si es inválida. Función PURA — el corazón testeable del importador. NO resuelve la FK:
+ * emite `category` + `classification_slug`; el .mjs traduce el slug a `classification_id`.
  */
 export function mapRowToRecord(get) {
   const sku = get("sku");
   const name = get("name");
-  const wineType = get("wine_type");
-  const classification = get("classification");
+  const category = get("category");
+  const classificationSlug = get("classification_slug");
   const pvpRaw = get("pvp_eur").replace(",", "."); // admite coma decimal europea
 
   if (!sku) return { error: "sku vacío" };
@@ -182,9 +190,12 @@ export function mapRowToRecord(get) {
   if (!Number.isFinite(pvp) || pvp <= 0) {
     return { error: `pvp_eur inválido: "${get("pvp_eur")}"` };
   }
-  if (!isValidTaxonomy(wineType, classification)) {
+  if (!WINE_CATEGORIES.includes(category)) {
+    return { error: `category inválida: "${category}" (∉ wine_category)` };
+  }
+  if (!isValidClassification(category, classificationSlug)) {
     return {
-      error: `taxonomía inválida: wine_type="${wineType}" / classification="${classification}" (§5.7)`,
+      error: `clasificación inválida: category="${category}" / classification_slug="${classificationSlug}" (∉ wine_classifications)`,
     };
   }
 
@@ -205,8 +216,8 @@ export function mapRowToRecord(get) {
     region_es: get("region") || null,
     grape: get("grape") || null,
     vintage,
-    wine_type: wineType,
-    classification,
+    category,
+    classification_slug: classificationSlug,
     bottle_price_cents: bottlePriceCents(pvp),
     cost_cents: costCents(pvp),
   };

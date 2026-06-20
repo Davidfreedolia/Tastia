@@ -94,6 +94,14 @@ importador. Aplicar las migraciones al remoto se hará con `supabase db push` (e
   Build OK · 54 tests. La revisión adversarial por sub-agentes NO pudo correr (clasificador del modelo
   caído) → **revisión MANUAL del orquestador**: SQL (columnas, idempotencia, taxonomía EXACTA, cost=40% PVP,
   `price_band` ∈ enum) e importador (parsing robusto, validación, sin secretos) — sin defectos. → `done`.
+- 2026-06-20 · **RECONCILIACIÓN con el PR #7 de Salvador (`sahlvah`)**, que ya aplicó en producción el
+  esquema real de §5.6–§5.9. Conflicto detectado: colisión de timestamps + esquema divergente (él:
+  `wines.category` + `classification_id` → tabla `wine_classifications`; nosotros: columnas TEXT
+  `wine_type`/`classification`). Acción: **ELIMINADAS las 2 migraciones** (`wines_taxonomy`,
+  `seed_wines_demo`) — superadas por su `taxonomy.sql` (LIVE). El **importador se retargetea a SU
+  esquema** (`category` + `classification_slug` → `classification_id`); los 12 vinos pasan a
+  `scripts/wines-demo.csv` para sembrar con su esquema. §5.6a queda como **importador + datos**, sin
+  migración propia. Build OK · 55 tests. `taxonomy.ts` (cliente) se alineará a `wine_classifications` al cablear §5.6b.
 
 ## Suggested Review Order
 
