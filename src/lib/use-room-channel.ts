@@ -33,8 +33,8 @@ type Role = "host" | "player";
  * No requiere tablas en la BD: presence + broadcast funcionan solo con el canal.
  * El estado de la sesión es efímero (no se persiste). La persistencia se añade después.
  */
-export function useRoomChannel(opts: { code: string; role: Role; name?: string }) {
-  const { code, role, name } = opts;
+export function useRoomChannel(opts: { code: string; role: Role; name?: string; photo?: string }) {
+  const { code, role, name, photo } = opts;
 
   const [connected, setConnected] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -108,7 +108,7 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
     channelRef.current = channel;
 
     channel.on("presence", { event: "sync" }, () => {
-      const ps = channel.presenceState<{ name: string; isHost: boolean }>();
+      const ps = channel.presenceState<{ name: string; isHost: boolean; photo?: string }>();
       const list: Participant[] = Object.entries(ps).map(([id, metas]) => {
         const m = metas[0];
         return {
@@ -116,6 +116,8 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
           name: m?.name ?? "Invitado",
           isHost: !!m?.isHost,
           score: stateRef.current.scores[id] ?? 0,
+          // §5.11 — foto en vivo desde la metadata de presence (data-URL reducido); opcional.
+          photo: m?.photo,
         };
       });
       setParticipants(list);
@@ -163,6 +165,8 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
         await channel.track({
           name: name ?? (role === "host" ? "Sala" : "Invitado"),
           isHost: role === "host",
+          // §5.11 — foto en vivo (data-URL ~128px JPEG) en presence; ausente si no hay.
+          ...(photo ? { photo } : {}),
         });
         if (role === "host") broadcastState(stateRef.current);
       }
@@ -173,7 +177,7 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string }
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [code, role, name, broadcastState]);
+  }, [code, role, name, photo, broadcastState]);
 
   /** Jugador: señal de "listo". */
   const sendReady = useCallback(() => {

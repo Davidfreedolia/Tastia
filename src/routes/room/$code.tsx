@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useRoomChannel } from "@/lib/use-room-channel";
 import {
   FASE_LABEL,
+  initials,
   isCorrect,
   STAGE_LABEL,
   WINE_COUNT,
@@ -119,28 +120,9 @@ function RoomPage() {
           </div>
         </section>
 
-        {/* Marcador */}
+        {/* Panel de participantes (foto/inicial + nombre + puntos), siempre presente */}
         <aside className="flex flex-col gap-4">
-          <div className="rounded-none border border-border/60 bg-card p-4">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">
-              Jugadores ({players.length})
-            </p>
-            {players.length === 0 ? (
-              <p className="text-sm text-foreground/55">Nadie se ha unido todavía.</p>
-            ) : (
-              <ul className="space-y-2">
-                {players
-                  .slice()
-                  .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0))
-                  .map((p) => (
-                    <li key={p.id} className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{p.name}</span>
-                      <span className="serif font-bold text-primary">{state.scores[p.id] ?? 0} pts</span>
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </div>
+          <ParticipantPanel state={state} players={players} answeredIds={answeredIds} />
         </aside>
       </main>
     </div>
@@ -226,6 +208,132 @@ function HostQuiz({
   );
 }
 
+/**
+ * Panel de participantes (§5.11) — una tesela por jugador con foto/inicial + nombre + puntos.
+ * Presente en TODAS las fases. Durante `quiz` aplica un halo derivado de `answeredIds`
+ * (función pura de pertenencia): VERDE = ha respondido, ROJO/opaco = no. Fuera de `quiz`
+ * (reveal/podios/lobby) el halo es neutro. En `wine_podium`/`final_podium` destaca al líder.
+ */
+function ParticipantPanel({
+  state,
+  players,
+  answeredIds,
+}: {
+  state: RoomState;
+  players: Participant[];
+  answeredIds: Set<string>;
+}) {
+  // El halo de respuesta solo se pinta durante el quiz de un vino en juego.
+  const quizPhase = state.stage === "playing" && state.step === "quiz";
+  const isPodium = state.stage === "wine_podium" || state.stage === "final_podium";
+
+  const ranked = players.slice().sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0));
+  // El/los líder(es) se destacan en los podios; con empate en lo más alto comparten puesto
+  // (PRD), así que se marcan TODOS los que igualan el máximo (cuando el máximo > 0).
+  const maxScore = ranked.length > 0 ? (state.scores[ranked[0].id] ?? 0) : 0;
+  const leaderIds =
+    isPodium && maxScore > 0
+      ? new Set(players.filter((p) => (state.scores[p.id] ?? 0) === maxScore).map((p) => p.id))
+      : new Set<string>();
+
+  return (
+    <div className="rounded-none border border-border/60 bg-card p-4">
+      <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">
+        Participantes ({players.length})
+      </p>
+      {players.length === 0 ? (
+        <p className="text-sm text-foreground/55">Nadie se ha unido todavía.</p>
+      ) : (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {ranked.map((p) => (
+            <ParticipantTile
+              key={p.id}
+              participant={p}
+              score={state.scores[p.id] ?? 0}
+              quizPhase={quizPhase}
+              answered={answeredIds.has(p.id)}
+              isLeader={leaderIds.has(p.id)}
+              isFinal={state.stage === "final_podium"}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Tesela del panel: avatar + nombre + puntos, con halo de respuesta y resaltado de líder. */
+function ParticipantTile({
+  participant,
+  score,
+  quizPhase,
+  answered,
+  isLeader,
+  isFinal,
+}: {
+  participant: Participant;
+  score: number;
+  quizPhase: boolean;
+  answered: boolean;
+  isLeader: boolean;
+  isFinal: boolean;
+}) {
+  // Halo: solo en quiz. Verde si respondió; rojo/opaco si no. Neutro fuera del quiz.
+  const halo = quizPhase
+    ? answered
+      ? "border-green-600 ring-2 ring-green-600/60"
+      : "border-red-500/50 opacity-50"
+    : "border-border/60";
+  const leader = isLeader ? "bg-gold/15 border-gold ring-2 ring-gold/60" : "bg-secondary/40";
+
+  return (
+    <li
+      className={`flex flex-col items-center gap-2 rounded-none border p-3 text-center transition-all ${quizPhase ? halo : `${leader} border`}`}
+    >
+      <Avatar name={participant.name} photo={participant.photo} answered={quizPhase ? answered : undefined} />
+      <span className="line-clamp-1 w-full text-sm font-medium" title={participant.name}>
+        {isLeader ? `${isFinal ? "🏆" : "🥇"} ` : ""}
+        {participant.name}
+      </span>
+      <span className="serif text-sm font-bold text-primary">{score} pts</span>
+    </li>
+  );
+}
+
+/** Avatar de la Sala: foto reducida si la hay, si no las iniciales del nombre (§5.11). */
+function Avatar({
+  name,
+  photo,
+  answered,
+}: {
+  name: string;
+  photo?: string;
+  answered?: boolean;
+}) {
+  // Anillo del avatar coherente con el halo de la tesela durante el quiz.
+  const ring =
+    answered === undefined ? "" : answered ? "ring-2 ring-green-600" : "ring-2 ring-red-500/60";
+  const label = initials(name) || "·";
+  if (photo) {
+    return (
+      <img
+        src={photo}
+        alt={name || "Participante"}
+        className={`h-14 w-14 shrink-0 rounded-full border border-border/60 object-cover ${ring}`}
+      />
+    );
+  }
+  return (
+    <span
+      className={`grid h-14 w-14 shrink-0 place-items-center rounded-full border border-border/60 bg-secondary text-lg font-bold text-foreground/70 ${ring}`}
+      role="img"
+      aria-label={name || "Participante"}
+    >
+      {label}
+    </span>
+  );
+}
+
 /** Podio (parcial o final) calculado desde `scores`. */
 function Podium({
   title,
@@ -239,6 +347,9 @@ function Podium({
   highlightTop?: boolean;
 }) {
   const ranked = players.slice().sort((a, b) => (scores[b.id] ?? 0) - (scores[a.id] ?? 0));
+  // Empate en lo más alto = comparten puesto (PRD): se resaltan TODOS los que igualan el
+  // máximo (cuando el máximo > 0), no solo el primero de la lista.
+  const maxScore = ranked.length > 0 ? (scores[ranked[0].id] ?? 0) : 0;
   return (
     <div className="rounded-none border border-primary/40 bg-card p-5">
       <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">{title}</p>
@@ -250,7 +361,9 @@ function Podium({
             <li
               key={p.id}
               className={`flex items-center justify-between rounded-none px-3 py-2 ${
-                highlightTop && idx === 0 ? "bg-gold text-ink" : "bg-secondary/50"
+                highlightTop && maxScore > 0 && (scores[p.id] ?? 0) === maxScore
+                  ? "bg-gold text-ink"
+                  : "bg-secondary/50"
               }`}
             >
               <span className="font-semibold">

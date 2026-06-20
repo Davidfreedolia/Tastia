@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useRoomChannel } from "@/lib/use-room-channel";
 import {
   FASE_LABEL,
+  initials,
   isCorrect,
   STAGE_LABEL,
   WINE_COUNT,
@@ -11,6 +12,7 @@ import {
   type RoomState,
 } from "@/lib/session";
 import { getQuestion } from "@/lib/wines";
+import { downscaleImage } from "@/lib/photo";
 import { supabaseConfigured } from "@/lib/supabase";
 
 export const Route = createFileRoute("/play/$code")({
@@ -21,21 +23,69 @@ function PlayPage() {
   const { code } = Route.useParams();
   const [name, setName] = useState("");
   const [joined, setJoined] = useState(false);
+  // §5.11 — foto opcional: data-URL reducido (~128px JPEG) o null (avatar de iniciales).
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   if (!supabaseConfigured) return <SetupNotice />;
 
   if (!joined) {
+    const onPickPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = ""; // permite re-elegir el mismo archivo.
+      if (!file) return;
+      setProcessing(true);
+      // Si la conversión falla o la imagen es ilegible, se entra SIN foto (avatar).
+      const reduced = await downscaleImage(file).catch(() => null);
+      setPhoto(reduced);
+      setProcessing(false);
+    };
+
     return (
       <div className="grid min-h-screen place-items-center bg-background px-6">
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) setJoined(true);
+            // Solo unir si hay nombre y la foto ya no se está procesando: evita que Enter
+            // sortee el botón deshabilitado y entre con la foto a medio resolver.
+            if (name.trim() && !processing) setJoined(true);
           }}
           className="w-full max-w-sm rounded-none border border-border/60 bg-card p-6 text-center"
         >
           <h1 className="serif text-2xl font-bold text-primary">Únete a la cata</h1>
           <p className="mt-1 text-sm text-foreground/60">Sala {code}</p>
+
+          {/* §5.11 — avatar opcional: foto reducida o iniciales del nombre. */}
+          <div className="mt-5 flex flex-col items-center gap-3">
+            <Avatar name={name} photo={photo} size="lg" />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="user"
+              className="hidden"
+              onChange={onPickPhoto}
+            />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outlineWine"
+                size="sm"
+                disabled={processing}
+                onClick={() => fileRef.current?.click()}
+              >
+                {processing ? "Procesando…" : photo ? "Cambiar foto" : "Añadir foto"}
+              </Button>
+              {photo && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setPhoto(null)}>
+                  Sin foto
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-foreground/50">La foto es opcional. Sin ella se usa tu inicial.</p>
+          </div>
+
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -43,7 +93,7 @@ function PlayPage() {
             maxLength={24}
             className="mt-5 w-full rounded-none border border-border bg-background px-3 py-3 text-center text-lg outline-none focus:border-primary"
           />
-          <Button type="submit" variant="wine" size="lg" className="mt-4 w-full" disabled={!name.trim()}>
+          <Button type="submit" variant="wine" size="lg" className="mt-4 w-full" disabled={!name.trim() || processing}>
             Entrar
           </Button>
         </form>
@@ -51,11 +101,43 @@ function PlayPage() {
     );
   }
 
-  return <Companion code={code} name={name.trim()} />;
+  return <Companion code={code} name={name.trim()} photo={photo ?? undefined} />;
 }
 
-function Companion({ code, name }: { code: string; name: string }) {
-  const room = useRoomChannel({ code, role: "player", name });
+/** Avatar reutilizable: foto reducida si la hay, si no las iniciales del nombre (§5.11). */
+function Avatar({
+  name,
+  photo,
+  size = "md",
+}: {
+  name: string;
+  photo?: string | null;
+  size?: "md" | "lg";
+}) {
+  const dim = size === "lg" ? "h-20 w-20 text-xl" : "h-10 w-10 text-sm";
+  const label = initials(name) || "·";
+  if (photo) {
+    return (
+      <img
+        src={photo}
+        alt={name || "Participante"}
+        className={`${dim} shrink-0 rounded-full border border-border/60 object-cover`}
+      />
+    );
+  }
+  return (
+    <span
+      className={`${dim} grid shrink-0 place-items-center rounded-full border border-border/60 bg-secondary font-bold text-foreground/70`}
+      role="img"
+      aria-label={name || "Participante"}
+    >
+      {label}
+    </span>
+  );
+}
+
+function Companion({ code, name, photo }: { code: string; name: string; photo?: string }) {
+  const room = useRoomChannel({ code, role: "player", name, photo });
   const { state, connected, participants, meId, submitAnswer, myAnswer } = room;
 
   return (
