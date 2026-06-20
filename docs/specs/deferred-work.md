@@ -13,6 +13,9 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
 - Mitigación parcial ya aplicada en este cambio: guarda de `updatedAt` (los jugadores ignoran estados
   más antiguos que el ya adoptado).
 - → Abordar en **Persistencia/ranking (§5.9)** o una feature de robustez de sesión.
+- **§5.2 lo agrava:** al recargar, el jugador obtiene un `playerId` nuevo (`meId` no persistido) → su
+  respuesta del quiz queda huérfana bajo el id viejo y aparece como "✗ no respondió". Mismo arreglo:
+  persistir la identidad del jugador (localStorage) — junto con los puntos de §5.5.
 
 ## G — Evento `ready` del jugador inerte
 - El Companion puede enviar `ready`, pero el host lo ignora (`void ev`). Hoy no tiene efecto.
