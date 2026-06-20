@@ -192,11 +192,14 @@ function HostQuiz({
           {players.map((p) => {
             const ans = answers[p.id];
             const ok = ans !== undefined && isCorrect(ans, q);
+            // §5.5 — "+X" de ESTA Pregunta (solo a quien acierta); el panel/podios leen `scores`.
+            const award = state.lastAward?.[p.id];
             return (
               <li key={p.id} className="flex items-center justify-between">
                 <span className="font-medium">{p.name}</span>
-                <span className={ok ? "text-green-600" : "text-primary"}>
-                  {ans === undefined ? "✗ no respondió" : ok ? "✓ acertó" : "✗ falló"}
+                <span className={`flex items-center gap-2 ${ok ? "text-green-600" : "text-primary"}`}>
+                  {ok && award ? <span className="font-bold">+{award}</span> : null}
+                  <span>{ans === undefined ? "✗ no respondió" : ok ? "✓ acertó" : "✗ falló"}</span>
                 </span>
               </li>
             );
