@@ -7,6 +7,7 @@ export type WineRow = {
   region_es: string | null
   grape: string | null
   vintage: number | null
+  bottle_price_cents: number | null
   category: string | null
   classification_id: string | null
 }
@@ -14,10 +15,10 @@ export type WineRow = {
 /**
  * Resuelve un `code` de sala a los vinos de la partida, EN ORDEN.
  *
- * TODO(contrato): confirmar con David las dos vías.
+ * TODO(contrato): confirmar con David el fallback de demo.
  *   1) REAL: `orders.access_code = code` → `order_wines` (por `position`) → `wines`.
- *   2) DEMO (`/room/TEST`, sin pedido): fallback a los primeros N vinos activos.
- *      ¿Set fijo de demo o cualquiera? Pendiente de cerrar.
+ *   2) DEMO (`/room/TEST`, sin pedido): primeros N vinos activos (orden estable
+ *      por `created_at`). ¿Set fijo o cualquiera? Pendiente.
  */
 export async function resolveSessionWines(
   supabase: SupabaseClient,
@@ -40,7 +41,6 @@ export async function resolveSessionWines(
     return (data ?? []).map((r: { wine: WineRow }) => r.wine)
   }
 
-  // Fallback DEMO — pendiente de cerrar con David (set fijo vs. cualquiera).
   const { data, error } = await supabase
     .from("wines")
     .select("*")
