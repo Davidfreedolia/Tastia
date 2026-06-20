@@ -24,8 +24,8 @@ Decidido con David: la función **deriva** las preguntas; usa la autorada de
 de cierre coincide con lo que vio el cliente. No se persiste la pregunta.
 
 ## Pendiente / a confirmar
-- **`code` → vinos del demo** (`/room/TEST`, sin pedido): hoy = primeros N vinos
-  activos. Confirmar set con David. `TODO(contrato)` en `_shared/wines.ts`.
+- **`code` → vinos del demo** (`/room/TEST`, sin pedido): primeros N vinos activos
+  (confirmado por David 20-jun; se pule luego si da tiempo).
 - **Spoiler a vigilar:** el contrato incluye `grape`/`region`/`vintage` en el
   payload `wines`, que son la respuesta de las preguntas de variedad/D.O./añada.
   El cliente debe ocultarlos hasta el `reveal` (es su lado), o los quitamos del

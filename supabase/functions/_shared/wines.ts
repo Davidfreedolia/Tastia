@@ -15,10 +15,11 @@ export type WineRow = {
 /**
  * Resuelve un `code` de sala a los vinos de la partida, EN ORDEN.
  *
- * TODO(contrato): confirmar con David el fallback de demo.
+ * Dos vías (set de demo confirmado por David 20-jun: primeros N activos, se pule
+ * luego si da tiempo):
  *   1) REAL: `orders.access_code = code` → `order_wines` (por `position`) → `wines`.
  *   2) DEMO (`/room/TEST`, sin pedido): primeros N vinos activos (orden estable
- *      por `created_at`). ¿Set fijo o cualquiera? Pendiente.
+ *      por `created_at`).
  */
 export async function resolveSessionWines(
   supabase: SupabaseClient,
