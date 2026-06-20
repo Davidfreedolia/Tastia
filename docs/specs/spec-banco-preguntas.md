@@ -2,7 +2,8 @@
 title: 'Cata gamificada — Datos de vinos reales en Supabase + importador (§5.6a)'
 type: 'feature'
 created: '2026-06-20'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '81d8f5e'
 context: ['docs/prd-cata-gamificada/prd.md', 'docs/specs/spec-taxonomia.md']
 ---
 
@@ -55,10 +56,10 @@ proyecto remoto (el MCP de Supabase está caído → se aplica vía `supabase db
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/<ts>_wines_taxonomy.sql` -- NUEVO: `alter table wines add column if not exists wine_type text, add column if not exists classification text` (+ comentarios referenciando la taxonomía §5.7). Idempotente.
-- [ ] `supabase/migrations/<ts>_seed_wines_demo.sql` -- NUEVO: insertar ~8–12 vinos reales (sourced de catálogo público vía WebSearch en implementación) con `name/bodega/region_es/grape/vintage/wine_type/classification`, `bottle_price_cents`=PVP, `cost_cents`=round(PVP×0.40), y su `tasting_notes` (vista_es/nariz_es/boca_es/curiosidad_es). `insert ... on conflict (sku) do nothing` (idempotente). `wine_type`/`classification` ∈ `WINE_TAXONOMY`.
-- [ ] `scripts/import-wines.mjs` -- NUEVO (scaffold): lee un CSV (formato documentado en cabecera: sku,name,bodega,region,grape,vintage,wine_type,classification,pvp_eur + columnas de nota de cata) y hace upsert en `wines`+`tasting_notes` por `sku`, calculando `cost_cents`=round(pvp×0.40). Usa la service key (no commitear claves). Documentar el formato y el uso.
-- [ ] Test unitario del helper de parsing/precio del importador (CSV→registro; `cost = round(pvp*0.40)`), sin tocar la red/BD.
+- [x] `supabase/migrations/<ts>_wines_taxonomy.sql` -- NUEVO: `alter table wines add column if not exists wine_type text, add column if not exists classification text` (+ comentarios referenciando la taxonomía §5.7). Idempotente.
+- [x] `supabase/migrations/<ts>_seed_wines_demo.sql` -- NUEVO: insertar ~8–12 vinos reales (sourced de catálogo público vía WebSearch en implementación) con `name/bodega/region_es/grape/vintage/wine_type/classification`, `bottle_price_cents`=PVP, `cost_cents`=round(PVP×0.40), y su `tasting_notes` (vista_es/nariz_es/boca_es/curiosidad_es). `insert ... on conflict (sku) do nothing` (idempotente). `wine_type`/`classification` ∈ `WINE_TAXONOMY`.
+- [x] `scripts/import-wines.mjs` -- NUEVO (scaffold): lee un CSV (formato documentado en cabecera: sku,name,bodega,region,grape,vintage,wine_type,classification,pvp_eur + columnas de nota de cata) y hace upsert en `wines`+`tasting_notes` por `sku`, calculando `cost_cents`=round(pvp×0.40). Usa la service key (no commitear claves). Documentar el formato y el uso.
+- [x] Test unitario del helper de parsing/precio del importador (CSV→registro; `cost = round(pvp*0.40)`), sin tocar la red/BD.
 
 **Acceptance Criteria:**
 - Given la migración de taxonomía, when se aplica, then `wines` tiene `wine_type` y `classification` (texto) y reaplicarla no falla.
@@ -89,3 +90,28 @@ importador. Aplicar las migraciones al remoto se hará con `supabase db push` (e
   cablear el juego, diferido). Seed de catálogo público; PVP + cost−60%; taxonomía §5.7; importador
   scaffold; ES ahora; RLS sin cambios (lectura pública = §5.6b). Depende de §5.7. Bloque
   `<frozen-after-approval>` bloqueado.
+- 2026-06-20 · nch-dev: implementada en `feat/cata-datos` (baseline `81d8f5e`). 12 vinos reales + importador.
+  Build OK · 54 tests. La revisión adversarial por sub-agentes NO pudo correr (clasificador del modelo
+  caído) → **revisión MANUAL del orquestador**: SQL (columnas, idempotencia, taxonomía EXACTA, cost=40% PVP,
+  `price_band` ∈ enum) e importador (parsing robusto, validación, sin secretos) — sin defectos. → `done`.
+
+## Suggested Review Order
+
+**Migraciones (capa de datos)**
+
+- Taxonomía en `wines` (añade `wine_type`/`classification`).
+  [`20260620120000_wines_taxonomy.sql`](../../supabase/migrations/20260620120000_wines_taxonomy.sql)
+- Seed de 12 vinos reales + `tasting_notes` (idempotente; cost=40% PVP).
+  [`20260620120100_seed_wines_demo.sql`](../../supabase/migrations/20260620120100_seed_wines_demo.sql)
+
+**Importador CSV**
+
+- Helpers puros (precio, parsing, validación de taxonomía).
+  [`import-wines.lib.mjs`](../../scripts/import-wines.lib.mjs)
+- Script de upsert (service key por env; `--dry-run`).
+  [`import-wines.mjs`](../../scripts/import-wines.mjs)
+
+**Periféricos**
+
+- Tests del importador.
+  [`import-wines.test.ts`](../../src/lib/import-wines.test.ts)
