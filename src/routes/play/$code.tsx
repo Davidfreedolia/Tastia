@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Countdown } from "@/components/Countdown";
 import { useRoomChannel } from "@/lib/use-room-channel";
 import {
   FASE_LABEL,
@@ -255,6 +256,15 @@ function PlayerQuiz({
       <p className="text-center text-xs uppercase tracking-wider text-foreground/55">
         Vino {state.wineIndex + 1} · {FASE_LABEL[state.fase]}
       </p>
+      {/* §5.3 — cuenta atrás cosmética, solo durante el quiz con deadline fijado. */}
+      {!isReveal && state.deadline !== undefined && (
+        <p className="mt-1 text-center">
+          <Countdown
+            deadline={state.deadline}
+            className="serif text-3xl font-bold tabular-nums text-primary"
+          />
+        </p>
+      )}
       <p className="serif mt-1 text-center text-lg font-bold">{q.prompt}</p>
 
       <div className="mt-4 grid gap-2">

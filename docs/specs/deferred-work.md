@@ -20,3 +20,12 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
 ## G — Evento `ready` del jugador inerte
 - El Companion puede enviar `ready`, pero el host lo ignora (`void ev`). Hoy no tiene efecto.
 - → Definir su uso (p. ej. "todos listos" habilita avanzar) en el **Motor de Quiz (§5.2)**.
+
+## T — Temporizador (§5.3): `setTimeout` del host en pestaña en segundo plano
+- El cierre automático del quiz depende de un `setTimeout` en el cliente host. Los navegadores
+  estrangulan/aplazan timeouts en pestañas inactivas, así que si el host minimiza o cambia de pestaña,
+  el cierre puede llegar tarde. En la práctica la Sala vive en primer plano (TV/pantalla), así que es
+  de bajo impacto.
+- → Endurecer con `visibilitychange` (al volver a visible, si `now ≥ deadline` y sigue en `quiz`,
+  cerrar) o, mejor, mover la autoridad del reloj al servidor cuando se aborde la persistencia (§5.9).
+- (La recarga del host a mitad de quiz pierde la ronda = mismo origen que **C** / §5.9.)

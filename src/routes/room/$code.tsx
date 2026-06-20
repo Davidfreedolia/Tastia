@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { Countdown } from "@/components/Countdown";
 import { useRoomChannel } from "@/lib/use-room-channel";
 import {
   FASE_LABEL,
@@ -152,10 +153,19 @@ function HostQuiz({
 
   return (
     <div className="rounded-none border border-primary/40 bg-card p-4">
-      <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">
-        Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]} ·{" "}
-        {isReveal ? "Revelación" : "Pregunta"}
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">
+          Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]} ·{" "}
+          {isReveal ? "Revelación" : "Pregunta"}
+        </p>
+        {/* §5.3 — cuenta atrás cosmética, solo durante el quiz con deadline fijado. */}
+        {!isReveal && state.deadline !== undefined && (
+          <Countdown
+            deadline={state.deadline}
+            className="serif shrink-0 text-2xl font-bold tabular-nums text-primary"
+          />
+        )}
+      </div>
       <p className="serif mt-1 text-2xl font-bold">{q.prompt}</p>
 
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
