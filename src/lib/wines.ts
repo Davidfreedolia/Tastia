@@ -12,6 +12,7 @@
 // que Sala y Companion la pintan igual sin difundir la Pregunta en `RoomState`.
 
 import type { Fase, Question } from "./session";
+import { WINE_TAXONOMY, type WineType } from "./taxonomy";
 
 /** Nota de cata estructurada de un vino (fuente de las preguntas sensoriales). */
 export type TastingNote = {
@@ -28,7 +29,8 @@ export type Wine = {
   region: string; // D.O.
   grape: string; // variedad
   priceRange: string; // p. ej. "10-25€"
-  classification: string; // clasificación / tipo (p. ej. "Crianza", "Joven")
+  type: WineType; // tipo de vino (raíz de la taxonomía §5.7)
+  classification: string; // clasificación dentro del `type`; miembro de WINE_TAXONOMY[type]
   vintage: number;
   note: string; // curiosidad / nota de cata (texto libre)
   tasting: TastingNote; // nota de cata estructurada (§5.2)
@@ -43,7 +45,8 @@ export const DEMO_WINES: Wine[] = [
     region: "Jumilla",
     grape: "Monastrell",
     priceRange: "10-25€",
-    classification: "Joven",
+    type: "tinto",
+    classification: "joven",
     vintage: 2022,
     note: "Monastrell de secano, potente y frutal. Sorprende por su relación calidad-precio.",
     tasting: {
@@ -59,7 +62,8 @@ export const DEMO_WINES: Wine[] = [
     region: "Rioja",
     grape: "Tempranillo",
     priceRange: "10-25€",
-    classification: "Crianza",
+    type: "tinto",
+    classification: "crianza",
     vintage: 2020,
     note: "El Rioja de manual: fruta roja y un punto de vainilla por la crianza en roble.",
     tasting: {
@@ -75,7 +79,8 @@ export const DEMO_WINES: Wine[] = [
     region: "Rías Baixas",
     grape: "Albariño",
     priceRange: "10-25€",
-    classification: "Blanco joven",
+    type: "blanco",
+    classification: "depósito inerte",
     vintage: 2023,
     note: "Albariño atlántico, salino y cítrico. El blanco que descoloca a quien espera tinto.",
     tasting: {
@@ -91,7 +96,8 @@ export const DEMO_WINES: Wine[] = [
     region: "Jumilla",
     grape: "Garnacha",
     priceRange: "25-40€",
-    classification: "Vino de guarda",
+    type: "tinto",
+    classification: "crianza",
     vintage: 2019,
     note: "Garnacha de viñas viejas sobre suelos de grava. El 'caprichito' que sube el listón.",
     tasting: {
@@ -180,15 +186,35 @@ function distractorPool(
   return pool;
 }
 
+/** Atributo de la ficha que rota en la fase de gamificación para un `wineIndex` (determinista). */
+function gamificacionKeyFor(wineIndex: number): GamificacionKey {
+  return GAMIFICACION_KEYS[wineIndex % GAMIFICACION_KEYS.length];
+}
+
+/** ¿La pregunta de gamificación de este vino es la de CLASIFICACIÓN? */
+function isClassificationQuestion(wine: Wine, fase: Fase): boolean {
+  return fase === "gamificacion" && gamificacionKeyFor(wine.index) === "classification";
+}
+
 /** Valor correcto + extractor del atributo según la fase. */
 function correctFor(wine: Wine, fase: Fase): { value: string; pick: (w: Wine) => string; prompt: string } {
   if (fase === "gamificacion") {
     // Rota variedad/clasificación/precio por `wineIndex` (determinista).
-    const key = GAMIFICACION_KEYS[wine.index % GAMIFICACION_KEYS.length];
+    const key = gamificacionKeyFor(wine.index);
     return { value: wine[key], pick: (w) => w[key], prompt: GAMIFICACION_PROMPT[key] };
   }
   const pick = (w: Wine) => w.tasting[fase];
   return { value: wine.tasting[fase], pick, prompt: SENSORIAL_PROMPT[fase] };
+}
+
+/**
+ * Distractores de la pregunta de CLASIFICACIÓN (§5.7): SOLO hermanos del MISMO `type` del
+ * vino (WINE_TAXONOMY[wine.type]) sin la clasificación correcta. Nunca cross-tipo ni
+ * "(variante N)". Recorrido determinista (orden de la taxonomía) → mismo set en Sala y
+ * Companion. Si un tipo tiene <4 clasificaciones se devuelve lo que haya del mismo tipo.
+ */
+function classificationDistractors(wine: Wine): string[] {
+  return WINE_TAXONOMY[wine.type].filter((c) => c !== wine.classification);
 }
 
 /**
@@ -209,7 +235,8 @@ const FALLBACK_POOLS = {
     "Godello",
     "Syrah",
   ],
-  classification: ["Joven", "Crianza", "Reserva", "Gran Reserva", "Roble", "Vino de guarda", "Blanco joven"],
+  // NOTA: `classification` ya NO sale de un pool curado mixto: sus distractores los aporta la
+  // taxonomía del MISMO `type` del vino (WINE_TAXONOMY) — ver `classificationDistractors`.
   priceRange: ["<10€", "10-25€", "25-40€", "40-60€", ">60€"],
   // Descriptores sensoriales breves y plausibles por sentido.
   vista: [
@@ -238,10 +265,16 @@ const FALLBACK_POOLS = {
   ],
 } satisfies Record<string, readonly string[]>;
 
-/** Pool curado que toca según la fase (en gamificación, según el atributo que rota). */
+/**
+ * Pool curado que toca según la fase (en gamificación, según el atributo que rota).
+ * La CLASIFICACIÓN no usa pool curado (sus distractores salen de la taxonomía del mismo
+ * tipo): `getQuestion` la trata aparte, así que aquí nunca se pide para `classification`.
+ */
 function fallbackPoolFor(wine: Wine, fase: Fase): readonly string[] {
   if (fase === "gamificacion") {
-    return FALLBACK_POOLS[GAMIFICACION_KEYS[wine.index % GAMIFICACION_KEYS.length]];
+    const key = gamificacionKeyFor(wine.index);
+    // `classification` se resuelve por taxonomía antes de llegar aquí; cubrimos grape/precio.
+    return key === "classification" ? [] : FALLBACK_POOLS[key];
   }
   return FALLBACK_POOLS[fase];
 }
@@ -251,7 +284,8 @@ function fallbackPoolFor(wine: Wine, fase: Fase): readonly string[] {
  *
  * - Sensoriales (vista/olfato/gusto): correcta = nota de cata estructurada de ese sentido.
  * - Gamificación: correcta = ficha, rotando variedad→clasificación→precio por `wineIndex`.
- * - 3 distractores: mismo atributo de otros vinos del catálogo (pool plausible).
+ * - 3 distractores: para CLASIFICACIÓN, hermanos del MISMO `type` (taxonomía §5.7); para el
+ *   resto, mismo atributo de otros vinos del catálogo + pool curado de respaldo.
  * - Orden de opciones barajado con seed `wineIndex+fase` → mismo orden en todos los clientes.
  *
  * No viaja en `RoomState`: ambos lados la derivan llamando a esta función con el estado.
@@ -260,12 +294,17 @@ export function getQuestion(wineIndex: number, fase: Fase): Question {
   const wine = DEMO_WINES[wineIndex] ?? DEMO_WINES[0];
   const { value, pick, prompt } = correctFor(wine, fase);
 
-  // Distractores: primero los del catálogo (mismo atributo de otros vinos) y, si no llegan
-  // a 3, se completan con el pool CURADO de la fase. Dedup contra el correcto y entre sí; se
-  // toman 3. Recorrido determinista → mismo set/orden en todos los clientes para un `(i,f)`.
+  // Fuente de distractores. CLASIFICACIÓN (§5.7): SOLO hermanos del mismo `type` (taxonomía),
+  // nunca cross-tipo. El resto: catálogo (mismo atributo de otros vinos) + pool curado de la
+  // fase como respaldo. Recorrido determinista → mismo set/orden en todos los clientes (i,f).
+  const distractorSource = isClassificationQuestion(wine, fase)
+    ? classificationDistractors(wine)
+    : [...distractorPool(wine.index, value, pick), ...fallbackPoolFor(wine, fase)];
+
+  // Dedup contra el correcto y entre sí; se toman 3.
   const distractors: string[] = [];
   const seen = new Set<string>([value]);
-  for (const v of [...distractorPool(wine.index, value, pick), ...fallbackPoolFor(wine, fase)]) {
+  for (const v of distractorSource) {
     if (distractors.length >= 3) break;
     if (seen.has(v)) continue;
     seen.add(v);

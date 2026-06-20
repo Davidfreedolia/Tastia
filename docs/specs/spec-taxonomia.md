@@ -2,7 +2,8 @@
 title: 'Cata gamificada — Taxonomía de vinos (§5.7)'
 type: 'feature'
 created: '2026-06-20'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'e5c40eb'
 context: ['docs/prd-cata-gamificada/prd.md', 'docs/specs/spec-motor-quiz.md']
 ---
 
@@ -55,9 +56,9 @@ sembrada existente.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/taxonomy.ts` -- NUEVO: `export type WineType = "tinto"|"blanco"|"rosado"|"espumoso"|"cava"`; `export const WINE_TAXONOMY: Record<WineType, string[]>` con las clasificaciones de cada tipo (de la jerarquía del PRD: tinto joven/cosecha/roble/crianza/reserva/gran reserva; blanco barrica/crianza/reserva/gran reserva/sobre lías/depósito inerte/velo de flor; rosado joven/roble/sobre lías; espumoso blanco/rosado; cava crianza/reserva/gran reserva/paraje calificado/brut nature/extra brut/seco). Helper `classificationsFor(type)` y, si útil, `prettyLabel`.
-- [ ] `src/lib/wines.ts` -- añadir `type: WineType` a `Wine`; reclasificar los 4 demo con `type`+`classification` reales (p. ej. Honoro Vera → tinto/joven; Ramón Bilbao → tinto/crianza; Pazo de Señorans → blanco/depósito inerte; Las Gravas → tinto/crianza); en `getQuestion`, rama clasificación: distractores = `WINE_TAXONOMY[wine.type]` sin la correcta (top-up con el resto del mismo tipo si faltan); retirar el `FALLBACK_POOLS.classification` cross-tipo. Mantener la baraja determinista.
-- [ ] Test unitario: `WINE_TAXONOMY` (cada tipo tiene sus clasificaciones); la pregunta de clasificación de un vino tinto sólo tiene distractores de tinto; determinismo (mismo orden para un `(i,f)`); cada vino demo tiene `type`+`classification` válidos en la taxonomía.
+- [x] `src/lib/taxonomy.ts` -- NUEVO: `export type WineType = "tinto"|"blanco"|"rosado"|"espumoso"|"cava"`; `export const WINE_TAXONOMY: Record<WineType, string[]>` con las clasificaciones de cada tipo (de la jerarquía del PRD: tinto joven/cosecha/roble/crianza/reserva/gran reserva; blanco barrica/crianza/reserva/gran reserva/sobre lías/depósito inerte/velo de flor; rosado joven/roble/sobre lías; espumoso blanco/rosado; cava crianza/reserva/gran reserva/paraje calificado/brut nature/extra brut/seco). Helper `classificationsFor(type)` y, si útil, `prettyLabel`.
+- [x] `src/lib/wines.ts` -- añadir `type: WineType` a `Wine`; reclasificar los 4 demo con `type`+`classification` reales (p. ej. Honoro Vera → tinto/joven; Ramón Bilbao → tinto/crianza; Pazo de Señorans → blanco/depósito inerte; Las Gravas → tinto/crianza); en `getQuestion`, rama clasificación: distractores = `WINE_TAXONOMY[wine.type]` sin la correcta (top-up con el resto del mismo tipo si faltan); retirar el `FALLBACK_POOLS.classification` cross-tipo. Mantener la baraja determinista.
+- [x] Test unitario: `WINE_TAXONOMY` (cada tipo tiene sus clasificaciones); la pregunta de clasificación de un vino tinto sólo tiene distractores de tinto; determinismo (mismo orden para un `(i,f)`); cada vino demo tiene `type`+`classification` válidos en la taxonomía.
 
 **Acceptance Criteria:**
 - Given un vino `tinto` con clasificación `crianza`, when sale la pregunta de clasificación, then la correcta es "crianza" y los 3 distractores son otras clasificaciones de TINTO (no de blanco ni precios).
@@ -72,6 +73,10 @@ clasificar vinos reales. `getQuestion` solo cambia en la rama de clasificación:
 salir de `WINE_TAXONOMY[wine.type]` (hermanos coherentes) en vez del pool curado mixto. El resto de
 fases (sensoriales, variedad, precio) no se tocan. La persistencia del `type`/`classification` en la
 tabla `wines` (migración) se hará en §5.6/§5.8.
+
+**Limitación conocida (latente):** para tipos con <4 clasificaciones (espumoso=2, rosado=3) la pregunta
+de clasificación tendrá <4 opciones (siempre del mismo tipo, nunca cross-tipo). No afecta a los vinos
+demo (tinto/blanco); la política para vinos espumoso/rosado reales se decide en §5.6 (ver `deferred-work.md` → X).
 
 ## Verification
 **Commands:**
@@ -88,3 +93,28 @@ tabla `wines` (migración) se hará en §5.6/§5.8.
   tipada en `src/lib/taxonomy.ts` (código; BD/admin = §5.6/§5.8); vinos demo reales y bien clasificados
   (`type`+`classification`); distractores de la pregunta de clasificación = hermanos del mismo tipo.
   Bloque `<frozen-after-approval>` bloqueado.
+- 2026-06-20 · nch-dev: implementada en `feat/cata-taxonomia` (baseline `e5c40eb`). Build + 43 tests OK.
+  Revisión adversarial (3 revisores) → sin defectos en los datos demo. 1 limitación LATENTE: tipos con
+  <4 clasificaciones (espumoso/rosado) → pregunta con <4 opciones (no la dispara ningún vino demo) →
+  diferida a §5.6 (`deferred-work.md` → X) + documentada en Design Notes. → `done`.
+
+## Suggested Review Order
+
+**Taxonomía (núcleo)**
+
+- Punto de entrada: clasificaciones por tipo (de la jerarquía del PRD).
+  [`taxonomy.ts:17`](../../src/lib/taxonomy.ts#L17)
+- El tipo `WineType`.
+  [`taxonomy.ts:11`](../../src/lib/taxonomy.ts#L11)
+
+**Uso en la pregunta de clasificación**
+
+- Distractores del MISMO tipo del vino.
+  [`wines.ts:216`](../../src/lib/wines.ts#L216)
+- `getQuestion` (rama de clasificación; el resto de fases sin cambios).
+  [`wines.ts:293`](../../src/lib/wines.ts#L293)
+
+**Periféricos**
+
+- Tests de taxonomía.
+  [`taxonomy.test.ts`](../../src/lib/taxonomy.test.ts)
