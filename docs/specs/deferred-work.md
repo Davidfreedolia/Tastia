@@ -29,3 +29,11 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
 - → Endurecer con `visibilitychange` (al volver a visible, si `now ≥ deadline` y sigue en `quiz`,
   cerrar) o, mejor, mover la autoridad del reloj al servidor cuando se aborde la persistencia (§5.9).
 - (La recarga del host a mitad de quiz pierde la ronda = mismo origen que **C** / §5.9.)
+
+## X — Taxonomía (§5.7): tipos con <4 clasificaciones → pregunta con <4 opciones
+- Para `espumoso` (2 clasificaciones) y `rosado` (3), la pregunta de "clasificación" sale con 2-3
+  opciones (todas del mismo tipo; nunca cross-tipo, por diseño). HOY NO se dispara: los 4 vinos demo
+  son tinto/blanco y la pregunta de clasificación solo cae en el vino tinto (rotación `wineIndex % 3`).
+- → Decidir la política en **§5.6** cuando entren vinos espumoso/rosado reales: aceptar <4 opciones,
+  ampliar las clasificaciones de esos tipos, o un fallback acotado. Añadir entonces un test del caso
+  (hoy `taxonomy.test.ts` solo cubre el tinto).
