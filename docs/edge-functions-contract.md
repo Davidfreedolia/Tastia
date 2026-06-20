@@ -9,6 +9,9 @@ el backend (Salvador, sobre su esquema §5.6–§5.9 ya LIVE). El cliente mantie
 La **respuesta correcta NUNCA llega al cliente**. Vive en la edge function (service_role: lee
 `game_questions.correct_answer` / `wine_classifications`). El cliente solo recibe enunciado + opciones,
 y al cerrar recibe el resultado ya calculado. Clientes **anónimos** (host y jugadores entran por QR).
+**Los campos identificativos/respuesta** (`name, bodega, grape, region, vintage, price, category,
+classification, curiosidad`) son la respuesta de las quinielas → **NUNCA** viajan en `quiz-bootstrap`;
+se entregan en el **reveal** vía `quiz-close`. (Decisión 21 jun 2026, a raíz del PR #10.)
 
 ## Endpoints
 
@@ -19,9 +22,7 @@ y al cerrar recibe el resultado ya calculado. Clientes **anónimos** (host y jug
 {
   "settings": { "time_vista_s":30, "time_olfato_s":30, "time_gusto_s":45, "time_gamificacion_s":30,
                 "points_base":100, "bonus_max":50 },           // de game_settings (§5.8)
-  "wines": [ { "wineIndex":0, "name":"…", "bodega":"…", "region":"…", "grape":"…", "vintage":2020,
-               "category":"tinto", "classification":"Crianza",  // label de wine_classifications (§5.7)
-               "tasting": { "vista":"…", "olfato":"…", "gusto":"…" } } ],   // sin nada secreto
+  "wines": [ { "wineIndex":0 } ],   // ⚠️ NADA identificativo aquí (anti-spoiler); la ficha llega en el reveal (quiz-close)
   "questions": [ { "wineIndex":0, "fase":"vista", "prompt":"…", "options":["…","…","…","…"] } ]
   // 1 por fase sensorial + 1 de gamificación por vino (~16). SIN correctIndex.
 }
@@ -32,8 +33,10 @@ El host difunde por Realtime la pregunta activa (enunciado+opciones) — sustitu
 **In:** `{ code, wineIndex, fase, answers: [ { playerId, optionIndex, seq } ] }`
 La función (que tiene la respuesta) valida y **puntúa** (base + bonus por orden de llegada, con
 `points_base`/`bonus_max` de `game_settings`) — mueve `computeAwards` al backend (A1).
-**Out:** `{ correctOptionIndex, awards: { "<playerId>": <points> }, perPlayer: [ { playerId, correct } ] }`
-El host aplica los `awards` al marcador y difunde el resultado.
+**Out:** `{ correctOptionIndex, correctLabel, awards: { "<playerId>": <points> }, perPlayer: [ { playerId, correct } ], revealedWine? }`
+`correctLabel` = valor correcto a mostrar en el reveal de esa pregunta. `revealedWine` (solo en la
+**última fase del vino**) = ficha completa para el `wine_podium`: `{ name, bodega, grape, region, vintage,
+price, classification, curiosidad }`. El host aplica los `awards` al marcador y difunde el resultado.
 
 ### 3. `session-finish` — en `final_podium`
 **In:** `{ code, host_name, pack_tier, players: [ { playerId, name, points, position, photo? } ] }`
@@ -48,8 +51,9 @@ del ganador al bucket `winners` (§5.9). **Out:** `{ ok, session_id }`. Alimenta
 
 ## Reconciliación de taxonomía (cliente ↔ BD)
 El cliente (`src/lib/taxonomy.ts`) usa labels propios; la BD usa slugs en `wine_classifications`.
-Al cablear, el cliente **leerá las labels desde `quiz-bootstrap`** (de `wine_classifications`), así que
-`taxonomy.ts` queda como el enum `WineType` + fallback. Mapeo de referencia (label cliente → slug BD):
+Al cablear, el cliente **leerá las labels de las opciones desde `questions[].options`** y la
+clasificación real del vino en el **reveal** (`quiz-close`), así que `taxonomy.ts` queda como el enum
+`WineType` + fallback. Mapeo de referencia (label cliente → slug BD):
 
 | Categoría | Cliente (`taxonomy.ts`) | BD (`wine_classifications.slug`) |
 |---|---|---|

@@ -37,3 +37,19 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
 - → Decidir la política en **§5.6** cuando entren vinos espumoso/rosado reales: aceptar <4 opciones,
   ampliar las clasificaciones de esos tipos, o un fallback acotado. Añadir entonces un test del caso
   (hoy `taxonomy.test.ts` solo cubre el tinto).
+
+## §5.8b — Banco de preguntas (admin): CRUD de `game_questions`
+
+- Split de §5.8 (Admin del juego). §5.8a aborda solo los ajustes (`game_settings`) + readiness read-only.
+- Pendiente: pantalla en `/admin` para CRUD de `game_questions` por vino/fase (enunciado ES/EN, opciones,
+  `correct_answer`, `points`, `active`), avisando con `wines_question_readiness` de packs incompletos.
+- Nota: `quiz-bootstrap` (Salvador) puede DERIVAR preguntas de la ficha+taxonomía (FR-12), así que el
+  banco manual es para preguntas guardadas/override, no obligatorio para que el juego funcione.
+- → Abordar tras §5.8a, coordinando el formato de `game_questions.options`/`correct_answer` con Salvador.
+
+## §5.8c — Clasificación de vinos (admin): asignar `wines.category`/`classification_id`
+
+- Split de §5.8 (Admin del juego). Editar tipo (`category`) y clasificación (`classification_id` →
+  `wine_classifications`) de cada vino desde `/admin`.
+- Nota: el importador CSV (#8) ya rellena ambos al importar; esto sería edición/corrección manual.
+- → Abordar tras §5.8a/§5.8b.
