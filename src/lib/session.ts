@@ -95,8 +95,32 @@ export type RoomState = {
    * el "+X"); se limpia al entrar en una Pregunta nueva. `scores` es el acumulado.
    */
   lastAward?: Record<string, number>;
+  /**
+   * Temporizador del quiz (§5.3): timestamp ABSOLUTO en ms (epoch) en que vence la Pregunta
+   * actual. Lo fija la Sala (host) al entrar en un `quiz` y se difunde; cada cliente calcula
+   * el restante con su propio reloj (la cuenta atrás visible es COSMÉTICA). Solo significativo
+   * en `playing/quiz`; fuera de `quiz` es `undefined` (sin cuenta atrás). El cierre real al
+   * llegar a 0 lo dispara el host reusando `advance()` (reparte §5.5), no el reloj del cliente.
+   */
+  deadline?: number;
   updatedAt: number;
 };
+
+/** Duración del quiz por fase, en segundos (§5.3). Constantes; configurables = §5.8. */
+export const FASE_SECONDS: Record<Fase, number> = {
+  vista: 30,
+  olfato: 30,
+  gusto: 45,
+  gamificacion: 30,
+};
+
+/**
+ * Helper PURO (§5.3): `deadline` absoluto (ms) de un quiz que arranca en `now` para `fase`.
+ * = `now + FASE_SECONDS[fase] * 1000`. Lo usa el host al entrar en cada `quiz`.
+ */
+export function quizDeadline(fase: Fase, now: number): number {
+  return now + FASE_SECONDS[fase] * 1000;
+}
 
 export function initialRoomState(): RoomState {
   return {

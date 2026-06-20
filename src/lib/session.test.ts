@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import {
   advanceState,
   computeAwards,
+  FASE_SECONDS,
   FASES,
   initialRoomState,
+  quizDeadline,
   WINE_COUNT,
   type Fase,
   type Question,
@@ -192,5 +194,34 @@ describe("computeAwards — reparto de puntos (§5.5)", () => {
       QUESTION,
     );
     expect(awards).toEqual({ ok1: 150, ok2: 140 });
+  });
+});
+
+describe("FASE_SECONDS / quizDeadline — temporizador del quiz (§5.3)", () => {
+  it("duraciones por fase: gusto 45, resto 30", () => {
+    expect(FASE_SECONDS.vista).toBe(30);
+    expect(FASE_SECONDS.olfato).toBe(30);
+    expect(FASE_SECONDS.gusto).toBe(45);
+    expect(FASE_SECONDS.gamificacion).toBe(30);
+  });
+
+  it("cubre TODAS las fases (una entrada por fase de FASES)", () => {
+    for (const fase of FASES) {
+      expect(typeof FASE_SECONDS[fase]).toBe("number");
+      expect(FASE_SECONDS[fase]).toBeGreaterThan(0);
+    }
+  });
+
+  it("quizDeadline = now + FASE_SECONDS[fase]*1000 (ms absolutos)", () => {
+    const now = 1_000_000;
+    expect(quizDeadline("vista", now)).toBe(now + 30_000);
+    expect(quizDeadline("olfato", now)).toBe(now + 30_000);
+    expect(quizDeadline("gusto", now)).toBe(now + 45_000); // la fase más larga
+    expect(quizDeadline("gamificacion", now)).toBe(now + 30_000);
+  });
+
+  it("quizDeadline es PURO: solo depende de (fase, now), distinto now → distinto deadline", () => {
+    expect(quizDeadline("gusto", 0)).toBe(45_000);
+    expect(quizDeadline("gusto", 5_000)).toBe(50_000);
   });
 });

@@ -2,7 +2,8 @@
 title: 'Cata gamificada — Temporizador autoritativo y cierre automático (§5.3)'
 type: 'feature'
 created: '2026-06-20'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '2c73785'
 context: ['docs/prd-cata-gamificada/prd.md', 'docs/specs/spec-estructura-sesion-rondas.md', 'docs/specs/spec-motor-quiz.md', 'docs/specs/spec-puntuacion.md']
 ---
 
@@ -56,12 +57,12 @@ avatar (§5.4); rehacer el reparto de puntos (§5.5).
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/session.ts` -- añadir `deadline?: number` a `RoomState`; añadir `FASE_SECONDS: Record<Fase, number>` = `{ vista:30, olfato:30, gusto:45, gamificacion:30 }`; helper PURO `quizDeadline(fase, now): number` (= `now + FASE_SECONDS[fase]*1000`).
-- [ ] `src/lib/use-room-channel.ts` -- en `advance()`: si `next.stage==="playing" && next.step==="quiz"`, fijar `next.deadline = quizDeadline(next.fase, Date.now())`; en cualquier otro estado, `next.deadline = undefined`. Añadir un efecto SOLO-host: cuando `state` sea `playing/quiz` con `deadline`, programar un `setTimeout(deadline − Date.now())` que, si sigue en ese mismo `quiz`, llame a `advance()` (cierre automático); limpiar el timeout al cambiar de estado/desmontar.
-- [ ] `src/components/Countdown.tsx` -- componente `<Countdown deadline={number} />` que refresca cada segundo y muestra los segundos restantes (mín. 0); se detiene al llegar a 0.
-- [ ] `src/routes/room/$code.tsx` -- mostrar `<Countdown>` durante `quiz` (junto a la pregunta/cabecera).
-- [ ] `src/routes/play/$code.tsx` -- mostrar `<Countdown>` durante `quiz`.
-- [ ] Test unitario de `quizDeadline`/`FASE_SECONDS` (valores por fase; gusto=45, resto=30).
+- [x] `src/lib/session.ts` -- añadir `deadline?: number` a `RoomState`; añadir `FASE_SECONDS: Record<Fase, number>` = `{ vista:30, olfato:30, gusto:45, gamificacion:30 }`; helper PURO `quizDeadline(fase, now): number` (= `now + FASE_SECONDS[fase]*1000`).
+- [x] `src/lib/use-room-channel.ts` -- en `advance()`: si `next.stage==="playing" && next.step==="quiz"`, fijar `next.deadline = quizDeadline(next.fase, Date.now())`; en cualquier otro estado, `next.deadline = undefined`. Añadir un efecto SOLO-host: cuando `state` sea `playing/quiz` con `deadline`, programar un `setTimeout(deadline − Date.now())` que, si sigue en ese mismo `quiz`, llame a `advance()` (cierre automático); limpiar el timeout al cambiar de estado/desmontar.
+- [x] `src/components/Countdown.tsx` -- componente `<Countdown deadline={number} />` que refresca cada segundo y muestra los segundos restantes (mín. 0); se detiene al llegar a 0.
+- [x] `src/routes/room/$code.tsx` -- mostrar `<Countdown>` durante `quiz` (junto a la pregunta/cabecera).
+- [x] `src/routes/play/$code.tsx` -- mostrar `<Countdown>` durante `quiz`.
+- [x] Test unitario de `quizDeadline`/`FASE_SECONDS` (valores por fase; gusto=45, resto=30).
 
 **Acceptance Criteria:**
 - Given se entra en un `quiz`, when arranca, then Sala y Companion muestran una cuenta atrás acorde a la fase (30/30/45/30) que baja cada segundo.
@@ -92,3 +93,35 @@ sigue por orden de llegada (§5.5); pasar a tiempo real sería un cambio aparte.
   timestamp en RoomState (cuenta atrás cosmética), cierre auto host-autoritativo reusando `advance()`,
   botón manual sigue, bonus se mantiene por orden (§5.5), duraciones 30/30/45/30 como constantes. Depende
   de §5.1/§5.2/§5.5 (rama feat/cata-puntuacion). Bloque `<frozen-after-approval>` bloqueado.
+- 2026-06-20 · nch-dev: implementada en `feat/cata-temporizador` (baseline `2c73785`). Build + 36 tests OK.
+  Revisión adversarial (3 revisores) → sin defectos medios/altos; §5.5/`computeAwards`/`seq` intactos.
+  Diferido: `setTimeout` del host en pestaña en segundo plano (→ `deferred-work.md` T). Resto
+  (cosmético / inalcanzable) rechazado. → `done`.
+
+## Suggested Review Order
+
+**Modelo y duraciones (puro)**
+
+- Punto de entrada: `quizDeadline` + `FASE_SECONDS` (30/30/45/30).
+  [`session.ts:121`](../../src/lib/session.ts#L121)
+- El campo `deadline` en `RoomState`.
+  [`session.ts:105`](../../src/lib/session.ts#L105)
+
+**Autoridad del cierre (host)**
+
+- `advance()`: fija/limpia `deadline` al entrar/salir de `quiz`.
+  [`use-room-channel.ts:107`](../../src/lib/use-room-channel.ts#L107)
+- Timer host-only: `setTimeout` que auto-cierra (reusa `advance()`/§5.5) con re-verificación + cleanup.
+  [`use-room-channel.ts:168`](../../src/lib/use-room-channel.ts#L168)
+
+**Cuenta atrás (cosmética)**
+
+- `<Countdown>`: intervalo 1s, mínimo 0, limpieza en cleanup.
+  [`Countdown.tsx:16`](../../src/components/Countdown.tsx#L16)
+- Render en Sala/Companion durante `quiz`.
+  [`room/$code.tsx:159`](../../src/routes/room/$code.tsx#L159)
+
+**Periféricos**
+
+- Test de `quizDeadline`/`FASE_SECONDS`.
+  [`session.test.ts`](../../src/lib/session.test.ts)

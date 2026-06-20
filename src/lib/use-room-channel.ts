@@ -5,6 +5,7 @@ import {
   advanceState,
   computeAwards,
   initialRoomState,
+  quizDeadline,
   type Fase,
   type Participant,
   type PlayerEvent,
@@ -98,6 +99,16 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     const prev = stateRef.current;
     const next: RoomState = { ...advanceState(prev), updatedAt: Date.now() };
 
+    // §5.3 — Temporizador autoritativo: al ENTRAR en un quiz (lobby→1.ª Pregunta o
+    // reveal→siguiente fase) la Sala fija el `deadline` absoluto según la fase y lo difunde;
+    // fuera de quiz no hay cuenta atrás (`deadline` ausente). El cierre real al vencer lo
+    // dispara el efecto host-only de abajo reusando este mismo `advance()`.
+    if (next.stage === "playing" && next.step === "quiz") {
+      next.deadline = quizDeadline(next.fase, Date.now());
+    } else {
+      next.deadline = undefined;
+    }
+
     // §5.5 — Reparto de puntos EXACTAMENTE en el cierre `playing/quiz → playing/reveal`,
     // una sola vez por Pregunta: las `answers` ya se descartan al cambiar de Pregunta (§5.2),
     // así que re-entrar a `reveal` no puede re-repartir.
@@ -140,6 +151,30 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     setAnswersRec({ key: "", map: {}, nextSeq: 0 }); // §5.2 — descarta respuestas de la cata anterior.
     broadcastState(next);
   }, [role, broadcastState]);
+
+  // §5.3 — Cierre automático HOST-AUTORITATIVO. Cuando el estado es `playing/quiz` con un
+  // `deadline`, la Sala (y SOLO la Sala) programa un único `setTimeout` que, al vencer y SI
+  // sigue en esa misma Pregunta, dispara `advance()` (quiz→reveal, que reparte §5.5). El
+  // botón manual sigue funcionando: al avanzar antes de tiempo `state` cambia, este efecto
+  // se re-ejecuta y limpia el timeout pendiente (no re-dispara). Los jugadores no corren
+  // este timer (no son autoridad); su cuenta atrás es solo cosmética.
+  useEffect(() => {
+    if (role !== "host") return;
+    if (state.stage !== "playing" || state.step !== "quiz") return;
+    if (state.deadline === undefined) return;
+
+    const deadline = state.deadline;
+    const delay = Math.max(0, deadline - Date.now());
+    const id = setTimeout(() => {
+      // Reverifica contra el estado VIGENTE: si se cerró a mano (ya no estamos en este quiz,
+      // p.ej. otra `(wineIndex,fase)`/step o `deadline` distinto), no re-dispara.
+      const s = stateRef.current;
+      if (s.stage === "playing" && s.step === "quiz" && s.deadline === deadline) {
+        advance();
+      }
+    }, delay);
+    return () => clearTimeout(id);
+  }, [role, state.stage, state.step, state.deadline, advance]);
 
   useEffect(() => {
     if (!supabaseConfigured) return;
