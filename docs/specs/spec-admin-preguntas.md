@@ -2,8 +2,8 @@
 title: '§5.8b — Admin del banco de preguntas: CRUD de game_questions en /admin'
 type: 'feature'
 created: '2026-06-21'
-status: 'in-progress'
-baseline_commit: 'TBD'
+status: 'done'
+baseline_commit: '29c7a30'
 context: []
 ---
 
@@ -68,10 +68,10 @@ avatar, migraciones, ni el **esquema** de `game_questions` (usar columnas existe
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/game-questions.ts` (NUEVO, PURO) -- `QUESTION_FASES = ["vista","olfato","gusto","gamificacion"]`, `QUESTION_TYPES = ["variedad","denominacion","precio","anada","trivia","clasificacion"]`. `QuestionForm` (wine_id, fase, type|null, text_es, text_en, options: string[], correct_answer, points, active). `validateQuestionForm(form)` → errores por campo (text_es no vacío; opciones: ≥2 no vacías; `correct_answer` ∈ opciones no vacías; points entero >0). `questionInsertFromForm(form)` → `game_questions` Insert (`options` como `string[]` (Json), recorta opciones vacías, `text_en` "" → null, `type` "" → null).
-- [ ] `src/lib/game-questions.test.ts` (NUEVO) -- tests: válido OK; <2 opciones falla; correcta no ∈ opciones falla; puntos ≤0 falla; `questionInsertFromForm` mapea options/correct_answer/null bien.
-- [ ] `src/components/question-bank.tsx` (NUEVO) -- componente `QuestionBank`: `useEffect` carga `wines` (`id,name`) y `game_questions`; estado de formulario (nuevo/edición); inputs (select vino, select fase, select tipo, texto ES/EN, lista de opciones con añadir/quitar, radio "correcta", puntos, checkbox activo); botón Guardar (insert/update con `.select("id")`; 0 filas → "sin permiso"); lista filtrable por vino con editar/activar/borrar. Usa `validateQuestionForm`/`questionInsertFromForm`. Estética como `admin.tsx` (inputs/Button existentes). Sin Supabase → aviso.
-- [ ] `src/routes/admin.tsx` -- registrar la sección "Preguntas" y renderizar `<QuestionBank/>`.
+- [x] `src/lib/game-questions.ts` (NUEVO, PURO) -- `QUESTION_FASES = ["vista","olfato","gusto","gamificacion"]`, `QUESTION_TYPES = ["variedad","denominacion","precio","anada","trivia","clasificacion"]`. `QuestionForm` (wine_id, fase, type|null, text_es, text_en, options: string[], correct_answer, points, active). `validateQuestionForm(form)` → errores por campo (text_es no vacío; opciones: ≥2 no vacías; `correct_answer` ∈ opciones no vacías; points entero >0). `questionInsertFromForm(form)` → `game_questions` Insert (`options` como `string[]` (Json), recorta opciones vacías, `text_en` "" → null, `type` "" → null).
+- [x] `src/lib/game-questions.test.ts` (NUEVO) -- tests: válido OK; <2 opciones falla; correcta no ∈ opciones falla; puntos ≤0 falla; `questionInsertFromForm` mapea options/correct_answer/null bien.
+- [x] `src/components/question-bank.tsx` (NUEVO) -- componente `QuestionBank`: `useEffect` carga `wines` (`id,name`) y `game_questions`; estado de formulario (nuevo/edición); inputs (select vino, select fase, select tipo, texto ES/EN, lista de opciones con añadir/quitar, radio "correcta", puntos, checkbox activo); botón Guardar (insert/update con `.select("id")`; 0 filas → "sin permiso"); lista filtrable por vino con editar/activar/borrar. Usa `validateQuestionForm`/`questionInsertFromForm`. Estética como `admin.tsx` (inputs/Button existentes). Sin Supabase → aviso.
+- [x] `src/routes/admin.tsx` -- registrar la sección "Preguntas" y renderizar `<QuestionBank/>`.
 
 **Acceptance Criteria:**
 - Given un vino, una fase, un enunciado, ≥2 opciones y una marcada correcta con puntos>0, when guardo, then se inserta en `game_questions` con `options` como `string[]` y `correct_answer` igual a la opción marcada, y aparece en la lista.
@@ -86,6 +86,27 @@ avatar, migraciones, ni el **esquema** de `game_questions` (usar columnas existe
   en `/admin` (patrón §5.8a: cliente autenticado + RLS + `.select()`). Formato `options` string[] /
   `correct_answer`∈options, según el contrato de `quiz-source.ts`. RLS de escritura para admins =
   coordinación con Salvador si las escrituras dan 0 filas.
+
+- 2026-06-21 — Implementado + revisión de aceptación: **compliant** (sin violaciones). Sin parches. La
+  invariante clave (`correct_answer` === una opción persistida) queda garantizada por el trim simétrico en
+  `validateQuestionForm` y `questionInsertFromForm`; el form sigue la opción correcta al editarla y la
+  limpia al quitarla. Lib pura, escritura honesta con `.select("id")` (sin service key). 137 tests verdes.
+
+## Suggested Review Order
+
+**Lógica pura (contrato)**
+
+- `validateQuestionForm` (incl. `correct_answer` ∈ opciones) + `questionInsertFromForm` (`options` string[], trim simétrico).
+  [`game-questions.ts:64`](../../src/lib/game-questions.ts#L64)
+- Tests del banco.
+  [`game-questions.test.ts:1`](../../src/lib/game-questions.test.ts#L1)
+
+**UI CRUD (patrón §5.8a)**
+
+- `QuestionBank` — guardado con `.select("id")` (0 filas → "sin permiso"), opciones dinámicas + correcta.
+  [`question-bank.tsx:1`](../../src/components/question-bank.tsx#L1)
+- Sección "Preguntas" en `/admin`.
+  [`admin.tsx:34`](../../src/routes/admin.tsx#L34)
 
 ## Design Notes
 
