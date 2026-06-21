@@ -1,0 +1,88 @@
+# Cata gamificada (Tastia) — Estado y traspaso
+
+> Documento de cierre de nuestro carril (cliente del juego + comercio + admin + landing).
+> Fecha: 2026-06-21. Producción = rama `main` (Vercel proyecto `tastia`, dominio tastia.org).
+> Todo se construyó **feature a feature** (spec → dev → revisión adversarial → PR a `dev` → `dev`→`main`),
+> con copia honesta (sin fingir lo no construido).
+
+---
+
+## 1. Resumen ejecutivo
+
+Tastia es una plataforma de **cata de vino en grupo, gamificada y en vivo** (multijugador por Supabase
+Realtime, host-autoritario) + **packs físicos** con compra online. Estado actual:
+
+- **El bucle de negocio de punta a punta está construido y desplegado en producción:**
+  comprar un pack → recibir pedido + código → recibo con QR → activar la sala → jugar la cata.
+- **El panel de administración del juego está completo** (ajustes, banco de preguntas, clasificación de vinos).
+- Lo que **falta** son, sobre todo, piezas que dependen de **Salvador** (BD/edge functions/RLS) o de
+  **activar/probar** secretos en tus cuentas (Stripe/Resend/Supabase) — no de más código en nuestro carril.
+
+---
+
+## 2. ✅ Hecho y EN PRODUCCIÓN
+
+### Juego (cliente, host-autoritario)
+- Motor de sesión por rondas + presence/broadcast (Realtime); rutas `/room/$code` (Sala/host) y `/play/$code` (jugador).
+- Motor de quiz, temporizador por fase, puntuación, taxonomía y pregunta de clasificación.
+- **Quiz desde la BD (§5.6b-A, #13):** consume `quiz-bootstrap`/`quiz-close` (de Salvador) con **fallback total a demo** si no hay deploy/Supabase. Anti-spoiler: el bootstrap no lleva respuestas; el reveal llega en el cierre.
+- **Persistencia de sesión (§5.6b-B, #14):** `session-finish` al podio final (sesión + foto del ganador → ranking).
+- **i18n** ES/CA/EN/FR (incl. conversaciones de cliente).
+
+### Admin del juego — `/admin` (tras login)
+- **§5.8a (#12):** editor de `game_settings` (global + por pack) + panel de readiness.
+- **§5.8b (#21):** CRUD del banco de preguntas (`game_questions`) por vino/fase (`options` como `string[]`, `correct_answer` ∈ opciones — contrato con `quiz-source.ts`).
+- **§5.8c (#22):** clasificación de vinos (`wines.category` + `classification_id`) con coherencia tipo↔clasificación.
+- Patrón común: escritura vía **cliente autenticado + RLS** con `.select("id")` → 0 filas = "sin permiso" (honesto, sin service key).
+
+### Comercio → juego (modo TEST de Stripe)
+- **§Stripe-A (#15):** checkout en modo test (server fn en Vercel) + fallback honesto "Próximamente".
+- **§Stripe-B1 (#16):** webhook → persiste `orders` (status `pagado` + `access_code`), idempotente por `stripe_session_id`, solo `payment_status='paid'`.
+- **§Stripe-B2 (#17):** recibo por email (Resend) + **QR** del `access_code`, best-effort (un fallo de email NO rompe el fulfillment).
+- **§Activar (#18):** ruta pública `/activar` que valida el `access_code` (server fn + service key, solo `pagado`) → "Empezar la cata" como host en `/room/<code>`. **Cierra el bucle.**
+- **Fix (#19):** la env de Resend en Vercel se llama `RESEND_TASTIA_API_KEY` (el código la lee con fallback a `RESEND_API_KEY`).
+- Promociones a producción: **#20** (juego + comercio) y **#23** (fix Resend + admin).
+
+### Verificación
+`bunx tsc --noEmit` (0 errores) · `bunx vitest run` (**147 tests**) · `bun run build` — verdes.
+
+---
+
+## 3. ⏳ Pendiente — por responsable
+
+### A) Tú (David) — activar / probar (modo TEST, sin LIVE)
+Guía paso a paso: `docs/puesta-en-marcha.md`.
+- Poner en Vercel (Production) los secretos de test: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_TASTIA_API_KEY` → redeploy → compra de test con `4242…`.
+- **Email §B2 (pausado):** en la prueba de prod todo el bucle funcionó salvo el email. En Resend no aparecía ningún intento → la llamada se rechazó o no se hizo. **Sospecha:** quota diaria de Resend (~100/día, compartida) o la restricción del remitente `onboarding@resend.dev` (solo entrega al email de tu cuenta). **Diagnóstico:** línea `[receipt]` en los **runtime logs de Vercel** (no build) o **Resend → Usage**. Detalle en `deferred-work.md` §B2.
+
+### B) Salvador — BD / edge functions / RLS
+- **RLS de escritura para admins** en `game_settings` / `game_questions` / `wines`: sin esa policy, el admin (§5.8a/b/c) muestra honestamente "sin permiso" y no guarda. (El `.select("id")` lo delata, no rompe nada.)
+- **Desplegar y validar las edge functions** `quiz-bootstrap`/`quiz-close`/`session-finish` y comprobar el juego **desde la BD** end-to-end (hoy corre el fallback demo si no están).
+- **Endurecimientos que necesitan migración:** `UNIQUE(stripe_session_id)` y `UNIQUE(access_code)` en `orders` (idempotencia robusta / canje seguro); columna `activation_expires_at` (caducidad de activación); tabla de sesión de sala (persistencia / autoridad del reloj en servidor, §5.9).
+
+### C) Andrés — avatar-sommelier (§5.4)
+- Integración del avatar + voz (iframe en la Sala). Fuera de nuestro carril.
+
+### D) Nuestro carril — diferido CON MOTIVO (no son guanys netos ahora)
+- **Rate-limit de `/activar`:** anti-enumeración; necesita un **store** (KV/Upstash/Supabase), no es solo código. Mitigado hoy por el espacio de códigos (31⁸ ≈ 8,5·10¹¹). Mejor se cierra junto al `room_code` fresco.
+- **Anti-spoiler host-only:** sacar el motor **demo** (`DEMO_WINES`/`getQuestion`) del bundle de `/play` con `import()` dinámico. Riesgo real bajo (son datos demo; las respuestas reales viven en la edge function). **Diferido por decisión tuya.**
+- **Timer en pestaña de fondo:** el cierre del quiz depende de un `setTimeout` del host (se estrangula si la pestaña no está visible). La Sala vive en primer plano, así que es de bajo impacto; el arreglo "de verdad" es **mover el reloj al servidor** (§5.9, con Salvador), no el pegat de `visibilitychange`.
+
+> Todos los pendientes están anotados en `docs/specs/deferred-work.md` con el detalle exacto para reanudar.
+
+---
+
+## 4. Mapa de despliegue y ramas
+
+- **Producción = `main`** (Vercel proyecto `tastia`, plan Hobby) → tastia.org. `dev` y otras ramas = previews.
+- **Flujo (regla dura):** `feat/*` → PR a `dev` → `dev`→`main` para publicar. Nunca commit directo a `main`.
+- Supabase `tyuehzsqvjpjysxdihsh` (cuenta separada). Specs en `docs/specs/`; diferidos en `docs/specs/deferred-work.md`; estado vivo en `docs/ESTADO-cata-gamificada.md`; activación en `docs/puesta-en-marcha.md`.
+
+---
+
+## 5. Conclusión
+
+Nuestro carril (cliente del juego + comercio + admin + landing) está **completo y en producción**. Lo que
+queda son blocantes reales que **no son más código nuestro**: activar/probar secretos (tú) y BD/edge
+functions/RLS/migraciones (Salvador). El producto se puede **demostrar hoy**: el juego abriendo
+`/room/<código>`, y el bucle de compra completo en cuanto estén los secretos de test en Vercel.
