@@ -33,7 +33,8 @@ entonces, en preview corre en **modo demo** (badge "Datos demo").
 | **§5.8a Admin del juego** | Editor de `game_settings` (global + por pack) + panel readiness, en `/admin` | #12 |
 | **§5.6b-A Quiz desde la BD** | `quiz-bootstrap` + `quiz-close` (settings/vinos/preguntas/scoring) + fallback demo | #13 |
 | **§5.6b-B Persistencia** | `session-finish` al podio final (sesión + foto del ganador → ranking) | #14 |
-| **§Stripe-A Checkout** | Pago en modo TEST (server fn en Vercel) + fallback honesto "Próximamente" | #15 (abierto) |
+| **§Stripe-A Checkout** | Pago en modo TEST (server fn en Vercel) + fallback honesto "Próximamente" | #15 |
+| **§Stripe-B1 Webhook** | Webhook → persiste `orders` (status `pagado`) + `access_code`; idempotente | #16 (abierto) |
 
 Todas las features pasaron **PRD → spec → dev** con **revisión adversarial de 3 agentes**. Specs en
 `docs/specs/`. Contrato cliente↔backend en `docs/edge-functions-contract.md`. Campos exactos a validar

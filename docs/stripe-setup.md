@@ -34,8 +34,14 @@ test en el env de Vercel — **cero cambios de código**. Sin la clave, el carri
 ## Notas honestas
 
 - **No se cobra dinero real** (es modo test). Las tarjetas reales NO funcionan en test.
-- **El pedido aún NO se guarda** ni se envía email: eso es **§Stripe-B** (webhook + `orders` + `access_code`
-  + QR + email), diferido (`deferred-work.md`). La pantalla de éxito lo dice claramente.
+- **Persistencia del pedido (§Stripe-B1, hecho):** el pedido se guarda en `orders` cuando configures el
+  **webhook**. En Stripe → Developers → **Webhooks** → *Add endpoint* → URL
+  `https://<tu-dominio>/api/stripe-webhook` → evento `checkout.session.completed` → copia el **signing
+  secret** (`whsec_…`). En el env de Vercel pon **`STRIPE_WEBHOOK_SECRET`** (=`whsec_…`) y
+  **`SUPABASE_SERVICE_ROLE_KEY`** (para escribir `orders`). En local:
+  `stripe listen --forward-to localhost:8080/api/stripe-webhook`.
+- El **email/QR** de recibo es **§Stripe-B2** (diferido). Sin webhook configurado, el pago de test
+  funciona pero NO se guarda el pedido (la pantalla de éxito lo dice).
 - Mientras no exista `STRIPE_SECRET_KEY`, el carrito muestra **"Próximamente: pago con Stripe"** (no finge
   ninguna compra).
 - La clave vive **solo** en el env de Vercel (server-side); **nunca** llega al navegador ni al repo.
