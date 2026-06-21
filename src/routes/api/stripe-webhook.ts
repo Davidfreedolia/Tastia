@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import process from "node:process";
+import QRCode from "qrcode";
+import { Resend } from "resend";
 import Stripe from "stripe";
 
 import type { Database } from "@/lib/database.types";
 import { generateAccessCode, orderInsertFromSession } from "@/lib/orders";
+import { buildReceiptEmail } from "@/lib/receipt";
 
 // §Stripe-B1 — Webhook de Stripe (ruta de servidor en Vercel/Nitro).
 //
@@ -94,14 +97,60 @@ export const Route = createFileRoute("/api/stripe-webhook")({
         }
 
         // Inserta el pedido (cabecera): status 'pagado', email/importes de la sesión,
-        // stripe_session_id y un access_code recién generado.
+        // stripe_session_id y un access_code recién generado. Capturamos el code en
+        // una variable para reutilizarlo en el recibo (§Stripe-B2).
+        const accessCode = generateAccessCode();
         const { error } = await admin
           .from("orders")
-          .insert(orderInsertFromSession(session, generateAccessCode()));
+          .insert(orderInsertFromSession(session, accessCode));
         if (error) {
           console.error("[stripe-webhook] Error al insertar el pedido", error);
           // 500 → Stripe reintentará el evento.
           return new Response("DB error", { status: 500 });
+        }
+
+        // §Stripe-B2 — Recibo best-effort: tras el insert OK, enviar un email con el
+        // access_code, el enlace de activación y su QR. Va en try/catch que NUNCA
+        // propaga: un fallo de email → log + el webhook responde 200 igual (el
+        // pedido ya está guardado; no queremos provocar reintentos de Stripe).
+        try {
+          const email =
+            session.customer_details?.email ?? session.customer_email;
+          const resendKey = process.env.RESEND_API_KEY;
+
+          if (!email) {
+            console.warn(
+              "[receipt] sin email del comprador — no se envía recibo",
+            );
+          } else if (!resendKey) {
+            console.warn(
+              "[receipt] RESEND_API_KEY no configurada — no se envía recibo",
+            );
+          } else {
+            // `origin` desde success_url (lo fija §A), con fallback al dominio.
+            const origin = (() => {
+              try {
+                return new URL(session.success_url ?? "").origin;
+              } catch {
+                return "https://tastia.org";
+              }
+            })();
+            const activationUrl = `${origin}/activar?code=${accessCode}`;
+            const qrDataUrl = await QRCode.toDataURL(activationUrl);
+
+            await new Resend(resendKey).emails.send(
+              buildReceiptEmail({
+                to: email,
+                accessCode,
+                totalCents: session.amount_total ?? 0,
+                activationUrl,
+                qrDataUrl,
+                livemode: session.livemode ?? false,
+              }),
+            );
+          }
+        } catch (err) {
+          console.error("[receipt] fallo al enviar el recibo", err);
         }
 
         return new Response(JSON.stringify({ received: true }), {

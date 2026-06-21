@@ -2,7 +2,8 @@
 title: '§Stripe-B2 — Recibo de compra: email + QR del access_code'
 type: 'feature'
 created: '2026-06-21'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'a78daf7'
 context: []
 ---
 
@@ -65,10 +66,10 @@ exponer secretos al cliente; tocar edge functions del juego, avatar, migraciones
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `package.json` -- añadir `resend` y `qrcode` (+ `@types/qrcode` dev si hace falta).
-- [ ] `src/lib/receipt.ts` (NUEVO, PURO) -- `buildReceiptEmail(args)` → `{ from, to, subject, html }`: `from = process.env.RESEND_FROM ?? "Tastia <onboarding@resend.dev>"`; subject p.ej. "Tu cata Tastia — recibo y acceso"; HTML con importe (`totalCents/100 €`), `access_code`, **enlace** `activationUrl` (texto), `<img src={qrDataUrl}>` y, si `!livemode`, una nota "pago de prueba (no se ha cobrado dinero real)". Sin I/O.
-- [ ] `src/lib/receipt.test.ts` (NUEVO) -- el HTML incluye `access_code`, el `activationUrl` y la nota de prueba cuando `livemode=false` (y NO cuando `true`); `from` usa `RESEND_FROM` o el default; subject presente.
-- [ ] `src/routes/api/stripe-webhook.ts` -- tras el insert OK: `const origin = new URL(session.success_url ?? "https://tastia.org").origin` (fallback si falta); `const activationUrl = ${origin}/activar?code=${accessCode}`; `const qrDataUrl = await QRCode.toDataURL(activationUrl)`; si `process.env.RESEND_API_KEY` y hay `email` → `new Resend(key).emails.send(buildReceiptEmail({...}))` en **try/catch** (fallo → `console.error` + seguir); si no hay key → `console.warn` y seguir. Siempre 200. (Refactor: generar el `access_code` en una variable y usarla tanto en el insert como aquí.)
+- [x] `package.json` -- añadir `resend` y `qrcode` (+ `@types/qrcode` dev si hace falta).
+- [x] `src/lib/receipt.ts` (NUEVO, PURO) -- `buildReceiptEmail(args)` → `{ from, to, subject, html }`: `from = process.env.RESEND_FROM ?? "Tastia <onboarding@resend.dev>"`; subject p.ej. "Tu cata Tastia — recibo y acceso"; HTML con importe (`totalCents/100 €`), `access_code`, **enlace** `activationUrl` (texto), `<img src={qrDataUrl}>` y, si `!livemode`, una nota "pago de prueba (no se ha cobrado dinero real)". Sin I/O.
+- [x] `src/lib/receipt.test.ts` (NUEVO) -- el HTML incluye `access_code`, el `activationUrl` y la nota de prueba cuando `livemode=false` (y NO cuando `true`); `from` usa `RESEND_FROM` o el default; subject presente.
+- [x] `src/routes/api/stripe-webhook.ts` -- tras el insert OK: `const origin = new URL(session.success_url ?? "https://tastia.org").origin` (fallback si falta); `const activationUrl = ${origin}/activar?code=${accessCode}`; `const qrDataUrl = await QRCode.toDataURL(activationUrl)`; si `process.env.RESEND_API_KEY` y hay `email` → `new Resend(key).emails.send(buildReceiptEmail({...}))` en **try/catch** (fallo → `console.error` + seguir); si no hay key → `console.warn` y seguir. Siempre 200. (Refactor: generar el `access_code` en una variable y usarla tanto en el insert como aquí.)
 
 **Acceptance Criteria:**
 - Given un pedido creado y `RESEND_API_KEY` configurada, when termina el webhook, then se envía un email al comprador con su `access_code`, el enlace `…/activar?code=…` y un QR, y responde 200.
@@ -83,6 +84,29 @@ exponer secretos al cliente; tocar edge functions del juego, avatar, migraciones
   webhook; enlace de activación en texto + QR; fallback honesto sin `RESEND_API_KEY` (no envía, log,
   pedido guardado); el fallo de email no rompe el fulfillment (200). `/activar` es otra feature (el QR
   solo codifica su URL). Para PROBAR: `RESEND_API_KEY` + `RESEND_FROM` verificado (David).
+
+- 2026-06-21 — Implementado + revisión adversarial (2 agentes; auditor: compliant, sin violaciones). Sin
+  parches de código: el email es best-effort (todo el envío en try/catch → 200), el builder es puro,
+  secretos solo server-side, sin inyección (los valores son propios/de Stripe, el email del comprador solo
+  va en `to`). Deps `resend@6` + `qrcode@1.5` añadidas. Diferidos a `deferred-work.md` (§B2 robustez):
+  derivar el `origin` de un env `SITE_URL` en vez de `success_url`; ligar el `access_code` a identidad en
+  `/activar` (un email tecleado mal enviaría el código a otra persona); fallo transitorio de Resend sin
+  reintento → alerta/outbox (el pedido queda guardado, recuperable). `RESEND_FROM` verificado = go-live.
+
+## Suggested Review Order
+
+**Lógica pura (email)**
+
+- `buildReceiptEmail` — importe + `access_code` + enlace de activación (texto) + QR `<img>` + nota honesta de prueba.
+  [`receipt.ts:26`](../../src/lib/receipt.ts#L26)
+- Tests del builder.
+  [`receipt.test.ts:1`](../../src/lib/receipt.test.ts#L1)
+
+**Integración (webhook, best-effort)**
+
+- Recibo tras el insert OK, en try/catch que nunca propaga (fallback sin email / sin `RESEND_API_KEY`;
+  `origin` de `success_url`; QR; envío Resend; siempre 200).
+  [`stripe-webhook.ts:116`](../../src/routes/api/stripe-webhook.ts#L116)
 
 ## Design Notes
 
