@@ -2,7 +2,8 @@
 title: '§5.8a — Ajustes del juego (admin): editor de game_settings + estado del banco'
 type: 'feature'
 created: '2026-06-21'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '2a2504f'
 context: ['{project-root}/docs/edge-functions-contract.md']
 ---
 
@@ -31,8 +32,9 @@ preparados; los consumirá la edge function `quiz-bootstrap` en §5.6b (Salvador
 
 **Always:** escritura solo vía cliente Supabase autenticado (RLS `is_admin()`); `/admin` ya gateado por
 `RequireAuth`; seguir el patrón de `Suppliers` en `admin.tsx` (form + tabla, `getSupabase`, manejo de
-error); **global**: UPDATE de la única fila global (Salvador la fuerza única con índice único parcial);
-**por pack**: `upsert` sobre `pack_tier` (único); validar rangos antes de escribir.
+error); **persistencia**: UPDATE por `id` si la fila existe; INSERT si no (con su `pack_tier`; `null`=global)
+— NO `upsert` (el índice único de `pack_tier` es parcial y PostgREST no puede apuntarlo); `.select()`
+tras escribir para detectar 0 filas (RLS sin permiso) y no dar un falso "Guardado"; validar rangos antes de escribir.
 
 **Ask First:** cualquier necesidad de cambiar el esquema de `game_settings` (es de Salvador) -- HALT y
 coordinar; exponer `active` o `ranking_period` -- fuera de alcance, preguntar antes de añadir.
@@ -46,8 +48,8 @@ CRUD de `game_questions` (§5.8b) ni clasificación de vinos (§5.8c), ambos dif
 | Scenario | Input / State | Expected Output / Behavior | Error Handling |
 |----------|--------------|---------------------------|----------------|
 | Abrir editor | hay fila global + filas por tier | 4 bloques (Global/Básico/Normal/Premium) precargados con valores actuales | si falta la fila de un tier: bloque con defaults de la global, marcado "sin guardar" |
-| Guardar válido (fila existente) | times 5–300, points_base 0–1000, bonus_max 0–1000 | global: UPDATE; pack: `upsert` por `pack_tier`; confirma "Guardado" y refresca | error RLS/red → mensaje visible, sin cambios locales |
-| Guardar pack sin fila previa | `pack_tier` p.ej. basico, valores válidos | `upsert` crea la fila por `pack_tier` | error → mensaje |
+| Guardar válido | times 5–300, points_base 0–1000, bonus_max 0–1000 | UPDATE por `id` (o INSERT si falta); confirma "Guardado" solo si se escribió ≥1 fila; refresca | error o 0 filas (RLS) → mensaje visible, sin falso "Guardado" |
+| Guardar pack sin fila previa | `pack_tier` p.ej. basico, valores válidos | INSERT crea la fila con su `pack_tier` | error → mensaje |
 | Valor fuera de rango / no entero | p.ej. time 0, negativo, vacío | botón Guardar deshabilitado; no envía | validación en cliente (sin tocar BD) |
 | Panel readiness | vista `wines_question_readiness` | tabla read-only: vino, `fases_cubiertas`/4, ✓/✗ `ready` | vacío → "Sin vinos todavía" |
 
@@ -64,10 +66,10 @@ CRUD de `game_questions` (§5.8b) ni clasificación de vinos (§5.8c), ambos dif
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/game-settings.ts` -- definir `SETTINGS_LIMITS` (rangos), tipo `SettingsForm`, función pura `validateGameSettings(form): Record<field,string>` (errores por campo) y `defaultsFromGlobal(globalRow)`; reexportar las 4 gamas (`null`,basico,normal,premium) con etiqueta amigable (Global/Básico/Normal/Premium). Sin I/O.
-- [ ] `src/lib/game-settings.test.ts` -- unit tests de `validateGameSettings`: válidos, límites, 0/negativo/no-entero/vacío, y `defaultsFromGlobal`.
-- [ ] `src/routes/admin.tsx` -- reemplazar el `Placeholder` de `gamification` por `GameSettings`: cargar todas las filas de `game_settings`, render de 4 bloques editables (campos time_*_s, points_base, bonus_max) usando `validateGameSettings`; guardar por bloque (global: UPDATE de la fila global; pack: `upsert` sobre `pack_tier`); estado guardando/guardado/error. Reusar estilos del patrón Suppliers.
-- [ ] `src/routes/admin.tsx` -- añadir bajo el editor un panel read-only `Readiness`: cargar `wines_question_readiness` y tabla (vino, `fases_cubiertas`/4, ✓/✗).
+- [x] `src/lib/game-settings.ts` -- definir `SETTINGS_LIMITS` (rangos), tipo `SettingsForm`, función pura `validateGameSettings(form): Record<field,string>` (errores por campo) y `defaultsFromGlobal(globalRow)`; reexportar las 4 gamas (`null`,basico,normal,premium) con etiqueta amigable (Global/Básico/Normal/Premium). Sin I/O.
+- [x] `src/lib/game-settings.test.ts` -- unit tests de `validateGameSettings`: válidos, límites, 0/negativo/no-entero/vacío, y `defaultsFromGlobal`.
+- [x] `src/routes/admin.tsx` -- reemplazar el `Placeholder` de `gamification` por `GameSettings`: cargar todas las filas de `game_settings`, render de 4 bloques editables (campos time_*_s, points_base, bonus_max) usando `validateGameSettings`; guardar por bloque (global: UPDATE de la fila global; pack: `upsert` sobre `pack_tier`); estado guardando/guardado/error. Reusar estilos del patrón Suppliers.
+- [x] `src/routes/admin.tsx` -- añadir bajo el editor un panel read-only `Readiness`: cargar `wines_question_readiness` y tabla (vino, `fases_cubiertas`/4, ✓/✗).
 
 **Acceptance Criteria:**
 - Given un admin en `/admin` → "Gamificación", when abre, then ve 4 bloques (Global/Básico/Normal/Premium) precargados desde `game_settings` y un panel read-only de readiness.
@@ -82,11 +84,21 @@ CRUD de `game_questions` (§5.8b) ni clasificación de vinos (§5.8c), ambos dif
   forzada con índice único parcial), pack = `upsert` sobre `pack_tier`; `wines_question_readiness` la
   redefine él para medir derivabilidad (mismas columnas, el panel no cambia); el admin debe estar en la
   tabla `admins`.
+- 2026-06-21 — Revisión adversarial (iter. 1). Hallazgo CRÍTICO (verificado contra la migración): el
+  `upsert(onConflict:'pack_tier')` falla porque el índice único de `pack_tier` es PARCIAL — PostgREST no
+  puede apuntarlo (error 42P10) → los packs no se guardarían. Con aprobación de David se enmienda el
+  bloque frozen (Boundaries + I/O Matrix): persistencia = UPDATE por `id` / INSERT si falta (sin upsert)
+  + `.select()` para detectar 0 filas (falso "Guardado" bajo RLS). Patches menores: reset de "Guardado"
+  al editar, key estable en readiness, error de carga visible. Diferido: clobber de ediciones no
+  guardadas entre bloques al guardar Global.
 
 ## Design Notes
 
-- **Persistencia (confirmado con Salvador):** la fila **global** es única (la fuerza con un índice único
-  parcial) → **UPDATE** de esa fila; las filas **por pack** → **`upsert` sobre `pack_tier`** (único).
+- **Persistencia:** UPDATE por `id` si la fila existe; INSERT si no (con su `pack_tier`; `null`=global).
+  NO `upsert`: el índice único de `pack_tier` es **parcial** (`WHERE pack_tier IS NOT NULL`) y PostgREST
+  no puede apuntarlo con `onConflict` (error 42P10) — hallazgo de la revisión adversarial. `.select()`
+  tras escribir detecta escrituras de 0 filas (RLS) y evita un falso "Guardado". No requiere cambios en
+  el esquema de Salvador.
 - **Vista `wines_question_readiness`:** Salvador la **redefine** para medir **derivabilidad** (notas +
   ficha del vino), no el recuento de `game_questions` (vacía, porque las preguntas se derivan) — **mismas
   columnas**, así que el panel no cambia, solo dice la verdad. Lo hace él.
@@ -104,3 +116,38 @@ CRUD de `game_questions` (§5.8b) ni clasificación de vinos (§5.8c), ambos dif
 
 **Manual checks:**
 - En el preview, `/admin` → "Gamificación": editar tiempos/puntos de un bloque, Guardar, recargar → persiste; el panel readiness lista los vinos con `fases_cubiertas`/4 y ✓/✗.
+
+## Suggested Review Order
+
+**Persistencia (núcleo — el fix crítico de la revisión)**
+
+- UPDATE por `id` / INSERT si falta + `.select()` — sin `upsert` (arregla el 42P10 del índice parcial y el falso "Guardado" bajo RLS).
+  [`admin.tsx:395`](../../src/routes/admin.tsx#L395)
+- El bloque editable: form, validación en vivo, guardado y estados (guardando/Guardado/error).
+  [`admin.tsx:342`](../../src/routes/admin.tsx#L342)
+
+**Carga y orquestación**
+
+- Carga de `game_settings`, la global como defaults y los 4 bloques.
+  [`admin.tsx:265`](../../src/routes/admin.tsx#L265)
+- Error de carga visible (no estado vacío silencioso).
+  [`admin.tsx:308`](../../src/routes/admin.tsx#L308)
+- Enrutado de la sección Gamificación.
+  [`admin.tsx:78`](../../src/routes/admin.tsx#L78)
+
+**Validación (lógica pura, testeable)**
+
+- Reglas por campo (entero + rango).
+  [`game-settings.ts:64`](../../src/lib/game-settings.ts#L64)
+- Gamas (Global + 3 packs) y prefill desde la global.
+  [`game-settings.ts:34`](../../src/lib/game-settings.ts#L34)
+
+**Readiness (solo lectura)**
+
+- Panel del estado del banco (`wines_question_readiness`).
+  [`admin.tsx:458`](../../src/routes/admin.tsx#L458)
+
+**Periféricos**
+
+- Tests de la validación.
+  [`game-settings.test.ts:1`](../../src/lib/game-settings.test.ts#L1)
