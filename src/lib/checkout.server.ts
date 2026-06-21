@@ -70,8 +70,8 @@ export const createCheckout = createServerFn({ method: "POST" })
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items,
-        success_url: `${data.origin}/?checkout=success`,
-        cancel_url: `${data.origin}/?checkout=cancel`,
+        success_url: `${data.origin}/landing?checkout=success`,
+        cancel_url: `${data.origin}/landing?checkout=cancel`,
       });
 
       return { configured: true, url: session.url };
