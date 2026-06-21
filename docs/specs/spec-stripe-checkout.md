@@ -2,7 +2,8 @@
 title: '§Stripe-A — Checkout de pago en modo TEST (Vercel server fn) + fallback honesto'
 type: 'feature'
 created: '2026-06-21'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'adce5c3'
 context: []
 ---
 
@@ -66,13 +67,13 @@ los consentimientos age/terms antes de pagar; `success_url`/`cancel_url` de la p
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `package.json` -- añadir `stripe` (SDK Node) como dependencia.
-- [ ] `src/lib/checkout.ts` -- catálogo fiable de packs (`id → { name, amount_cents }`) y función PURA `cartAmountCents(items)` que recomputa el total desde el catálogo (ignora el precio del cliente; id desconocido → error). Sin I/O.
-- [ ] `src/lib/checkout.test.ts` -- tests de `cartAmountCents` (recompute correcto, ignora precio cliente, id desconocido, cantidades).
-- [ ] `src/lib/checkout.server.ts` (NUEVO) -- `createCheckout` (`createServerFn`): si falta `process.env.STRIPE_SECRET_KEY` → `{ configured:false }`; si no, recomputa importe con `cartAmountCents`, crea `stripe.checkout.sessions.create` (mode `payment`, line items `price_data` EUR desde el catálogo, `success_url=…?checkout=success`, `cancel_url=…?checkout=cancel`), devuelve `{ url }`.
-- [ ] `src/components/cart-sheet.tsx` -- `handlePay`: llama a `createCheckout`; `{ url }` → `window.location.href = url`; `{ configured:false }` → estado "Próximamente: pago con Stripe" (eliminar el falso `done`/"reserva confirmada"); error → mensaje.
-- [ ] `src/routes/landing.tsx` -- al cargar con `?checkout=success` mostrar confirmación (de test); `?checkout=cancel` → volver al carrito.
-- [ ] `src/lib/i18n.tsx` -- strings: "Próximamente: pago con Stripe", confirmación de pago de test.
+- [x] `package.json` -- añadir `stripe` (SDK Node) como dependencia.
+- [x] `src/lib/checkout.ts` -- catálogo fiable de packs (`id → { name, amount_cents }`) y función PURA `cartAmountCents(items)` que recomputa el total desde el catálogo (ignora el precio del cliente; id desconocido → error). Sin I/O.
+- [x] `src/lib/checkout.test.ts` -- tests de `cartAmountCents` (recompute correcto, ignora precio cliente, id desconocido, cantidades).
+- [x] `src/lib/checkout.server.ts` (NUEVO) -- `createCheckout` (`createServerFn`): si falta `process.env.STRIPE_SECRET_KEY` → `{ configured:false }`; si no, recomputa importe con `cartAmountCents`, crea `stripe.checkout.sessions.create` (mode `payment`, line items `price_data` EUR desde el catálogo, `success_url=…?checkout=success`, `cancel_url=…?checkout=cancel`), devuelve `{ url }`.
+- [x] `src/components/cart-sheet.tsx` -- `handlePay`: llama a `createCheckout`; `{ url }` → `window.location.href = url`; `{ configured:false }` → estado "Próximamente: pago con Stripe" (eliminar el falso `done`/"reserva confirmada"); error → mensaje.
+- [x] `src/routes/landing.tsx` -- al cargar con `?checkout=success` mostrar confirmación (de test); `?checkout=cancel` → volver al carrito.
+- [x] `src/lib/i18n.tsx` -- strings: "Próximamente: pago con Stripe", confirmación de pago de test.
 
 **Acceptance Criteria:**
 - Given `STRIPE_SECRET_KEY` en el env, when el usuario paga, then redirige a Stripe Checkout (test) y al volver con `?checkout=success` ve una confirmación; NUNCA se finge un pedido.
@@ -86,6 +87,13 @@ los consentimientos age/terms antes de pagar; `success_url`/`cancel_url` de la p
   sin deploy de Salvador); importe recomputado server-side; **fallback honesto "Próximamente"** si no hay
   clave → implementable SIN la key (arregla ya el checkout falso), redirect real al añadir `sk_test_` al
   env de Vercel. Modo test. §Stripe-B (webhook/pedido/QR/email) diferido a `deferred-work.md`.
+
+- 2026-06-21 — Revisión adversarial (iter. 1). Núcleo OK (precio fiable server-side, secret aislado,
+  copy honesto; auditor: "fully compliant"). Patches de higiene de inputs: `qty` acotado
+  (`.int().positive().max(99)`), guard de `line_items` vacío antes de llamar a Stripe, y mensaje de
+  error genérico al cliente (`console.error` del detalle solo en servidor — no filtrar internals).
+  Diferido a §B/go-live: clave de idempotencia, verificación server-side de `?checkout=success` (clave
+  en modo LIVE), y allowlist del `origin` (hoy solo afecta la propia sesión del comprador).
 
 ## Design Notes
 
@@ -106,3 +114,24 @@ los consentimientos age/terms antes de pagar; `success_url`/`cancel_url` de la p
 **Manual checks:**
 - Sin `STRIPE_SECRET_KEY`: el carrito muestra "Próximamente: pago con Stripe" (no finge compra).
 - Con `sk_test_…` en el env de Vercel (cuando David cree la cuenta): pagar con 4242 4242 4242 4242 → redirige a Stripe → vuelve a `?checkout=success`; el secreto no aparece en el bundle de cliente.
+
+## Suggested Review Order
+
+**Núcleo de seguridad (precio fiable + secreto aislado)**
+
+- `createCheckout`: secret server-only (`process.env` en el handler), importe recomputado, validación zod (`qty` acotado), guards (line_items vacío, error genérico).
+  [`checkout.server.ts:33`](../../src/lib/checkout.server.ts#L33)
+- `cartAmountCents`: catálogo fiable; ignora el precio del cliente; id desconocido → throw.
+  [`checkout.ts:33`](../../src/lib/checkout.ts#L33)
+
+**Wiring del carrito**
+
+- `handlePay`: `createCheckout` → redirect a Stripe / estado honesto "Próximamente" / error.
+  [`cart-sheet.tsx:44`](../../src/components/cart-sheet.tsx#L44)
+- Vuelta de Stripe (`?checkout=success|cancel`) con confirmación honesta de pago de test.
+  [`landing.tsx:895`](../../src/routes/landing.tsx#L895)
+
+**Periféricos**
+
+- Tests del cálculo de importe (recompute, ignora precio cliente, id desconocido).
+  [`checkout.test.ts:1`](../../src/lib/checkout.test.ts#L1)
