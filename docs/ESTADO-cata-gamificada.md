@@ -79,7 +79,7 @@ contrato). **Plan:** David + Salvador, cuando coincidan → deploy de #10 + reco
 - Validar la integración BD end-to-end (deploy de Salvador #10 + checklist).
 
 **Features pendientes**
-- **Stripe:** §A (checkout en TEST) **hecho** (PR #15) → falta **activar** (`sk_test_…` en el env de Vercel; David crea la cuenta Stripe test) + **§B** (webhook + pedido + `access_code` + QR + email; diferido). Sin clave, el carrito muestra "Próximamente" (honesto).
+- **Stripe:** §A (checkout en TEST) **hecho** (PR #15) → falta **activar** (`sk_test_…` en el env de Vercel; David crea la cuenta Stripe test) + **§B** (webhook + pedido + `access_code` + QR + email; diferido). Sin clave, el carrito muestra "Próximamente" (honesto). **Guía de activación: `docs/stripe-setup.md`.**
 - **§5.4 Avatar** (Andrés) — proveedor + API key + control de coste.
 
 **Diferido (`docs/specs/deferred-work.md`)**
