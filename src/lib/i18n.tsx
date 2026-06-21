@@ -177,12 +177,23 @@ export const strings = {
   cart_pay: { es: "Pagar", en: "Pay" },
   cart_pay_secure: { es: "Pago seguro · Sin abandonar la web", en: "Secure payment · Never leave this page" },
   cart_open: { es: "Ver carrito", en: "View cart" },
-  cart_success_title: { es: "¡Reserva confirmada!", en: "Order confirmed!" },
-  cart_success_body: {
-    es: "Recibirás un email con la confirmación y el seguimiento del envío en menos de 24h.",
-    en: "You'll get a confirmation email and tracking info within 24h.",
+  // Stripe checkout — honest states (§Stripe-A)
+  cart_soon_title: { es: "Próximamente: pago con Stripe", en: "Coming soon: payment with Stripe" },
+  cart_soon_body: {
+    es: "El pago con tarjeta aún no está activo. No se ha realizado ningún cobro ni reserva. Vuelve pronto.",
+    en: "Card payment isn't live yet. No charge or order was made. Come back soon.",
   },
-  cart_success_close: { es: "Seguir explorando", en: "Keep exploring" },
+  cart_soon_close: { es: "Entendido", en: "Got it" },
+  cart_pay_error: {
+    es: "No se pudo iniciar el pago. Inténtalo de nuevo.",
+    en: "We couldn't start the payment. Please try again.",
+  },
+  checkout_test_title: { es: "Pago de prueba recibido", en: "Test payment received" },
+  checkout_test_body: {
+    es: "Era un pago en modo de prueba de Stripe: no se ha cobrado dinero real ni se ha creado un pedido todavía.",
+    en: "This was a Stripe test-mode payment: no real money was charged and no order has been created yet.",
+  },
+  checkout_test_close: { es: "Cerrar", en: "Close" },
 
   trust_pay: { es: "Pago seguro con Stripe", en: "Secure payment with Stripe" },
   trust_ship: { es: "Envío a península.", en: "Shipping within mainland Spain." },

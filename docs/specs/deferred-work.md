@@ -104,3 +104,7 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   genera `access_code` + QR (enlaza con la activación de la sala del juego) y envía email de recibo
   (¿Resend?). Secret `whsec_…` en env de Vercel.
 - → Abordar tras §A, con la cuenta Stripe ya creada (David).
+- Endurecimientos pendientes (de la revisión de §A): **clave de idempotencia** en `sessions.create`
+  (evita sesiones duplicadas al doble-submit); **verificar server-side `?checkout=success`** con
+  `sessions.retrieve` antes de dar nada por pagado (imprescindible en modo LIVE); **allowlist del
+  `origin`** de las `success_url`/`cancel_url` en vez de confiar en el del cliente.
