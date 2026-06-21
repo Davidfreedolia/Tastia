@@ -4,6 +4,8 @@ import { RequireAuth } from "@/lib/require-auth";
 import { getSupabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/logo";
+import { QuestionBank } from "@/components/question-bank";
+import { WineClassification } from "@/components/wine-classification";
 import {
   defaultsFromGlobal,
   GAME_TIERS,
@@ -31,6 +33,7 @@ const SECTIONS = [
   { id: "wines", label: "Vinos" },
   { id: "orders", label: "Pedidos" },
   { id: "gamification", label: "Gamificación" },
+  { id: "questions", label: "Preguntas" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
@@ -76,9 +79,13 @@ function Admin() {
           {section === "dashboard" && <Dashboard />}
           {section === "suppliers" && <Suppliers />}
           {section === "gamification" && <GameSettings />}
-          {section !== "dashboard" && section !== "suppliers" && section !== "gamification" && (
-            <Placeholder section={section} />
-          )}
+          {section === "questions" && <QuestionBank />}
+          {section === "wines" && <WineClassification />}
+          {section !== "dashboard" &&
+            section !== "suppliers" &&
+            section !== "gamification" &&
+            section !== "questions" &&
+            section !== "wines" && <Placeholder section={section} />}
         </main>
       </div>
     </div>
