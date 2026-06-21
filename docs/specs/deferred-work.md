@@ -63,3 +63,10 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
 - Coordinar con Salvador (formato de players/foto) y depende de su deploy. Carril nuestro = la llamada
   desde el cliente; la function es suya.
 - → Abordar tras §5.6b-A.
+
+## §5.8a — (menor) Clobber de ediciones no guardadas entre bloques del editor de ajustes
+
+- Hallazgo de la revisión adversarial. Al guardar el bloque **Global**, `load()` recalcula los defaults
+  de los bloques de pack **aún no creados** → su `useEffect` re-siembra el form y descarta ediciones no
+  guardadas en esos bloques. Caso estrecho (solo bloques de pack sin fila propia, al guardar Global).
+- → Endurecer: dirty-guard por bloque, o `key` de remount, o no re-sembrar bloques con ediciones.
