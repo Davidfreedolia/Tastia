@@ -3,7 +3,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
-import { ShoppingBag, Trash2, Minus, Plus, Lock, CheckCircle2, ArrowLeft } from "lucide-react";
+import { createCheckout } from "@/lib/checkout.server";
+import { ShoppingBag, Trash2, Minus, Plus, Lock, Clock, ArrowLeft } from "lucide-react";
 
 export type CartItem = {
   id: string;
@@ -26,25 +27,56 @@ type Props = {
 
 export function CartSheet({ open, onOpenChange, items, setQty, remove, clear, onOpenLegal }: Props) {
   const { t } = useI18n();
-  const [step, setStep] = useState<"cart" | "checkout" | "done">("cart");
+  // "soon" replaces the old fake "done": when Stripe isn't configured we show
+  // an honest "Próximamente" state — we never fake a confirmed order here.
+  const [step, setStep] = useState<"cart" | "checkout" | "soon">("cart");
   const [ageOk, setAgeOk] = useState(false);
   const [termsOk, setTermsOk] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
 
   const subtotal = items.reduce((acc, it) => acc + it.price * it.qty, 0);
   const shipping = subtotal > 0 ? 0 : 0; // always free (promo)
   const total = subtotal + shipping;
 
-  const canPay = ageOk && termsOk;
+  const canPay = ageOk && termsOk && !paying;
 
-  const handlePay = (e: React.FormEvent) => {
+  const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canPay) return;
-    // Simulated payment — kept entirely in-page.
-    setStep("done");
+    setPayError(null);
+    setPaying(true);
+    try {
+      // Server recomputes the amount from the trusted catalog (id + qty only).
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await createCheckout({
+        data: {
+          items: items.map((i) => ({ id: i.id, qty: i.qty })),
+          origin,
+        },
+      });
+      if (!res.configured) {
+        // Honest fallback — no Stripe key configured. No charge, no order.
+        setStep("soon");
+        return;
+      }
+      if ("error" in res) {
+        setPayError(t("cart_pay_error"));
+        return;
+      }
+      if (res.url) {
+        window.location.href = res.url; // redirect to Stripe Checkout (test)
+        return;
+      }
+      setPayError(t("cart_pay_error"));
+    } catch {
+      setPayError(t("cart_pay_error"));
+    } finally {
+      setPaying(false);
+    }
   };
 
-  const closeDone = () => {
-    clear();
+  const closeSoon = () => {
     setStep("cart");
     onOpenChange(false);
   };
@@ -53,33 +85,37 @@ export function CartSheet({ open, onOpenChange, items, setQty, remove, clear, on
     <Sheet
       open={open}
       onOpenChange={(o) => {
-        if (!o && step === "done") closeDone();
+        if (!o && step === "soon") closeSoon();
         else onOpenChange(o);
       }}
     >
       <SheetContent
         side="right"
+        // El autocompletado del navegador (direcciones) abre un popup NATIVO fuera del DOM del
+        // diálogo; Radix lo trata como "clic fuera" y cerraría el carrito a media compra. Evitamos
+        // el cierre por interacción fuera: se cierra con la ✕ o Escape (no por autofill ni overlay).
+        onInteractOutside={(e) => e.preventDefault()}
         className="w-full sm:max-w-md p-0 flex flex-col bg-card border-l border-border/60"
       >
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/60 text-left">
           <SheetTitle className="serif text-2xl flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-primary" aria-hidden />
-            {step === "done" ? t("cart_success_title") : t("cart_title")}
+            {step === "soon" ? t("cart_soon_title") : t("cart_title")}
           </SheetTitle>
           <SheetDescription className="text-xs uppercase tracking-[0.18em] text-foreground/60">
             {t("cart_subtitle")}
           </SheetDescription>
         </SheetHeader>
 
-        {step === "done" ? (
+        {step === "soon" ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-5">
             <div className="grid h-16 w-16 place-items-center rounded-none bg-primary/10 text-primary">
-              <CheckCircle2 className="h-8 w-8" aria-hidden />
+              <Clock className="h-8 w-8" aria-hidden />
             </div>
-            <h3 className="serif text-2xl font-bold">{t("cart_success_title")}</h3>
-            <p className="text-sm text-foreground/70 max-w-xs">{t("cart_success_body")}</p>
-            <Button variant="wine" size="lg" onClick={closeDone} className="mt-2 rounded-none">
-              {t("cart_success_close")}
+            <h3 className="serif text-2xl font-bold">{t("cart_soon_title")}</h3>
+            <p className="text-sm text-foreground/70 max-w-xs">{t("cart_soon_body")}</p>
+            <Button variant="wine" size="lg" onClick={closeSoon} className="mt-2 rounded-none">
+              {t("cart_soon_close")}
             </Button>
           </div>
         ) : items.length === 0 ? (
@@ -200,6 +236,11 @@ export function CartSheet({ open, onOpenChange, items, setQty, remove, clear, on
                     </span>
                   </label>
                   <p className="text-[11px] text-foreground/55 leading-relaxed">{t("cart_id_notice")}</p>
+                  {payError && (
+                    <p role="alert" className="text-xs font-semibold text-destructive">
+                      {payError}
+                    </p>
+                  )}
                 </form>
               )}
             </div>

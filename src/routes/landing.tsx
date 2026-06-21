@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RequireAuth } from "@/lib/require-auth";
 import { I18nProvider, useI18n, type Lang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CartSheet, type CartItem } from "@/components/cart-sheet";
@@ -733,7 +734,7 @@ function Footer({ onOpenLegal }: { onOpenLegal: (tab: LegalTab) => void }) {
         </div>
 
         <nav className="flex flex-col gap-1 md:items-start" aria-label="Footer legal">
-          <a href="mailto:hola@tastia.es" className={linkCls}>{t("link_contact")}</a>
+          <a href="mailto:hola@tastia.org" className={linkCls}>{t("link_contact")}</a>
           <button type="button" onClick={() => onOpenLegal("terms")} className={linkCls}>{t("link_terms")}</button>
           <button type="button" onClick={() => onOpenLegal("privacy")} className={linkCls}>{t("link_privacy")}</button>
           <button type="button" onClick={() => onOpenLegal("cookies")} className={linkCls}>{t("link_cookies")}</button>
@@ -882,7 +883,31 @@ function Landing() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [legalOpen, setLegalOpen] = useState(false);
   const [legalTab, setLegalTab] = useState<LegalTab>("terms");
+  const [testPaidOpen, setTestPaidOpen] = useState(false);
   const openLegal = (tab: LegalTab) => { setLegalTab(tab); setLegalOpen(true); };
+
+  // Handle the return from Stripe Checkout (?checkout=success|cancel). This is
+  // an HONEST test-mode confirmation only — the durable order is §Stripe-B.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout");
+    if (checkout === "success") {
+      setTestPaidOpen(true);
+    } else if (checkout === "cancel") {
+      setCartOpen(true); // reopen the cart, without faking any purchase
+    } else {
+      return;
+    }
+    // Clean the query param so a refresh doesn't re-trigger it.
+    params.delete("checkout");
+    const qs = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash,
+    );
+  }, []);
 
   const handleBuy = (p: PackInfo) => {
     setItems((prev) => {
@@ -952,6 +977,20 @@ function Landing() {
 
       <LegalModal open={legalOpen} onOpenChange={setLegalOpen} tab={legalTab} onTabChange={setLegalTab} />
       <AgeGate />
+
+      <Dialog open={testPaidOpen} onOpenChange={setTestPaidOpen}>
+        <DialogContent className="rounded-none">
+          <DialogHeader>
+            <DialogTitle className="serif text-2xl">{t("checkout_test_title")}</DialogTitle>
+            <DialogDescription>{t("checkout_test_body")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="wine" className="rounded-none" onClick={() => setTestPaidOpen(false)}>
+              {t("checkout_test_close")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
