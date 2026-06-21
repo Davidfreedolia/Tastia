@@ -136,6 +136,13 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   recibo. El pedido + access_code quedan guardados (recuperable manual). Endurecer con alerta/outbox
   (`receipt_failures`) para reenvío.
 - **`RESEND_FROM` verificado:** sin remitente verificado en Resend, todo envío falla en silencio = go-live.
+- **[PRUEBA PROD 21-jun-2026, PAUSADO]** el resto del bucle (pago→pedido→`/activar`→sala) funciona en prod,
+  pero el email §B2 NO llega y en Resend NO aparece ningún intento → la llamada a Resend fue rechazada o no
+  se hizo. Config verificada OK (`RESEND_TASTIA_API_KEY` en Production, deploy posterior). Sospecha: quota
+  diaria compartida de Resend (~100/día) o la restricción del remitente `onboarding@resend.dev` (solo
+  entrega al email de la cuenta). DIAGNÓSTICO pendiente: línea `[receipt]` en los **runtime logs de Vercel**
+  (no build) o **Resend → Usage**. Reanudar una compra NUEVA (idempotencia: reenviar el evento viejo NO
+  redispara el email).
 
 ## §Activar — (robustez) endurecimientos de la revisión adversarial
 
