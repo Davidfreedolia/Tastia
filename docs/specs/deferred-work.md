@@ -123,8 +123,16 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
 - **Email vacío:** si `customer_details.email` falta, hoy se inserta `""`; decidir (rechazar/alertar).
 - **500 en config faltante:** un secreto ausente provoca reintentos de Stripe ~3 días; alertar/monitorizar.
 
-## Stripe §B2 — Recibo (email + QR)
+## Stripe §B2 — Recibo (email + QR) — HECHO; (robustez) endurecimientos de la revisión adversarial
 
-- Tras §B1: email de recibo (Resend — dep `resend` + `RESEND_API_KEY`) + **QR** del `access_code`
-  (dep `qrcode` o servicio) que codifique la URL de activación de la sala (`/activar?code=…`).
-- Fallback honesto: sin `RESEND_API_KEY`, no se envía (log); el pedido igual queda guardado.
+- §B2 (recibo: email Resend + QR del `access_code` con enlace `/activar?code=…`) está **hecho**
+  (best-effort, no rompe el webhook; fallback honesto sin `RESEND_API_KEY`). Pendiente de endurecer:
+- **`origin` del enlace:** hoy se deriva de `session.success_url` (fiable en nuestro flujo `payment` con
+  success_url explícito). Más robusto: un env `SITE_URL`/`PUBLIC_BASE_URL` de confianza.
+- **Token al email tecleado:** el `access_code` viaja al email que el comprador escribió en Checkout; un
+  typo lo enviaría a otra persona que podría activar la cata. Ligar la activación a identidad/re-auth en
+  `/activar` (= esa otra feature).
+- **Fallo transitorio de Resend:** se traga (log) + 200 → Stripe no reintenta → ese comprador no recibe el
+  recibo. El pedido + access_code quedan guardados (recuperable manual). Endurecer con alerta/outbox
+  (`receipt_failures`) para reenvío.
+- **`RESEND_FROM` verificado:** sin remitente verificado en Resend, todo envío falla en silencio = go-live.
