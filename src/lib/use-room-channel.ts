@@ -95,6 +95,11 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
   // recrearse en cada respuesta (mismo patrón que `stateRef`); el reparto §5.5 lo consume.
   const answersRecRef = useRef(answersRec);
   answersRecRef.current = answersRec;
+  // §5.5 (fix) — espejo de `participants` para repartir puntos filtrando por la MISMA lista que ve la
+  // Sala (derivada de presence sync), en vez de un `presenceState()` puntual leído en el instante del
+  // cierre, que podía llegar incompleto y dejaba "✓ acertó pero +0 puntos".
+  const participantsRef = useRef(participants);
+  participantsRef.current = participants;
 
   const broadcastState = useCallback((next: RoomState) => {
     channelRef.current?.send({ type: "broadcast", event: "state", payload: next });
@@ -160,9 +165,10 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
         const k = qKey(prev);
         const rec = answersRecRef.current;
         const rawMap = rec.key === k ? rec.map : {};
-        // §5.5 (revisión): solo cuentan las respuestas de jugadores AÚN presentes — uno que
-        // respondió y se fue no debe ocupar un puesto del bonus ni acumular puntos fantasma.
-        const presentIds = new Set(Object.keys(channelRef.current?.presenceState() ?? {}));
+        // §5.5: solo cuentan las respuestas de jugadores presentes (uno que respondió y se fue no
+        // ocupa puesto de bonus). Usamos la lista `participants` (presence sync) que ve la Sala —
+        // coherente con el panel ✓/✗ — y no un `presenceState()` puntual del instante del cierre.
+        const presentIds = new Set(participantsRef.current.map((p) => p.id));
         const map = Object.fromEntries(
           Object.entries(rawMap).filter(([id]) => presentIds.has(id)),
         );
