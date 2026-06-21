@@ -2,8 +2,8 @@
 title: '§5.6b-A (cierre) — Anti-spoiler: motor demo host-only (fuera del bundle de /play)'
 type: 'feature'
 created: '2026-06-21'
-status: 'in-progress'
-baseline_commit: 'TBD'
+status: 'done'
+baseline_commit: '7f839cc'
 context: []
 ---
 
@@ -60,7 +60,7 @@ BD (`quiz-bootstrap`/`quiz-close`); `quizSourceRef`/`activeSrcRef` siguen siendo
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/use-room-channel.ts` -- aplicar los 5 cambios del Code Map. `secondsFor` local: `function secondsFor(s: QuizSource["settings"], fase: Fase): number` con switch (`vista→time_vista_s`, etc.). Efecto host: `let alive=true; import("./quiz-source").then(({demoQuizSource, loadQuizSource}) => { if(!alive) return; quizSourceRef.current ??= demoQuizSource(); return loadQuizSource(code); }).then((src) => { if(!alive||!src) return; quizSourceRef.current = src; updateState({source: src.source}); });`. `advance()` entrar-quiz: `let src = quizSourceRef.current; if(!src){ const {demoQuizSource} = await import("./quiz-source"); src = quizSourceRef.current ?? demoQuizSource(); quizSourceRef.current = src; } activeSrcRef.current = src; …`. Cierre: `const src = activeSrcRef.current; if(!src) return;` antes de `src.closeQuiz`.
+- [x] `src/lib/use-room-channel.ts` -- aplicar los 5 cambios del Code Map. `secondsFor` local: `function secondsFor(s: QuizSource["settings"], fase: Fase): number` con switch (`vista→time_vista_s`, etc.). Efecto host: `let alive=true; import("./quiz-source").then(({demoQuizSource, loadQuizSource}) => { if(!alive) return; quizSourceRef.current ??= demoQuizSource(); return loadQuizSource(code); }).then((src) => { if(!alive||!src) return; quizSourceRef.current = src; updateState({source: src.source}); });`. `advance()` entrar-quiz: `let src = quizSourceRef.current; if(!src){ const {demoQuizSource} = await import("./quiz-source"); src = quizSourceRef.current ?? demoQuizSource(); quizSourceRef.current = src; } activeSrcRef.current = src; …`. Cierre: `const src = activeSrcRef.current; if(!src) return;` antes de `src.closeQuiz`.
 
 **Acceptance Criteria:**
 - Given el build de producción, when se inspecciona el chunk que carga `/play`, then NO contiene `DEMO_WINES`/`getQuestion` (las respuestas demo quedan en un chunk async que solo carga el host).
@@ -72,6 +72,27 @@ BD (`quiz-bootstrap`/`quiz-close`); `quizSourceRef`/`activeSrcRef` siguen siendo
 
 - 2026-06-21 — Creada y aprobada por David (pidió cerrar el anti-spoiler que él mismo había diferido).
   Motor demo host-only vía `import()` dinámico; `secondsFor` inline wines-free; sin cambio de comportamiento.
+
+- 2026-06-21 — Implementado + verificación de bundle (prueba de oro): `DEMO_WINES` quedó SOLO en el chunk
+  async `quiz-source-*.js`, que únicamente carga el host vía `await import("./quiz-source")` (2 caminos del
+  host). El chunk de `/play` (`_code-*.js`) NO lo contiene, NO tiene ningún `import(` y NO referencia
+  `quiz-source`/`wines`. Comportamiento del motor intacto (147 tests sin cambios, tsc 0, build OK). Cambio
+  extra mínimo: `quizSourceRef.current?.source ?? "demo"` en el efecto de persistencia (nullable, equivalente).
+
+## Suggested Review Order
+
+**Motor (host-only)**
+
+- Import type-only + `secondsFor` local wines-free.
+  [`use-room-channel.ts:12`](../../src/lib/use-room-channel.ts#L12)
+- `advance()` entrar-en-quiz: guard de carga perezosa + captura `activeSrcRef`.
+  [`use-room-channel.ts:156`](../../src/lib/use-room-channel.ts#L156)
+- Efecto host de carga: `import("./quiz-source")` (demo fallback + `loadQuizSource`).
+  [`use-room-channel.ts:244`](../../src/lib/use-room-channel.ts#L244)
+
+**Verificación**
+
+- El chunk de `/play` no trae `DEMO_WINES` (grep del build). Ver Change Log.
 
 ## Design Notes
 
