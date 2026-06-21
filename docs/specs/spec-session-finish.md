@@ -2,7 +2,8 @@
 title: '§5.6b-B — Persistencia de sesión al final del juego (session-finish)'
 type: 'feature'
 created: '2026-06-21'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'c25f9ec'
 context: ['{project-root}/docs/edge-functions-contract.md']
 ---
 
@@ -65,10 +66,10 @@ persistir en modo demo; subir fotos de jugadores que NO son el ganador.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/session-finish.ts` (NUEVO) -- `buildFinishPayload({ code, hostName, participants, scores, source }): FinishPayload | null` (PURO): si `source !== 'bd'` → `null`; si no, `players` = participantes con `!isHost`, ordenados por `scores[id]` desc (orden estable), mapeados a `{ playerId, name, points, position }` (1-based); la **foto solo** se añade al ganador (position 1, de `participant.photo`); `pack_tier: null`. Si no hay jugadores → `null`. Exportar tipos.
-- [ ] `src/lib/session-finish.test.ts` -- orden + `position`, foto solo del ganador, `source='demo'` → null, sin jugadores → null, empate (orden estable), host excluido.
-- [ ] `src/lib/use-room-channel.ts` -- `finishedRef` (guard) + `finishState: 'idle'|'saving'|'saved'|'error'`; efecto host-only cuando `state.stage === 'final_podium'`: si ya disparado → skip; `payload = buildFinishPayload({code, hostName: name, participants, scores: state.scores, source: quizSourceRef.current.source})`; si `null` → skip; marca `finishedRef` + `finishState='saving'`; `await functions.invoke("session-finish", { body: payload })`; éxito → `'saved'`; error → log + `'error'` (sin throw). `reset()` limpia `finishedRef` y `finishState='idle'`. Exponer `finishState`.
-- [ ] `src/routes/room/$code.tsx` -- en `final_podium` (host), mostrar un indicador discreto según `finishState` ("Guardando resultado…" / "Resultado guardado" / "No se pudo guardar").
+- [x] `src/lib/session-finish.ts` (NUEVO) -- `buildFinishPayload({ code, hostName, participants, scores, source }): FinishPayload | null` (PURO): si `source !== 'bd'` → `null`; si no, `players` = participantes con `!isHost`, ordenados por `scores[id]` desc (orden estable), mapeados a `{ playerId, name, points, position }` (1-based); la **foto solo** se añade al ganador (position 1, de `participant.photo`); `pack_tier: null`. Si no hay jugadores → `null`. Exportar tipos.
+- [x] `src/lib/session-finish.test.ts` -- orden + `position`, foto solo del ganador, `source='demo'` → null, sin jugadores → null, empate (orden estable), host excluido.
+- [x] `src/lib/use-room-channel.ts` -- `finishedRef` (guard) + `finishState: 'idle'|'saving'|'saved'|'error'`; efecto host-only cuando `state.stage === 'final_podium'`: si ya disparado → skip; `payload = buildFinishPayload({code, hostName: name, participants, scores: state.scores, source: quizSourceRef.current.source})`; si `null` → skip; marca `finishedRef` + `finishState='saving'`; `await functions.invoke("session-finish", { body: payload })`; éxito → `'saved'`; error → log + `'error'` (sin throw). `reset()` limpia `finishedRef` y `finishState='idle'`. Exponer `finishState`.
+- [x] `src/routes/room/$code.tsx` -- en `final_podium` (host), mostrar un indicador discreto según `finishState` ("Guardando resultado…" / "Resultado guardado" / "No se pudo guardar").
 
 **Acceptance Criteria:**
 - Given una partida en modo BD que llega a `final_podium`, when se entra, then `session-finish` se llama UNA vez con `players` ordenados por puntos (posición) + foto del ganador, y el host ve "Resultado guardado".
@@ -82,6 +83,15 @@ persistir en modo demo; subir fotos de jugadores que NO son el ganador.
 - 2026-06-21 — Aprobada (ready-for-dev). Decisiones: persistir solo en modo BD; auto-disparo una vez
   (guard de idempotencia, `reset()` rearma); foto solo del ganador; `pack_tier` null (coordinar con
   Salvador); host excluido de `players[]`; lógica pura aislada en `session-finish.ts` (testeable).
+
+- 2026-06-21 — Revisión adversarial (iter. 1). Fixes (patches, dentro de la intención): (1) la
+  persistencia leía `quizSourceRef.current.source` (ref no reactivo) → si el bootstrap BD resolvía
+  DESPUÉS de llegar al podio, la partida no se persistía nunca; ahora `state.source` está en las deps
+  del efecto. (2) en fallo: `console.error` (cumple el clause "log") + rearme de `finishedRef` (reintento
+  oportunista en el próximo disparador, sin bucle). (3) guard tras `reset()`: solo refleja "saved/error"
+  si seguimos en `final_podium` (no pisar el lobby nuevo con un resultado tardío). (4) foto del ganador
+  solo si puntuó (>0), alineado con la UI "sin ganador a 0". DIFERIDOS (a `deferred-work.md`):
+  idempotencia ante remount/duplicado, empate en cabeza, `host_name` siempre "Sala", tamaño de la foto.
 
 ## Design Notes
 
@@ -102,3 +112,29 @@ persistir en modo demo; subir fotos de jugadores que NO son el ganador.
 **Manual checks:**
 - Preview sin deploy (modo demo): al llegar al podio final NO se llama a `session-finish` (sin indicador de guardado o "demo").
 - Con deploy (cuando Salvador despliegue): partida BD → al podio final aparece "Resultado guardado" y la sesión + foto del ganador quedan en la BD (alimenta `ranking_mensual`).
+
+## Suggested Review Order
+
+**Lógica de payload (pura, testeable)**
+
+- `buildFinishPayload`: BD-only, host excluido, orden estable por puntos → posición, foto solo del ganador (y con puntos > 0).
+  [`session-finish.ts:40`](../../src/lib/session-finish.ts#L40)
+
+**Disparo host-autoritario al final**
+
+- Efecto de `final_podium`: guard de idempotencia, fuente reactiva (`state.source` en deps), payload + `invoke`.
+  [`use-room-channel.ts:273`](../../src/lib/use-room-channel.ts#L273)
+- `settle()`: log + rearme de `finishedRef` en fallo + guard de `reset` (no pisar el lobby con un resultado tardío).
+  [`use-room-channel.ts:294`](../../src/lib/use-room-channel.ts#L294)
+- `reset()` rearma el guard para la siguiente partida.
+  [`use-room-channel.ts:223`](../../src/lib/use-room-channel.ts#L223)
+
+**UI**
+
+- Indicador discreto del estado de guardado en el podio final.
+  [`room/$code.tsx:142`](../../src/routes/room/$code.tsx#L142)
+
+**Periféricos**
+
+- Tests del builder (orden, ganador-foto, demo→null, sin jugadores, empate, todo-a-0).
+  [`session-finish.test.ts:1`](../../src/lib/session-finish.test.ts#L1)

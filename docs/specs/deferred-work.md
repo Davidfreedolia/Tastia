@@ -80,3 +80,16 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   de los bloques de pack **aún no creados** → su `useEffect` re-siembra el form y descarta ediciones no
   guardadas en esos bloques. Caso estrecho (solo bloques de pack sin fila propia, al guardar Global).
 - → Endurecer: dirty-guard por bloque, o `key` de remount, o no re-sembrar bloques con ediciones.
+
+## §5.6b-B — (robustez) bordes de la persistencia de sesión a endurecer
+
+- Hallazgos de la revisión adversarial (no bloqueantes; el camino feliz y los fixes ya están en dev):
+- **Idempotencia:** `finishedRef` es por-instancia → un remount del host en `final_podium` re-invocaría
+  `session-finish` (duplicado en el ranking). Mitigado: recargar el host vuelve a `lobby` (estado
+  efímero, ítem **C**). → Endurecer con clave de idempotencia cliente o dedupe server (coordinar con Salvador).
+- **Empate en cabeza:** la UI corona co-ganadores; el payload persiste UN solo ganador (orden estable,
+  no determinista entre reconexiones por el orden de presence). → Decidir política para el ranking.
+- **`host_name` siempre "Sala":** el host se monta sin `name` → todas las sesiones persisten "Sala".
+  → Añadir identidad de host si `ranking_mensual` la necesita.
+- **Tamaño de la foto del ganador** (data-URL) en el body de `session-finish`: sin límite explícito
+  (presence ya acota ~128px). → Validar/comprimir si hace falta.

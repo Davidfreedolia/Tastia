@@ -43,7 +43,7 @@ function RoomPage() {
 
   if (!room.configured) return <SetupNotice />;
 
-  const { state, participants, advance, reset, connected, answers, answeredIds } = room;
+  const { state, participants, advance, reset, connected, answers, answeredIds, finishState } = room;
   const players = participants.filter((p) => !p.isHost);
 
   const isLobby = state.stage === "lobby";
@@ -106,7 +106,11 @@ function RoomPage() {
 
           {/* Podio final */}
           {state.stage === "final_podium" && (
-            <Podium title="Podio final 🏆" players={players} scores={state.scores} highlightTop />
+            <>
+              <Podium title="Podio final 🏆" players={players} scores={state.scores} highlightTop />
+              {/* §5.6b-B — indicador discreto de la persistencia (solo en modo BD; en demo no se llama). */}
+              <FinishIndicator finishState={finishState} />
+            </>
           )}
 
           {/* Controles del anfitrión */}
@@ -127,6 +131,33 @@ function RoomPage() {
         </aside>
       </main>
     </div>
+  );
+}
+
+/**
+ * §5.6b-B — Indicador DISCRETO del guardado de la partida en `final_podium` (host). En modo demo
+ * `finishState` queda en `"idle"` (no se llama a `session-finish`) → no muestra nada. Si la
+ * persistencia falla, informa sin romper el podio (no hay reintento).
+ */
+function FinishIndicator({ finishState }: { finishState: "idle" | "saving" | "saved" | "error" }) {
+  if (finishState === "idle") return null;
+  const text =
+    finishState === "saving"
+      ? "Guardando resultado…"
+      : finishState === "saved"
+        ? "Resultado guardado"
+        : "No se pudo guardar";
+  const tone =
+    finishState === "error"
+      ? "text-red-600"
+      : finishState === "saved"
+        ? "text-green-600"
+        : "text-foreground/55";
+  return (
+    <p className={`text-xs ${tone}`} role="status" aria-live="polite">
+      {finishState === "saved" ? "✓ " : ""}
+      {text}
+    </p>
   );
 }
 
