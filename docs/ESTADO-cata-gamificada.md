@@ -33,6 +33,7 @@ entonces, en preview corre en **modo demo** (badge "Datos demo").
 | **§5.8a Admin del juego** | Editor de `game_settings` (global + por pack) + panel readiness, en `/admin` | #12 |
 | **§5.6b-A Quiz desde la BD** | `quiz-bootstrap` + `quiz-close` (settings/vinos/preguntas/scoring) + fallback demo | #13 |
 | **§5.6b-B Persistencia** | `session-finish` al podio final (sesión + foto del ganador → ranking) | #14 |
+| **§Stripe-A Checkout** | Pago en modo TEST (server fn en Vercel) + fallback honesto "Próximamente" | #15 (abierto) |
 
 Todas las features pasaron **PRD → spec → dev** con **revisión adversarial de 3 agentes**. Specs en
 `docs/specs/`. Contrato cliente↔backend en `docs/edge-functions-contract.md`. Campos exactos a validar
@@ -78,7 +79,7 @@ contrato). **Plan:** David + Salvador, cuando coincidan → deploy de #10 + reco
 - Validar la integración BD end-to-end (deploy de Salvador #10 + checklist).
 
 **Features pendientes**
-- **Stripe en modo demo/test** — checkout completo (`create-checkout` + `stripe-webhook` + pedido). Necesita la clave `sk_test_…`. (Comercio; carril propio.)
+- **Stripe:** §A (checkout en TEST) **hecho** (PR #15) → falta **activar** (`sk_test_…` en el env de Vercel; David crea la cuenta Stripe test) + **§B** (webhook + pedido + `access_code` + QR + email; diferido). Sin clave, el carrito muestra "Próximamente" (honesto).
 - **§5.4 Avatar** (Andrés) — proveedor + API key + control de coste.
 
 **Diferido (`docs/specs/deferred-work.md`)**
