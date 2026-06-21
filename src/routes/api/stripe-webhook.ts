@@ -116,7 +116,10 @@ export const Route = createFileRoute("/api/stripe-webhook")({
         try {
           const email =
             session.customer_details?.email ?? session.customer_email;
-          const resendKey = process.env.RESEND_API_KEY;
+          // Nombre de la env en Vercel = RESEND_TASTIA_API_KEY (específico de Tastia);
+          // se acepta también RESEND_API_KEY como fallback (p.ej. en .env local).
+          const resendKey =
+            process.env.RESEND_TASTIA_API_KEY ?? process.env.RESEND_API_KEY;
 
           if (!email) {
             console.warn(
@@ -124,7 +127,7 @@ export const Route = createFileRoute("/api/stripe-webhook")({
             );
           } else if (!resendKey) {
             console.warn(
-              "[receipt] RESEND_API_KEY no configurada — no se envía recibo",
+              "[receipt] RESEND_TASTIA_API_KEY no configurada — no se envía recibo",
             );
           } else {
             // `origin` desde success_url (lo fija §A), con fallback al dominio.

@@ -11,7 +11,7 @@
 | `STRIPE_SECRET_KEY` (`sk_test_…`) | §A — crear el pago | El carrito muestra "Próximamente" |
 | `STRIPE_WEBHOOK_SECRET` (`whsec_…`) | §B1 — recibir el pago y guardar el pedido | El pago redirige pero NO se guarda el pedido |
 | `SUPABASE_SERVICE_ROLE_KEY` | §B1 guardar `orders` + §Activar validar | No se guarda el pedido; `/activar` dice "no disponible" |
-| `RESEND_API_KEY` | §B2 — enviar el email de recibo + QR | No llega email (el pedido igual se guarda) |
+| `RESEND_TASTIA_API_KEY` | §B2 — enviar el email de recibo + QR | No llega email (el pedido igual se guarda) |
 | `RESEND_FROM` (opcional) | remitente del email | Usa `Tastia <onboarding@resend.dev>` (solo entrega a tu propio email de Resend) |
 
 > `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` ya están en Vercel (la app ya funciona). El webhook
@@ -27,7 +27,7 @@ Todas las claves y el webhook de abajo serán de test.
 1. **`SUPABASE_SERVICE_ROLE_KEY`** — Supabase → proyecto Tastia → **Project Settings → API → Project API
    keys → `service_role`** (clic en "Reveal"). ⚠️ Es una clave muy potente: solo va en Vercel (server-side),
    nunca en el cliente ni en git.
-2. **`RESEND_API_KEY`** — Resend → **API Keys → Create API Key** (permiso de envío). Copia `re_…`.
+2. **`RESEND_TASTIA_API_KEY`** — Resend → **API Keys → Create API Key** (permiso de envío). Copia `re_…`.
    - **Remitente:** para una primera prueba puedes dejar `RESEND_FROM` sin poner (usa `onboarding@resend.dev`,
      que **solo entrega a la dirección de tu cuenta de Resend** — p. ej. david@freedolia.com). Para enviar a
      cualquier comprador, verifica un dominio en Resend → Domains, y pon `RESEND_FROM = "Tastia <hola@tudominio>"`.
@@ -47,7 +47,7 @@ Vercel → proyecto **Tastia** → **Settings → Environment Variables**. Añad
 STRIPE_SECRET_KEY            = sk_test_…
 STRIPE_WEBHOOK_SECRET        = whsec_…
 SUPABASE_SERVICE_ROLE_KEY    = (la service_role del paso 1.1)
-RESEND_API_KEY               = re_…
+RESEND_TASTIA_API_KEY               = re_…
 RESEND_FROM                  = Tastia <onboarding@resend.dev>   (opcional)
 ```
 
