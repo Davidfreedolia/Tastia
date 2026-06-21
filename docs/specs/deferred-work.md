@@ -93,3 +93,14 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   → Añadir identidad de host si `ranking_mensual` la necesita.
 - **Tamaño de la foto del ganador** (data-URL) en el body de `session-finish`: sin límite explícito
   (presence ya acota ~128px). → Validar/comprimir si hace falta.
+
+## Stripe §B — Fulfillment (webhook + pedido + access_code + QR + email)
+
+- Split de "Stripe en modo demo". §A aborda solo el **checkout** (pago en test + fallback honesto). Esto
+  es la persistencia del pedido.
+- Pendiente: ruta de servidor `stripe-webhook` (necesita **raw body** para verificar la firma →
+  `createServerFileRoute` con POST, no `createServerFn`), idempotente (event claiming); en
+  `checkout.session.completed` → crea `orders` (existe en BD: `access_code`/`stripe_session_id`/`qr_url`),
+  genera `access_code` + QR (enlaza con la activación de la sala del juego) y envía email de recibo
+  (¿Resend?). Secret `whsec_…` en env de Vercel.
+- → Abordar tras §A, con la cuenta Stripe ya creada (David).
