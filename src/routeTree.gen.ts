@@ -15,6 +15,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RoomCodeRouteImport } from './routes/room/$code'
 import { Route as PlayCodeRouteImport } from './routes/play/$code'
+import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe-webhook'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -46,12 +47,18 @@ const PlayCodeRoute = PlayCodeRouteImport.update({
   path: '/play/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
+  id: '/api/stripe-webhook',
+  path: '/api/stripe-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/play/$code': typeof PlayCodeRoute
   '/room/$code': typeof RoomCodeRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/play/$code': typeof PlayCodeRoute
   '/room/$code': typeof RoomCodeRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/play/$code': typeof PlayCodeRoute
   '/room/$code': typeof RoomCodeRoute
 }
@@ -79,16 +88,25 @@ export interface FileRouteTypes {
     | '/admin'
     | '/landing'
     | '/login'
+    | '/api/stripe-webhook'
     | '/play/$code'
     | '/room/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/landing' | '/login' | '/play/$code' | '/room/$code'
+  to:
+    | '/'
+    | '/admin'
+    | '/landing'
+    | '/login'
+    | '/api/stripe-webhook'
+    | '/play/$code'
+    | '/room/$code'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/landing'
     | '/login'
+    | '/api/stripe-webhook'
     | '/play/$code'
     | '/room/$code'
   fileRoutesById: FileRoutesById
@@ -98,6 +116,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   LandingRoute: typeof LandingRoute
   LoginRoute: typeof LoginRoute
+  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   PlayCodeRoute: typeof PlayCodeRoute
   RoomCodeRoute: typeof RoomCodeRoute
 }
@@ -146,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/stripe-webhook': {
+      id: '/api/stripe-webhook'
+      path: '/api/stripe-webhook'
+      fullPath: '/api/stripe-webhook'
+      preLoaderRoute: typeof ApiStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -154,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   LandingRoute: LandingRoute,
   LoginRoute: LoginRoute,
+  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   PlayCodeRoute: PlayCodeRoute,
   RoomCodeRoute: RoomCodeRoute,
 }

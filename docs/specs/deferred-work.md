@@ -108,3 +108,23 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   (evita sesiones duplicadas al doble-submit); **verificar server-side `?checkout=success`** con
   `sessions.retrieve` antes de dar nada por pagado (imprescindible en modo LIVE); **allowlist del
   `origin`** de las `success_url`/`cancel_url` en vez de confiar en el del cliente.
+
+## Stripe §B1 — (robustez) endurecimientos del webhook (de la revisión adversarial)
+
+- §B1 (webhook + pedido + access_code) está hecho. `payment_status === "paid"` ya se comprueba. Pendiente:
+- **Idempotencia robusta:** hoy es check-then-insert por `stripe_session_id` (cubre reintentos
+  secuenciales de Stripe). El race de entregas concurrentes necesita **`UNIQUE(stripe_session_id)`** en
+  `orders` (= migración → coordinar con Salvador) + tratar la violación única como 200 (no 500).
+- **`access_code` único:** sin constraint en BD; añadir **`UNIQUE(access_code)`** (migración) + reintento
+  ante colisión cuando se use para activar la sala (§B2/activación). Quitar también el sesgo de módulo
+  (rejection sampling) y el fallback a `Math.random` (en Vercel siempre hay Web Crypto).
+- **Pagos async:** manejar `checkout.session.async_payment_succeeded`/`...failed` (SEPA, etc.) además de
+  la sesión inmediata.
+- **Email vacío:** si `customer_details.email` falta, hoy se inserta `""`; decidir (rechazar/alertar).
+- **500 en config faltante:** un secreto ausente provoca reintentos de Stripe ~3 días; alertar/monitorizar.
+
+## Stripe §B2 — Recibo (email + QR)
+
+- Tras §B1: email de recibo (Resend — dep `resend` + `RESEND_API_KEY`) + **QR** del `access_code`
+  (dep `qrcode` o servicio) que codifique la URL de activación de la sala (`/activar?code=…`).
+- Fallback honesto: sin `RESEND_API_KEY`, no se envía (log); el pedido igual queda guardado.
