@@ -1,113 +1,127 @@
 # Estado del proyecto — Cata gamificada de Tastia
 
-*Documento de estado a 20 jun 2026. Recoge **todo lo construido** (por el equipo entero), lo que está
-**en curso** y lo que **falta**, con ramas, PRs y enlaces. Proyecto cooperativo de 5.*
+*Documento de estado a 21 jun 2026. Foto completa: qué está hecho (equipo entero), qué está en curso,
+qué falta, y un **checklist de go-live**. Proyecto cooperativo de 5.*
 
-> **Repo:** https://github.com/Davidfreedolia/Tastia (privado) · ramas `main` (producción) y `dev` (integración)
+> **Repo:** https://github.com/Davidfreedolia/Tastia (privado) · ramas `main` (producción) y `dev` (integración, HEAD `348b07f`)
 > **Producción:** https://tastia.org — **todavía con la pantalla de acceso**; el juego vive en `dev` y previews. Se publica con `dev → main` cuando se decida.
-> **Supabase:** proyecto `tyuehzsqvjpjysxdihsh` (cuenta aparte, plan Free).
+> **Preview de `dev`:** `https://tastia-git-dev-freedolias-projects-77c959bb.vercel.app` → `/room/TEST` (Sala) + `/play/TEST` (móvil).
+> **Supabase:** `tyuehzsqvjpjysxdihsh` (cuenta aparte, plan Free).
 
 ---
 
-## 1. Qué es
+## 1. Qué es y estado general
 
-Catas de vino en grupo, gamificadas y moderadas en directo por un **sommelier-avatar de IA**. Compras
-un pack físico (4 vinos + accesorios), escaneas un QR y juegas una **cata a ciegas** con amigos:
-preguntas con tiempo, puntos, podio y ranking. Sin registro. Bilingüe ES/EN.
+Catas de vino en grupo, gamificadas, moderadas por un **sommelier-avatar de IA**, con packs físicos a
+domicilio. Cata a ciegas multijugador en vivo. Sin registro. Bilingüe ES/EN.
 
-**El bucle de juego en vivo ya funciona de punta a punta** (sobre datos demo en el cliente): lobby →
-por cada vino [Vista → Olfato → Gusto → gamificación, cada fase con quiz cronometrado → revelación] →
-podio parcial → … ×4 → podio final.
+**El bucle de juego está completo y, además, ya lee y escribe en la BD** (settings, vinos, preguntas,
+puntuación y persistencia del podio), **con fallback a demo** en cada paso. **Pendiente: validar la
+integración end-to-end contra las edge functions reales** (requiere el deploy de Salvador) — hasta
+entonces, en preview corre en **modo demo** (badge "Datos demo").
 
 ---
 
-## 2. Hecho — Cliente / juego (David)
+## 2. Hecho — Cliente / juego (David)  ·  todo en `dev`
 
-Construido con el flujo **PRD → spec → dev** (cada feature con revisión adversarial). Specs en
-`docs/specs/`, PRD en `docs/prd-cata-gamificada/`.
+| Feature | Qué hace | PR |
+|---|---|---|
+| §5.1–§5.3, §5.5, §5.11 | Máquina de estados, quiz cronometrado, puntuación/podios, foto+halo | #1–#5 |
+| §5.7 Taxonomía (código) | `taxonomy.ts` + pregunta de clasificación | #6 |
+| §5.6a Importador + datos | Importador CSV + 12 vinos demo (al esquema de Salvador) | #8 |
+| Landing — copy honesto | Email `tastia.org` + titular legal real (David Castellà Gil) | #9 |
+| **§5.8a Admin del juego** | Editor de `game_settings` (global + por pack) + panel readiness, en `/admin` | #12 |
+| **§5.6b-A Quiz desde la BD** | `quiz-bootstrap` + `quiz-close` (settings/vinos/preguntas/scoring) + fallback demo | #13 |
+| **§5.6b-B Persistencia** | `session-finish` al podio final (sesión + foto del ganador → ranking) | #14 |
 
-| Feature | Qué hace | PR | Estado |
-|---|---|---|---|
-| §5.1 Estructura de Sesión y Rondas | Máquina de estados `stage × vino × fase × step` (lobby → 4 vinos × fases → podios) | #1 | ✅ en `dev` |
-| §5.2 Motor de Quiz | Pregunta + 4 opciones (deterministas), respuesta del jugador, señal "respondió" | #2 | ✅ en `dev` |
-| §5.11 Registro + panel + halo | Foto opcional al unirse (en presence), panel de participantes en la Sala, halo verde/rojo | #3 | ✅ en `dev` |
-| §5.5 Puntuación + podio | 100 base + bonus por rapidez, marcador en vivo, "+X", podios | #4 | ✅ en `dev` |
-| §5.3 Temporizador | Cuenta atrás por fase (30/30/45/30) + cierre automático | #5 | ✅ en `dev` |
-| §5.7 Taxonomía (código) | `taxonomy.ts` + pregunta de clasificación con distractores del mismo tipo | #6 | ✅ en `dev` |
-| §5.6a Importador + datos | Importador CSV + `wines-demo.csv` (12 vinos reales) → al esquema de la BD | #8 | 🟡 PR abierto |
-| Landing — copy honesto | Email a `tastia.org` + titular legal real | #9 | 🟡 PR abierto |
-
-**Docs de coordinación (en `dev`):** `docs/edge-functions-contract.md` (contrato cliente↔backend),
-`docs/AVANCE-cata-gamificada.md`, `docs/specs/deferred-work.md`.
+Todas las features pasaron **PRD → spec → dev** con **revisión adversarial de 3 agentes**. Specs en
+`docs/specs/`. Contrato cliente↔backend en `docs/edge-functions-contract.md`. Campos exactos a validar
+en `docs/integracion-bd-checklist.md`.
 
 ---
 
 ## 3. Hecho / en curso — Compañeros
 
-| Quién | Qué | PR | Estado |
-|---|---|---|---|
-| **Salvador** (`sahlvah`) | **Backend BD §5.6–§5.9**: `wine_classifications` + `wines.category/classification_id` (§5.7), `game_questions.fase` + subtipo `clasificacion` (§5.6), `game_settings` (§5.8), `game_sessions`/`game_session_players` + bucket `winners` + vista `ranking_mensual` (§5.9). `database.types.ts` regenerado. **Ya APLICADO en la Supabase de producción.** | #7 | 🟡 PR abierto (es la **fuente de verdad** de la BD) |
-| **Andrés** | **Avatar-sommelier (§5.4)**: IA con cara y voz (iframe en la Sala) | — | 🔧 en curso |
-
-> Sus `game_settings` (base 100, bonus 50, tiempos 30/30/45/30) **coinciden** con los del cliente; su
-> §5.9 (ranking + foto del ganador) es justo la persistencia que necesitábamos. Encaja bien.
+| Quién | Qué | Estado |
+|---|---|---|
+| **Salvador** (`sahlvah`) | **BD §5.6–§5.9** (tablas + `ranking_mensual` + bucket `winners`) | ✅ en `dev` (#7) |
+| **Salvador** | **Edge functions** `quiz-bootstrap`/`quiz-close`/`session-finish` (anti-spoiler opción B) | 🟡 **PR #10 abierto, pendiente `supabase functions deploy`** |
+| **Andrés** | **Avatar-sommelier (§5.4)** (IA con cara y voz, iframe en la Sala) | 🔧 en curso |
 
 ---
 
-## 4. Reparto de carriles (para no pisarnos)
+## 4. Integración cliente ↔ BD — el punto clave ahora
 
-- **Salvador** → BD + **edge functions** (servir preguntas sin la respuesta, puntuar en backend, cerrar/persistir sesión).
+El cliente **ya está cableado** a las 3 edge functions con **fallback a demo** (nunca se rompe):
+- `quiz-bootstrap` → settings + vinos + preguntas (sin respuestas).
+- `quiz-close` → reveal + scoring server-side (anti-spoiler).
+- `session-finish` → persiste la partida + foto del ganador → `ranking_mensual`.
+
+**Falta validar end-to-end** contra las functions desplegadas (es donde aparecen los desajustes de
+contrato). **Plan:** David + Salvador, cuando coincidan → deploy de #10 + recorrer
+`docs/integracion-bd-checklist.md` en el preview. Hasta entonces el preview corre en demo.
+
+---
+
+## 5. Reparto de carriles
+
+- **Salvador** → BD + edge functions (backend del juego).
 - **Andrés** → avatar (§5.4).
-- **David / cliente** → juego en vivo (hecho), **integración** cliente↔BD, landing/UI, y el **contrato** de las edge functions.
-- **Quique RG, Ignacio AC** → (carriles por confirmar en el repo).
-
-**Reglas:** nadie toca el carril del otro. El cliente NO toca migraciones/edge functions; el backend NO
-toca `src/routes`/`use-room-channel`/`session.ts`. Merge: el #7 (BD) antes que el #8.
+- **David / nosotros** → cliente (juego + admin + integración) + landing.
+- **Quique RG, Ignacio AC** → (por confirmar).
 
 ---
 
-## 5. Qué FALTA
+## 6. Qué falta
 
-**Integración (lo más importante para que el juego use datos reales)**
-- **§5.6b** — edge functions (`quiz-bootstrap` / `quiz-close` / `session-finish`, ya especificadas en
-  `edge-functions-contract.md`) + **cablear el juego a la BD** (leer vinos/preguntas/ajustes de Supabase
-  en vez de `DEMO_WINES`; puntuar en backend). Coordinar con Salvador.
-- Alinear `taxonomy.ts` (cliente) con `wine_classifications` (BD) al cablear.
+**Validación (lo más prioritario)**
+- Validar la integración BD end-to-end (deploy de Salvador #10 + checklist).
 
-**Funcionalidad**
-- **§5.8** — UI de **admin del juego** en `/admin` (gestionar preguntas/tiempos/puntuación/vinos). La BD
-  ya existe (de #7); falta el panel.
-- **§5.4** — avatar (Andrés): elegir proveedor (HeyGen/Anam/Tavus) + API key + control de coste.
-- **Stripe en modo demo/test** — checkout completo: edge functions `create-checkout` + `stripe-webhook`
-  + creación de pedido + recibo. Necesita la `sk_test_…`. (Comercio; coordinar quién lo lleva.)
-- Importar **vinos reales del distribuidor** (cuando haya tarifa) con el importador (#8).
+**Features pendientes**
+- **Stripe en modo demo/test** — checkout completo (`create-checkout` + `stripe-webhook` + pedido). Necesita la clave `sk_test_…`. (Comercio; carril propio.)
+- **§5.4 Avatar** (Andrés) — proveedor + API key + control de coste.
 
-**Robustez (diferida — `docs/specs/deferred-work.md`)**
-- **C** reconexión/persistencia (estado de sesión efímero; recarga del host pierde la ronda).
-- **G** evento `ready` del jugador inerte.
-- **T** `setTimeout` del cierre en pestaña en segundo plano.
-- **X** tipos con <4 clasificaciones (espumoso/rosado) → pregunta con <4 opciones.
-
-**Datos / legal / operación**
-- Dirección legal real (sigue placeholder "C/ Exemple 1"); revisar si **autónomo** (quitar "Registro
-  Mercantil") o **S.L.**
-- **Go-live:** aplicar migraciones a prod (las de #7 ya están), proteger rama `main`, `dev → main` para
-  publicar en tastia.org, rotar contraseña de BD (`Tastia_2026`).
+**Diferido (`docs/specs/deferred-work.md`)**
+- §5.8b banco de preguntas (admin) · §5.8c clasificación de vinos (admin) — bajo valor ahora (preguntas derivadas / importador ya clasifica).
+- Anti-spoiler host-only (`DEMO_WINES` fuera del bundle del jugador) — riesgo real bajo (demo-only).
+- Robustez §5.6b-B (idempotencia/dedupe, empate en cabeza, `host_name`, tamaño de foto).
+- Robustez de sesión: C (reconexión/persistencia efímera), G (`ready`), T (timer en 2.º plano), X (tipos <4 clasificaciones).
 
 ---
 
-## 6. Ramas y PRs
+## 7. Ramas y PRs
 
-- **Fusionados a `dev`:** #1 §5.1 · #2 §5.2 · #3 §5.11 · #4 §5.5 · #5 §5.3 · #6 §5.7.
-- **Abiertos:** **#7** (Salvador, BD — fuente de verdad) · **#8** (importador + datos) · **#9** (copy honesto).
-- **Preview integrado (`dev`):** `https://tastia-git-dev-freedolias-projects-77c959bb.vercel.app` → probar en `/room/TEST` (Sala) + `/play/TEST` (móvil). *(Si el preview pide acceso, es la protección de Vercel.)*
+- **Fusionado a `dev`:** #1–#9, **#12** (§5.8a), **#13** (§5.6b-A), **#14** (§5.6b-B), #8 (importador).
+- **Abierto:** **#10** (Salvador, edge functions — pendiente de fusionar/desplegar él).
+- `dev` verde: `tsc` limpio · 91 tests · build OK.
 
 ---
 
-## 7. Próximos pasos sugeridos
+## 8. Checklist de GO-LIVE (`dev → main` → tastia.org)
 
-1. **Mergear #7** (BD = verdad) → luego #8 y #9.
-2. **§5.6b con Salvador**: él implementa las 3 edge functions del contrato; nosotros cableamos el cliente a la BD.
-3. **§5.8** admin del juego (cliente, sobre la BD ya hecha).
-4. **Stripe demo** (comercio) + **avatar** (Andrés) en paralelo.
-5. Cuando esté integrado y probado: **`dev → main`** para publicar el juego en tastia.org.
+> Preparado, **no ejecutado**. Idealmente tras validar la integración BD.
+
+**Bloqueante**
+- [ ] **Validar integración BD** end-to-end (deploy #10 + checklist) — o decidir lanzar en modo demo.
+- [ ] Fusionar **#10** (edge functions) a `dev`.
+- [ ] **Decidir el lanzamiento:** ¿salir con badge "Datos demo" hasta que la BD esté lista (honesto), o esperar a BD?
+
+**Honestidad / contenido** (regla de copy honesto)
+- [ ] **Ranking de la landing:** hoy es **demo inventado** → Salvador iba a enchufar `ranking_mensual` real. Confirmar antes de publicar (o marcarlo claramente).
+- [ ] **Stripe:** hoy "Próximamente" (honesto). Si entra el checkout demo, decidir si se publica.
+- [ ] **Avatar (§5.4):** ¿entra en el lanzamiento o se rotula "Próximamente"?
+- [ ] **Datos legales:** dirección real (hoy placeholder "C/ Exemple 1"); confirmar **autónomo vs S.L.** (el texto aún menciona "Registro Mercantil"). NIF/titular ya puestos (David Castellà Gil).
+
+**Operación / seguridad**
+- [ ] **Proteger la rama `main`** (branch protection).
+- [ ] **Rotar la contraseña de BD** (`Tastia_2026`).
+- [ ] Confirmar migraciones aplicadas en prod (las de Salvador ya están).
+- [ ] `dev → main` → Vercel publica en tastia.org; verificar age-gate/acceso y el juego en producción.
+
+---
+
+## 9. Próximos pasos sugeridos
+
+1. **Validar la integración BD** (David + Salvador): deploy #10 + checklist en el preview.
+2. En paralelo (sin bloqueo): **Stripe demo** (si hay `sk_test_`) o cerrar diferidos (anti-spoiler host-only).
+3. Cuando la integración esté validada → **ejecutar el checklist de go-live** y `dev → main`.
