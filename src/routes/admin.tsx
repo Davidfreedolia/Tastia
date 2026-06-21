@@ -5,6 +5,7 @@ import { getSupabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { LogoIcon } from "@/components/logo";
 import { QuestionBank } from "@/components/question-bank";
+import { WineClassification } from "@/components/wine-classification";
 import {
   defaultsFromGlobal,
   GAME_TIERS,
@@ -79,10 +80,12 @@ function Admin() {
           {section === "suppliers" && <Suppliers />}
           {section === "gamification" && <GameSettings />}
           {section === "questions" && <QuestionBank />}
+          {section === "wines" && <WineClassification />}
           {section !== "dashboard" &&
             section !== "suppliers" &&
             section !== "gamification" &&
-            section !== "questions" && <Placeholder section={section} />}
+            section !== "questions" &&
+            section !== "wines" && <Placeholder section={section} />}
         </main>
       </div>
     </div>

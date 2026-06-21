@@ -2,8 +2,8 @@
 title: '§5.8c — Clasificación de vinos (admin): editar wines.category + classification_id en /admin'
 type: 'feature'
 created: '2026-06-21'
-status: 'in-progress'
-baseline_commit: 'TBD'
+status: 'done'
+baseline_commit: 'a517def'
 context: []
 ---
 
@@ -65,10 +65,10 @@ si las escrituras dan 0 filas, coordinar con **Salvador**.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/wine-classification.ts` (NUEVO, PURO) -- `WINE_CATEGORIES = ["tinto","blanco","rosado","espumoso","cava"] as const`; tipos. `classificationsFor(classifications, category)` → solo las `active` de esa `category`. `isPairingValid(classifications, category, classification_id)` → `true` si `classification_id` es `null`/"" o si existe una clasificación con ese id Y `category` igual. Sin I/O.
-- [ ] `src/lib/wine-classification.test.ts` (NUEVO) -- filtra por categoría + active; pairing válido (null OK; id de la categoría OK; id de otra categoría → false; id inexistente → false).
-- [ ] `src/components/wine-classification.tsx` (NUEVO) -- `WineClassification`: carga `wines` + `wine_classifications`; tabla con nombre, select de `category`, select de clasificación (opciones = `classificationsFor(cls, category)` + opción "Sin clasificar"); al cambiar `category`, si la `classification_id` actual no pertenece, ponerla a `null`; botón Guardar por fila → `sb.from("wines").update({ category, classification_id }).eq("id", id).select("id")`; 0 filas → "sin permiso"; recarga. Sin Supabase → aviso. Estética como `admin.tsx`.
-- [ ] `src/routes/admin.tsx` -- render de la sección "wines" → `<WineClassification/>`; quitar "wines" del `Placeholder`.
+- [x] `src/lib/wine-classification.ts` (NUEVO, PURO) -- `WINE_CATEGORIES = ["tinto","blanco","rosado","espumoso","cava"] as const`; tipos. `classificationsFor(classifications, category)` → solo las `active` de esa `category`. `isPairingValid(classifications, category, classification_id)` → `true` si `classification_id` es `null`/"" o si existe una clasificación con ese id Y `category` igual. Sin I/O.
+- [x] `src/lib/wine-classification.test.ts` (NUEVO) -- filtra por categoría + active; pairing válido (null OK; id de la categoría OK; id de otra categoría → false; id inexistente → false).
+- [x] `src/components/wine-classification.tsx` (NUEVO) -- `WineClassification`: carga `wines` + `wine_classifications`; tabla con nombre, select de `category`, select de clasificación (opciones = `classificationsFor(cls, category)` + opción "Sin clasificar"); al cambiar `category`, si la `classification_id` actual no pertenece, ponerla a `null`; botón Guardar por fila → `sb.from("wines").update({ category, classification_id }).eq("id", id).select("id")`; 0 filas → "sin permiso"; recarga. Sin Supabase → aviso. Estética como `admin.tsx`.
+- [x] `src/routes/admin.tsx` -- render de la sección "wines" → `<WineClassification/>`; quitar "wines" del `Placeholder`.
 
 **Acceptance Criteria:**
 - Given un vino, una `category` y una `classification_id` de esa categoría, when guardo, then `wines.category` y `classification_id` se actualizan y la lista lo refleja.
@@ -83,6 +83,27 @@ si las escrituras dan 0 filas, coordinar con **Salvador**.
   `wines.category` + `classification_id` en la sección "Vinos" de `/admin` (patrón §5.8a/§5.8b: cliente +
   RLS + `.select()`). Coherencia tipo↔clasificación (clasificación de la categoría del vino). RLS de
   escritura de `wines` para admins = coordinación con Salvador si dan 0 filas.
+
+- 2026-06-21 — Implementado + verificación del orquestador (lib pura revisada; 3.º CRUD con el patrón ya
+  auditado en §5.8b, riesgo bajo → sin revisor adversarial completo por tiempo). La invariante
+  tipo↔clasificación la garantizan `classificationsFor` (el select solo ofrece la categoría) + `isPairingValid`
+  (defensa antes de escribir). Escritura honesta con `.select("id")` (sin service key). 147 tests verdes.
+
+## Suggested Review Order
+
+**Lógica pura (coherencia)**
+
+- `classificationsFor` (solo activas de la categoría) + `isPairingValid` (no guardar clasificación de otra categoría).
+  [`wine-classification.ts:29`](../../src/lib/wine-classification.ts#L29)
+- Tests.
+  [`wine-classification.test.ts:1`](../../src/lib/wine-classification.test.ts#L1)
+
+**UI (patrón §5.8a/b)**
+
+- `WineClassification` — guardado por fila con `.select("id")` (0 filas → "sin permiso").
+  [`wine-classification.tsx:1`](../../src/components/wine-classification.tsx#L1)
+- Sección "Vinos" en `/admin`.
+  [`admin.tsx`](../../src/routes/admin.tsx)
 
 ## Design Notes
 
