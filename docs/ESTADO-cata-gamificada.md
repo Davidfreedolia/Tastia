@@ -36,6 +36,11 @@ entonces, en preview corre en **modo demo** (badge "Datos demo").
 | **§Stripe-A Checkout** | Pago en modo TEST (server fn en Vercel) + fallback honesto "Próximamente" | #15 |
 | **§Stripe-B1 Webhook** | Webhook → persiste `orders` (status `pagado`) + `access_code`; idempotente | #16 |
 | **§Stripe-B2 Recibo** | Email Resend + QR del `access_code` (enlace `/activar?code=…`); best-effort | #17 |
+| **§Activar** | Ruta pública `/activar`: valida `access_code` (solo `pagado`) → host en `/room/<code>` | #18 |
+
+> **Bucle comercio→juego COMPLETO** (§A→§B1→§B2→§Activar). Para activarlo en modo TEST (sin LIVE), seguir
+> `docs/puesta-en-marcha.md` (poner `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+> `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY` en Vercel + redeploy + compra de test con `4242…`).
 
 Todas las features pasaron **PRD → spec → dev** con **revisión adversarial de 3 agentes**. Specs en
 `docs/specs/`. Contrato cliente↔backend en `docs/edge-functions-contract.md`. Campos exactos a validar
