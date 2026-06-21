@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ActivarRouteImport } from './routes/activar'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RoomCodeRouteImport } from './routes/room/$code'
 import { Route as PlayCodeRouteImport } from './routes/play/$code'
@@ -30,6 +31,11 @@ const LandingRoute = LandingRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActivarRoute = ActivarRouteImport.update({
+  id: '/activar',
+  path: '/activar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -55,6 +61,7 @@ const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/activar': typeof ActivarRoute
   '/admin': typeof AdminRoute
   '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activar': typeof ActivarRoute
   '/admin': typeof AdminRoute
   '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
@@ -74,6 +82,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/activar': typeof ActivarRoute
   '/admin': typeof AdminRoute
   '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/activar'
     | '/admin'
     | '/landing'
     | '/login'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/activar'
     | '/admin'
     | '/landing'
     | '/login'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/activar'
     | '/admin'
     | '/landing'
     | '/login'
@@ -113,6 +125,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActivarRoute: typeof ActivarRoute
   AdminRoute: typeof AdminRoute
   LandingRoute: typeof LandingRoute
   LoginRoute: typeof LoginRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activar': {
+      id: '/activar'
+      path: '/activar'
+      fullPath: '/activar'
+      preLoaderRoute: typeof ActivarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -177,6 +197,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActivarRoute: ActivarRoute,
   AdminRoute: AdminRoute,
   LandingRoute: LandingRoute,
   LoginRoute: LoginRoute,

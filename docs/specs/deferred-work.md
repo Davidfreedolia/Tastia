@@ -136,3 +136,16 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   recibo. El pedido + access_code quedan guardados (recuperable manual). Endurecer con alerta/outbox
   (`receipt_failures`) para reenvío.
 - **`RESEND_FROM` verificado:** sin remitente verificado en Resend, todo envío falla en silencio = go-live.
+
+## §Activar — (robustez) endurecimientos de la revisión adversarial
+
+- §Activar (`/activar`: valida `access_code` → host en `/room/<code>`) está **hecho**. Pendiente de endurecer:
+- **Oráculo de existencia:** `/activar` (público) confirma "code de pedido pagado" vs no. Hoy NO concede
+  capacidad extra (cualquiera puede abrir `/room/<código>` como host — el motor de sala es abierto), solo
+  filtra existencia/estado de pedidos; el espacio 31⁸ ≈ 8,5·10¹¹ hace la fuerza bruta inviable. Cerrar con
+  **rate-limit por IP** del server-fn + **`room_code` fresco ≠ `access_code`** (la activación emite un
+  código de sala desvinculado del credencial) → elimina el oráculo y el riesgo credencial=código público.
+- **Caducidad:** sin columna `activation_expires_at` en `orders` (= migración → Salvador) para caducar accesos.
+- **Identidad del comprador:** ligar la activación a identidad/re-auth (hoy basta el code).
+- **Menor (LOW):** el cliente distingue `unconfigured` con `"configured" in res`; si la unión gana más
+  variantes, preferir un tag discriminante. No es bug hoy.
