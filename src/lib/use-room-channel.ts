@@ -9,13 +9,7 @@ import {
   type PlayerEvent,
   type RoomState,
 } from "./session";
-import {
-  demoQuizSource,
-  loadQuizSource,
-  secondsFor,
-  type CloseResult,
-  type QuizSource,
-} from "./quiz-source";
+import type { CloseResult, QuizSource } from "./quiz-source";
 import { buildFinishPayload } from "./session-finish";
 
 /** Clave intrínseca de la Pregunta actual `(wineIndex, fase)`. Las respuestas/selección
@@ -23,6 +17,22 @@ import { buildFinishPayload } from "./session-finish";
  *  por derivación (sin necesidad de un efecto que los limpie). */
 function qKey(s: { wineIndex: number; fase: Fase }): string {
   return `${s.wineIndex}:${s.fase}`;
+}
+
+/** §5.6b-A — Copia local wines-free de `secondsFor` (la canónica vive en `quiz-source`, que
+ *  importa `wines`; importarla estáticamente arrastraría las respuestas demo al bundle de
+ *  `/play`). Función pura trivial con la MISMA semántica: mapea `Fase` → `time_<fase>_s`. */
+function secondsFor(settings: QuizSource["settings"], fase: Fase): number {
+  switch (fase) {
+    case "vista":
+      return settings.time_vista_s;
+    case "olfato":
+      return settings.time_olfato_s;
+    case "gusto":
+      return settings.time_gusto_s;
+    case "gamificacion":
+      return settings.time_gamificacion_s;
+  }
 }
 
 function makeId() {
@@ -78,15 +88,15 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
   const meIdRef = useRef<string>("");
   const stateRef = useRef<RoomState>(state);
   stateRef.current = state;
-  // §5.6b-A — Fuente del quiz (BD o demo). Arranca SÍNCRONA en demo para que el host pueda
-  // fijar `activeQuestion`/`deadline` desde el primer `advance` aunque el bootstrap aún no
-  // haya respondido; el efecto de abajo la sustituye por la de BD cuando `loadQuizSource`
-  // resuelve. La consume `advance()` (host); el jugador solo renderiza lo difundido.
-  const quizSourceRef = useRef<QuizSource>(demoQuizSource());
+  // §5.6b-A — Fuente del quiz (BD o demo). HOST-ONLY: ya NO arranca síncrona (eso forzaba el
+  // import estático de `quiz-source` → `wines` en el bundle de `/play`). Empieza `null` y la
+  // carga el efecto host de abajo vía `import()` dinámico (demo de respaldo + luego la BD).
+  // La consume `advance()` (host); el jugador solo renderiza lo difundido.
+  const quizSourceRef = useRef<QuizSource | null>(null);
   // §5.6b-A — Fuente CAPTURADA de la Pregunta en curso: se fija al ENTRAR en el quiz y se usa al
   // CERRAR, para que servir y puntuar usen SIEMPRE la misma fuente (aunque `quizSourceRef` cambie a
   // media pregunta cuando `loadQuizSource` resuelve). Nunca puntúa una pregunta BD con demo (ni al revés).
-  const activeSrcRef = useRef<QuizSource>(quizSourceRef.current);
+  const activeSrcRef = useRef<QuizSource | null>(null);
   // §5.6b-A — Guard de reentrada del cierre `quiz→reveal`: `closeQuiz` es async (await de la
   // edge function), y el timer y el botón pueden dispararse a la vez; este flag garantiza un
   // ÚNICO cierre por Pregunta (el segundo se ignora).
@@ -144,7 +154,13 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     // respuesta), el `deadline` absoluto según los settings de esa fase y el `source`; limpia el
     // reveal anterior. Fuera de quiz no hay cuenta atrás ni pregunta activa.
     if (next.stage === "playing" && next.step === "quiz") {
-      const src = quizSourceRef.current;
+      let src = quizSourceRef.current;
+      if (!src) {
+        // La fuente aún no cargó (carrera casi imposible: el chunk es local). Carga demo perezosa host-only.
+        const { demoQuizSource } = await import("./quiz-source");
+        src = quizSourceRef.current ?? demoQuizSource();
+        quizSourceRef.current = src;
+      }
       activeSrcRef.current = src; // captura la fuente para servir Y cerrar ESTA Pregunta
       next.activeQuestion = src.questionFor(next.wineIndex, next.fase);
       next.deadline = Date.now() + secondsFor(src.settings, next.fase) * 1000;
@@ -175,6 +191,7 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
 
         // MISMA fuente que sirvió la Pregunta (capturada al entrar): nunca mezcla BD↔demo.
         const src = activeSrcRef.current;
+        if (!src) return; // defensa para el tipo `| null`: tras entrar en quiz siempre está.
         let r: CloseResult;
         try {
           r = await src.closeQuiz(prev.wineIndex, prev.fase, map);
@@ -231,18 +248,26 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     broadcastState(next);
   }, [role, broadcastState]);
 
-  // §5.6b-A — Carga de la fuente del quiz al montar (host-only). Intenta la BD (`quiz-bootstrap`);
-  // si falla/timeout o Supabase no está configurado, queda la demo síncrona inicial. Al resolver,
-  // sustituye `quizSourceRef` y difunde el `source` para el badge "Datos demo". No bloquea el
-  // primer `advance`: hasta que resuelva, el host usa la demo (juego plenamente funcional).
+  // §5.6b-A — Carga de la fuente del quiz al montar (host-only) vía `import()` DINÁMICO: así
+  // `quiz-source` (y su dependencia `wines`) cae en un chunk async que SOLO descarga el host —
+  // nunca el bundle de `/play`. Deja primero una demo de respaldo (`??=`) para que el host pueda
+  // servir desde el primer `advance` sin esperar, y luego intenta la BD (`quiz-bootstrap`); si
+  // falla/timeout o Supabase no está configurado, `loadQuizSource` devuelve demo. Al resolver,
+  // sustituye `quizSourceRef` y difunde el `source` para el badge "Datos demo".
   useEffect(() => {
     if (role !== "host") return;
     let alive = true;
-    loadQuizSource(code).then((src) => {
-      if (!alive) return;
-      quizSourceRef.current = src;
-      updateState({ source: src.source });
-    });
+    import("./quiz-source")
+      .then(({ demoQuizSource, loadQuizSource }) => {
+        if (!alive) return;
+        quizSourceRef.current ??= demoQuizSource(); // respaldo demo host-only hasta que resuelva la BD
+        return loadQuizSource(code);
+      })
+      .then((src) => {
+        if (!alive || !src) return;
+        quizSourceRef.current = src;
+        updateState({ source: src.source });
+      });
     return () => {
       alive = false;
     };
@@ -286,7 +311,9 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
       hostName: name ?? "Sala",
       participants,
       scores: state.scores,
-      source: quizSourceRef.current.source,
+      // §5.6b-A — `quizSourceRef` es nullable (host-only, carga async). Si aún no cargó, NO es
+      // modo BD → "demo" (buildFinishPayload devuelve null y no persiste): mismo comportamiento.
+      source: quizSourceRef.current?.source ?? "demo",
     });
     if (payload === null) return; // demo o sin jugadores: nada que persistir.
 
