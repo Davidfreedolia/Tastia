@@ -2,7 +2,8 @@
 title: '§Activar — Ruta /activar: canje del access_code → entrar a la sala como host'
 type: 'feature'
 created: '2026-06-21'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'bdf1837'
 context: []
 ---
 
@@ -67,10 +68,10 @@ caducidad (no hay columna); exponer la service key al cliente; revelar detalles 
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/activate.ts` (NUEVO, PURO) -- `normalizeAccessCode(raw: string): string` = `raw.trim().toUpperCase().replace(/\s+/g, "")`. Sin I/O.
-- [ ] `src/lib/activate.test.ts` (NUEVO) -- tests: trim, mayúsculas, espacios internos eliminados, idempotente, cadena vacía → "".
-- [ ] `src/lib/activate.server.ts` (NUEVO) -- `validateAccessCode = createServerFn({ method: "POST" }).inputValidator(z.object({ code: z.string().min(1).max(32) })).handler(...)`: `const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL; const svc = process.env.SUPABASE_SERVICE_ROLE_KEY;` falta → `{ configured: false }`; `const code = normalizeAccessCode(data.code)`; `createClient<Database>(url, svc)`; `.from("orders").select("status").eq("access_code", code).eq("status","pagado").maybeSingle()`; fila → `{ ok: true, roomCode: code }`; si no → `{ ok: false }`; `catch` → log + `{ ok: false }`. Resultado discriminado `{ configured:false } | { ok:true; roomCode:string } | { ok:false }`.
-- [ ] `src/routes/activar.tsx` (NUEVO, PÚBLICA, **sin** `RequireAuth`) -- `createFileRoute("/activar")` con `validateSearch: z.object({ code: z.string().optional() })`; componente: si hay `code` en la URL auto-llama `validateAccessCode` al montar; `Input` para teclear/reintentar; estados con copy honesto (inválido: "Código no válido o pago no encontrado"; no-config: "La activación aún no está disponible"); en `{ ok:true }` muestra "✓ Acceso válido" + botón "Empezar la cata ▸" → `useNavigate({ to: "/room/$code", params: { code: roomCode } })`. Estética sobria coherente con el resto.
+- [x] `src/lib/activate.ts` (NUEVO, PURO) -- `normalizeAccessCode(raw: string): string` = `raw.trim().toUpperCase().replace(/\s+/g, "")`. Sin I/O.
+- [x] `src/lib/activate.test.ts` (NUEVO) -- tests: trim, mayúsculas, espacios internos eliminados, idempotente, cadena vacía → "".
+- [x] `src/lib/activate.server.ts` (NUEVO) -- `validateAccessCode = createServerFn({ method: "POST" }).inputValidator(z.object({ code: z.string().min(1).max(32) })).handler(...)`: `const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL; const svc = process.env.SUPABASE_SERVICE_ROLE_KEY;` falta → `{ configured: false }`; `const code = normalizeAccessCode(data.code)`; `createClient<Database>(url, svc)`; `.from("orders").select("status").eq("access_code", code).eq("status","pagado").maybeSingle()`; fila → `{ ok: true, roomCode: code }`; si no → `{ ok: false }`; `catch` → log + `{ ok: false }`. Resultado discriminado `{ configured:false } | { ok:true; roomCode:string } | { ok:false }`.
+- [x] `src/routes/activar.tsx` (NUEVO, PÚBLICA, **sin** `RequireAuth`) -- `createFileRoute("/activar")` con `validateSearch: z.object({ code: z.string().optional() })`; componente: si hay `code` en la URL auto-llama `validateAccessCode` al montar; `Input` para teclear/reintentar; estados con copy honesto (inválido: "Código no válido o pago no encontrado"; no-config: "La activación aún no está disponible"); en `{ ok:true }` muestra "✓ Acceso válido" + botón "Empezar la cata ▸" → `useNavigate({ to: "/room/$code", params: { code: roomCode } })`. Estética sobria coherente con el resto.
 
 **Acceptance Criteria:**
 - Given un `access_code` de un pedido con `status='pagado'`, when se valida (por `?code=` o tecleado), then aparece "Acceso válido" y un botón que navega a `/room/<code>`.
@@ -86,6 +87,28 @@ caducidad (no hay columna); exponer la service key al cliente; revelar detalles 
   (MVP). Sin caducidad (la tabla `orders` no tiene la columna). Fallback honesto sin service key.
   Diferidos: rate-limit anti-enumeración, caducidad (migración), `room_code` fresco, identidad del
   comprador. Para PROBAR: `SUPABASE_SERVICE_ROLE_KEY` en Vercel (David).
+
+- 2026-06-21 — Implementado + revisión adversarial (2 agentes): auditor **compliant** (sin violaciones);
+  security hunter **sin críticos/altos**. Sin parches: el server-fn es server-only (selecciona solo
+  `status`, sin fuga de datos ni secretos), el efecto auto-valida una sola vez, la navegación es segura,
+  ningún code no-pagado alcanza "válido". Notas (a `deferred-work.md` §Activar): `/activar` es un oráculo
+  de existencia de pedidos pagados — mitigado porque `/room/<code>` ya es abierto (no concede capacidad
+  nueva) y se cierra con el `room_code` fresco + rate-limit ya diferidos; rama `"configured" in res` (LOW,
+  no es bug, sigue el patrón de `cart-sheet.tsx`).
+
+## Suggested Review Order
+
+**Validación (server-only)**
+
+- `validateAccessCode` — service key, selecciona solo `status`, solo `'pagado'` es válido, fallback honesto.
+  [`activate.server.ts:20`](../../src/lib/activate.server.ts#L20)
+- `normalizeAccessCode` (pura) + tests.
+  [`activate.ts:6`](../../src/lib/activate.ts#L6) · [`activate.test.ts:1`](../../src/lib/activate.test.ts#L1)
+
+**Ruta pública**
+
+- Máquina de estados + auto-validación (una vez) + navegación a `/room/$code`.
+  [`activar.tsx:32`](../../src/routes/activar.tsx#L32)
 
 ## Design Notes
 
