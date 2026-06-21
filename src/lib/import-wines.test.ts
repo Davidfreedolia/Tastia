@@ -1,3 +1,5 @@
+// @ts-nocheck — interfaz con `scripts/import-wines.lib.mjs` (script Node SIN tipos); la corrección
+// se valida en runtime con vitest. Evita TS7016 (módulo .mjs sin .d.ts) en `tsc --noEmit`.
 // Tests del importador de vinos CSV (§5.6a) — helpers PUROS, sin red ni BD.
 // Cubren: cálculo de precios (cost = round(pvp*100*0.40), bottle = round(pvp*100)),
 // el mapeo fila→registro, el parseo del CSV completo (válidas vs. omitidas+reportadas),
