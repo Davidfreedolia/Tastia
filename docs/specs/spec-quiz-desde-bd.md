@@ -2,7 +2,8 @@
 title: '§5.6b-A — Quiz en vivo desde la BD (bootstrap + quiz-close) con fallback demo'
 type: 'feature'
 created: '2026-06-21'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '2a2504f'
 context: ['{project-root}/docs/edge-functions-contract.md']
 ---
 
@@ -55,7 +56,7 @@ persistir la sesión (`session-finish` = §5.6b-B, diferido); exponer `correct_a
 | Montar Sala (BD OK) | host; `quiz-bootstrap` responde | `source='bd'`; settings y preguntas de la BD; sin respuestas en el cliente | — |
 | Montar Sala (BD falla) | invoke error/timeout / Supabase no configurado | `source='demo'`; usa `FASE_SECONDS`/`BASE` + `getQuestion`/`DEMO_WINES`; badge "Datos demo" | captura error; no rompe |
 | Entrar en quiz | `advance` → `playing/quiz` | host fija `activeQuestion {prompt,options}` + `deadline` (settings o `FASE_SECONDS`) y difunde | sin pregunta para `(i,fase)` → cae a demo de esa pregunta |
-| Cerrar quiz→reveal (BD) | `answers` + `quiz-close` | `reveal {correctOptionIndex, correctLabel, revealedWine?}` + `awards`; acumula `scores`; difunde | si `quiz-close` falla → puntúa ese cierre en local (demo) y marca `source='demo'` |
+| Cerrar quiz→reveal (BD) | `answers` + `quiz-close` | `reveal {correctOptionIndex, correctLabel, revealedWine?}` + `awards`; acumula `scores`; difunde | si `quiz-close` falla → esa ronda SIN puntos (`awards` vacíos, sin marcar correcta); NUNCA se puntúa una pregunta BD con demo |
 | Cerrar quiz→reveal (demo) | `answers` | `computeAwards` local + `correctIndex` de `getQuestion` | — |
 | Jugador renderiza | recibe `state.activeQuestion`/`reveal` | pinta la pregunta y, en reveal, la opción correcta; **nunca antes** | `activeQuestion` ausente → estado de carga |
 | Cierre concurrente | timer y botón a la vez durante el `await` | un solo cierre (guard de reentrada) | ignora el segundo |
@@ -76,12 +77,12 @@ persistir la sesión (`session-finish` = §5.6b-B, diferido); exponer `correct_a
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/quiz-source.ts` (NUEVO) -- `loadQuizSource(code): Promise<QuizSource>`: intenta `quiz-bootstrap` (`functions.invoke`); OK → `source:'bd'` con `settings`, `questionFor(i,fase)→{prompt,options}` (de `questions[]`) y `closeQuiz(i,fase,answers,presentIds)→{correctOptionIndex,correctLabel,awards,revealedWine?}` (invoca `quiz-close`); error/timeout/Supabase no configurado → `source:'demo'` que envuelve `getQuestion`/`computeAwards`/`FASE_SECONDS`/`BASE`. Exportar tipos.
-- [ ] `src/lib/quiz-source.test.ts` -- modo demo: `questionFor`/`closeQuiz` coinciden con `getQuestion`/`computeAwards`; `loadQuizSource` cae a `'demo'` si Supabase no está configurado o el invoke lanza.
-- [ ] `src/lib/session.ts` -- `RoomState` += `activeQuestion?: { prompt: string; options: string[] }`, `reveal?: { correctOptionIndex: number; correctLabel: string; revealedWine?: unknown }`, `source?: 'bd' | 'demo'`; documentar que los fija el host y viajan en el broadcast.
-- [ ] `src/lib/use-room-channel.ts` -- host: al montar `loadQuizSource(code)` → ref (`settings`/`source`/`closeQuiz`/`questionFor`); `advance()` async: al entrar en `quiz` fija `activeQuestion` + `deadline` (settings o `FASE_SECONDS`) + `source`; al cerrar `quiz→reveal` `await closeQuiz(...)` → `scores`/`lastAward`/`reveal`; **guard de reentrada** (flag "cerrando"); el efecto del timer invoca la versión async. Player: no deriva; consume `state`.
-- [ ] `src/routes/room/$code.tsx` -- render desde `state.activeQuestion`/`state.reveal`; quitar `getQuestion`; badge "Datos demo" si `state.source==='demo'`.
-- [ ] `src/routes/play/$code.tsx` -- íd.; quitar el import de `getQuestion`; mismo badge.
+- [x] `src/lib/quiz-source.ts` (NUEVO) -- `loadQuizSource(code): Promise<QuizSource>`: intenta `quiz-bootstrap` (`functions.invoke`); OK → `source:'bd'` con `settings`, `questionFor(i,fase)→{prompt,options}` (de `questions[]`) y `closeQuiz(i,fase,answers,presentIds)→{correctOptionIndex,correctLabel,awards,revealedWine?}` (invoca `quiz-close`); error/timeout/Supabase no configurado → `source:'demo'` que envuelve `getQuestion`/`computeAwards`/`FASE_SECONDS`/`BASE`. Exportar tipos.
+- [x] `src/lib/quiz-source.test.ts` -- modo demo: `questionFor`/`closeQuiz` coinciden con `getQuestion`/`computeAwards`; `loadQuizSource` cae a `'demo'` si Supabase no está configurado o el invoke lanza.
+- [x] `src/lib/session.ts` -- `RoomState` += `activeQuestion?: { prompt: string; options: string[] }`, `reveal?: { correctOptionIndex: number; correctLabel: string; revealedWine?: unknown }`, `source?: 'bd' | 'demo'`; documentar que los fija el host y viajan en el broadcast.
+- [x] `src/lib/use-room-channel.ts` -- host: al montar `loadQuizSource(code)` → ref (`settings`/`source`/`closeQuiz`/`questionFor`); `advance()` async: al entrar en `quiz` fija `activeQuestion` + `deadline` (settings o `FASE_SECONDS`) + `source`; al cerrar `quiz→reveal` `await closeQuiz(...)` → `scores`/`lastAward`/`reveal`; **guard de reentrada** (flag "cerrando"); el efecto del timer invoca la versión async. Player: no deriva; consume `state`.
+- [x] `src/routes/room/$code.tsx` -- render desde `state.activeQuestion`/`state.reveal`; quitar `getQuestion`; badge "Datos demo" si `state.source==='demo'`.
+- [x] `src/routes/play/$code.tsx` -- íd.; quitar el import de `getQuestion`; mismo badge.
 
 **Acceptance Criteria:**
 - Given la function desplegada, when se monta la Sala, then juega con settings/vinos/preguntas de la BD (`source='bd'`) y el bundle del jugador no contiene la respuesta antes del reveal.
@@ -97,6 +98,17 @@ persistir la sesión (`session-finish` = §5.6b-B, diferido); exponer `correct_a
   por decisión de David, pese a ~1800 tokens (sobre la guía de 1600). Host-autoritario, fallback demo
   con badge "Datos demo", capa `quiz-source.ts`. §5.6b-B (session-finish) diferido a `deferred-work.md`.
 
+- 2026-06-21 — Revisión adversarial (iter. 1). Hallazgos corregidos: (1) CRÍTICO — la fuente del quiz
+  se leía del ref mutable al servir Y al cerrar → podía mezclar BD↔demo (loadQuizSource resolviendo a
+  media Pregunta, pregunta BD ausente, o quiz-close fallando con fallback demo) y puntuar una pregunta
+  con otra. Fix: fallback TODO-o-NADA por carga + fuente capturada por-Pregunta (`activeSrcRef`); sin
+  demo-scoring de una pregunta BD (con aprobación de David se enmienda el clause frozen del I/O Matrix).
+  (2) `deadline=NaN` si los settings BD traen un tiempo no numérico → `loadQuizSource` valida settings
+  (si no, demo). (3) guard de carrera tras el `await` (reset/avance). (4) `Number()` en los awards de
+  red. DIFERIDO (decisión de David): el bundle del jugador aún incluye `DEMO_WINES`/`getQuestion` (vía
+  use-room-channel→quiz-source→wines) — riesgo real bajo (datos demo; las respuestas BD nunca llegan al
+  cliente) → `deferred-work.md`.
+
 ## Design Notes
 
 - **Host-autoritario unifica BD y demo:** el host SIEMPRE fija `activeQuestion`/`reveal`/`source` en
@@ -105,8 +117,14 @@ persistir la sesión (`session-finish` = §5.6b-B, diferido); exponer `correct_a
 - **`advance()` async + guard:** marcar "cerrando" durante el `await` de `quiz-close`; el timer y el
   botón comprueban el guard para no cerrar dos veces (hoy `advance` es síncrona y se dispara desde
   `setTimeout` y desde el botón).
-- **Fallback por-cierre:** si `quiz-close` falla a mitad de partida, ese cierre puntúa en local (demo) y
-  marca `source='demo'` (badge) — nunca se rompe.
+- **Fallback TODO-o-NADA por carga (no por-pregunta):** `loadQuizSource` devuelve BD solo si el payload
+  es válido (settings con 4 tiempos numéricos + ≥1 pregunta); si no, demo COMPLETA. La fuente se
+  **captura al entrar en la Pregunta** (`activeSrcRef`) y se usa al cerrarla → servir y puntuar usan
+  SIEMPRE la misma fuente (aunque `loadQuizSource` resuelva a media Pregunta). **Nunca** se puntúa una
+  pregunta BD con el motor demo (órdenes de opciones distintos → respuesta/puntos erróneos).
+- **`quiz-close` falla a media partida:** esa ronda queda SIN puntos y sin marcar correcta
+  (`correctOptionIndex = -1`); no se inventa con demo. Guard de carrera: si el estado cambió durante el
+  `await` (reset/avance), el cierre se aborta sin difundir.
 - **`code`→pack:** a coordinar con Salvador (ver *Ask First*); no bloquea el modo demo.
 
 ## Verification
@@ -120,3 +138,37 @@ persistir la sesión (`session-finish` = §5.6b-B, diferido); exponer `correct_a
 - Sin deploy: preview → `/room/TEST` juega en modo demo con badge "Datos demo".
 - Con deploy (cuando Salvador despliegue): `/room/TEST` juega con datos de la BD (sin badge); editar un
   tiempo en `/admin` §5.8a cambia la cuenta atrás; el reveal muestra la opción correcta tras cerrar.
+
+## Suggested Review Order
+
+**Fuente del quiz (BD vs demo) — el núcleo**
+
+- Carga TODO-o-NADA: BD solo si el payload es válido (settings numéricos + ≥1 pregunta), si no demo; valida settings (anti-NaN).
+  [`quiz-source.ts:143`](../../src/lib/quiz-source.ts#L143)
+- Motor demo reutilizado (getQuestion/computeAwards/constantes), síncrono.
+  [`quiz-source.ts:91`](../../src/lib/quiz-source.ts#L91)
+
+**Cierre host-autoritario (lo más delicado: async + fuente capturada + guards)**
+
+- `advance()` async: al entrar fija pregunta/deadline/source; al cerrar puntúa/revela.
+  [`use-room-channel.ts:118`](../../src/lib/use-room-channel.ts#L118)
+- Captura la fuente por-Pregunta (servir y cerrar usan la MISMA).
+  [`use-room-channel.ts:135`](../../src/lib/use-room-channel.ts#L135)
+- Cierre con la fuente capturada: sin demo-scoring de una pregunta BD + guard de carrera tras el `await`.
+  [`use-room-channel.ts:163`](../../src/lib/use-room-channel.ts#L163)
+- Carga de la fuente al montar (host); difunde `source` para el badge.
+  [`use-room-channel.ts:224`](../../src/lib/use-room-channel.ts#L224)
+
+**Estado difundido + render**
+
+- `RoomState` += `activeQuestion`/`reveal`/`source` (los fija el host).
+  [`session.ts:131`](../../src/lib/session.ts#L131)
+- Sala: render de `state.activeQuestion`/`state.reveal` + badge "Datos demo".
+  [`room/$code.tsx:164`](../../src/routes/room/$code.tsx#L164)
+- Companion: íd. (renderizador puro, ya no deriva con `getQuestion`).
+  [`play/$code.tsx:263`](../../src/routes/play/$code.tsx#L263)
+
+**Periféricos**
+
+- Tests de la quiz-source (paridad demo + fallback + validación + cierre BD).
+  [`quiz-source.test.ts:1`](../../src/lib/quiz-source.test.ts#L1)

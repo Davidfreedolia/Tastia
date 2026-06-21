@@ -5,13 +5,11 @@ import { useRoomChannel } from "@/lib/use-room-channel";
 import {
   FASE_LABEL,
   initials,
-  isCorrect,
   STAGE_LABEL,
   WINE_COUNT,
   type Participant,
   type RoomState,
 } from "@/lib/session";
-import { getQuestion } from "@/lib/wines";
 
 export const Route = createFileRoute("/room/$code")({
   component: RoomPage,
@@ -73,6 +71,8 @@ function RoomPage() {
               Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]}
             </span>
           )}
+          {/* §5.6b-A — badge discreto: el juego corre con datos demo (la edge function no respondió). */}
+          {state.source === "demo" && <DemoBadge />}
         </div>
       </header>
 
@@ -130,11 +130,24 @@ function RoomPage() {
   );
 }
 
+/** Etiqueta discreta "Datos demo" (§5.6b-A): el juego corre sin la edge function. */
+function DemoBadge() {
+  return (
+    <span
+      className="rounded-none border border-amber-500/60 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600"
+      title="El juego usa datos de muestra: la base de datos no respondió."
+    >
+      Datos demo
+    </span>
+  );
+}
+
 /**
- * Sala — Pregunta y Revelación de la fase (§5.2). Deriva la Pregunta de forma determinista
- * con `getQuestion(wineIndex, fase)` (mismo orden que el Companion). En `quiz` muestra el
- * enunciado + 4 opciones + indicador de quién/cuántos han respondido; en `reveal` resalta la
- * opción correcta y marca ✓/✗ por jugador (no respondió = ✗).
+ * Sala — Pregunta y Revelación de la fase (§5.2/§5.6b-A). RENDERIZA lo que el host difunde en
+ * `RoomState`: `state.activeQuestion` (enunciado + opciones, sin respuesta) y `state.reveal`
+ * (opción correcta). Ya NO deriva con `getQuestion`. En `quiz` muestra el enunciado + opciones +
+ * indicador de quién/cuántos han respondido; en `reveal` resalta la correcta (`reveal.correctOptionIndex`)
+ * y marca ✓/✗ por jugador (no respondió = ✗). Si aún no hay `activeQuestion`, muestra "cargando…".
  */
 function HostQuiz({
   state,
@@ -147,8 +160,9 @@ function HostQuiz({
   answers: Record<string, number>;
   answeredIds: Set<string>;
 }) {
-  const q = getQuestion(state.wineIndex, state.fase);
   const isReveal = state.step === "reveal";
+  const question = state.activeQuestion;
+  const correctIndex = state.reveal?.correctOptionIndex;
   const answeredCount = players.filter((p) => answeredIds.has(p.id)).length;
 
   return (
@@ -166,56 +180,63 @@ function HostQuiz({
           />
         )}
       </div>
-      <p className="serif mt-1 text-2xl font-bold">{q.prompt}</p>
 
-      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-        {q.options.map((opt, i) => {
-          const correct = isReveal && i === q.correctIndex;
-          return (
-            <li
-              key={i}
-              className={`flex items-center justify-between rounded-none border px-3 py-2 text-sm ${
-                correct
-                  ? "border-green-600 bg-green-600/15 font-semibold"
-                  : "border-border/60 bg-secondary/40"
-              }`}
-            >
-              <span>{opt}</span>
-              {correct && <span className="text-green-600">✓ correcta</span>}
-            </li>
-          );
-        })}
-      </ul>
-
-      {!isReveal ? (
-        <p className="mt-3 text-sm text-foreground/70">
-          Han respondido <span className="font-bold text-primary">{answeredCount}</span> de{" "}
-          {players.length} jugador{players.length === 1 ? "" : "es"}.
-          {players.length > 0 && answeredCount > 0 && (
-            <span className="ml-1 text-foreground/55">
-              ({players.filter((p) => answeredIds.has(p.id)).map((p) => p.name).join(", ")})
-            </span>
-          )}
-        </p>
+      {question === undefined ? (
+        <p className="serif mt-1 text-2xl font-bold text-foreground/50">Cargando pregunta…</p>
       ) : (
-        <ul className="mt-3 space-y-1 text-sm">
-          {players.map((p) => {
-            const ans = answers[p.id];
-            const ok = ans !== undefined && isCorrect(ans, q);
-            // §5.5 — "+X" de ESTA Pregunta (solo a quien acierta); el panel/podios leen `scores`.
-            const award = state.lastAward?.[p.id];
-            return (
-              <li key={p.id} className="flex items-center justify-between">
-                <span className="font-medium">{p.name}</span>
-                <span className={`flex items-center gap-2 ${ok ? "text-green-600" : "text-primary"}`}>
-                  {ok && award ? <span className="font-bold">+{award}</span> : null}
-                  <span>{ans === undefined ? "✗ no respondió" : ok ? "✓ acertó" : "✗ falló"}</span>
+        <>
+          <p className="serif mt-1 text-2xl font-bold">{question.prompt}</p>
+
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {question.options.map((opt, i) => {
+              const correct = isReveal && i === correctIndex;
+              return (
+                <li
+                  key={i}
+                  className={`flex items-center justify-between rounded-none border px-3 py-2 text-sm ${
+                    correct
+                      ? "border-green-600 bg-green-600/15 font-semibold"
+                      : "border-border/60 bg-secondary/40"
+                  }`}
+                >
+                  <span>{opt}</span>
+                  {correct && <span className="text-green-600">✓ correcta</span>}
+                </li>
+              );
+            })}
+          </ul>
+
+          {!isReveal ? (
+            <p className="mt-3 text-sm text-foreground/70">
+              Han respondido <span className="font-bold text-primary">{answeredCount}</span> de{" "}
+              {players.length} jugador{players.length === 1 ? "" : "es"}.
+              {players.length > 0 && answeredCount > 0 && (
+                <span className="ml-1 text-foreground/55">
+                  ({players.filter((p) => answeredIds.has(p.id)).map((p) => p.name).join(", ")})
                 </span>
-              </li>
-            );
-          })}
-          {players.length === 0 && <li className="text-foreground/55">Sin jugadores.</li>}
-        </ul>
+              )}
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-1 text-sm">
+              {players.map((p) => {
+                const ans = answers[p.id];
+                const ok = ans !== undefined && correctIndex !== undefined && ans === correctIndex;
+                // §5.5 — "+X" de ESTA Pregunta (solo a quien acierta); el panel/podios leen `scores`.
+                const award = state.lastAward?.[p.id];
+                return (
+                  <li key={p.id} className="flex items-center justify-between">
+                    <span className="font-medium">{p.name}</span>
+                    <span className={`flex items-center gap-2 ${ok ? "text-green-600" : "text-primary"}`}>
+                      {ok && award ? <span className="font-bold">+{award}</span> : null}
+                      <span>{ans === undefined ? "✗ no respondió" : ok ? "✓ acertó" : "✗ falló"}</span>
+                    </span>
+                  </li>
+                );
+              })}
+              {players.length === 0 && <li className="text-foreground/55">Sin jugadores.</li>}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );
