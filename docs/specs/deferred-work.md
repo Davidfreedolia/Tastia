@@ -38,14 +38,16 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   ampliar las clasificaciones de esos tipos, o un fallback acotado. Añadir entonces un test del caso
   (hoy `taxonomy.test.ts` solo cubre el tinto).
 
-## §5.8b — Banco de preguntas (admin): CRUD de `game_questions`
+## §5.8b — Banco de preguntas (admin): CRUD de `game_questions` — ✅ HECHO (#21, spec-admin-preguntas.md)
 
 - Split de §5.8 (Admin del juego). §5.8a aborda solo los ajustes (`game_settings`) + readiness read-only.
 - Pendiente: pantalla en `/admin` para CRUD de `game_questions` por vino/fase (enunciado ES/EN, opciones,
   `correct_answer`, `points`, `active`), avisando con `wines_question_readiness` de packs incompletos.
 - Nota: `quiz-bootstrap` (Salvador) puede DERIVAR preguntas de la ficha+taxonomía (FR-12), así que el
   banco manual es para preguntas guardadas/override, no obligatorio para que el juego funcione.
-- → Abordar tras §5.8a, coordinando el formato de `game_questions.options`/`correct_answer` con Salvador.
+- ✅ HECHO en #21. Formato `options` string[] / `correct_answer`∈options (contrato de `quiz-source.ts`).
+  PENDIENTE de coordinación: policy RLS de escritura de `game_questions` para admins (si las escrituras dan
+  0 filas en prod → Salvador); el `.select("id")` lo delata honestamente.
 
 ## §5.8c — Clasificación de vinos (admin): asignar `wines.category`/`classification_id`
 
