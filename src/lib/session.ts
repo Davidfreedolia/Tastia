@@ -61,6 +61,25 @@ export type Participant = {
 };
 
 /**
+ * §5.6b-A — Pregunta activa que el HOST fija en `RoomState` y difunde por Realtime.
+ * Solo enunciado + opciones (NUNCA la respuesta correcta): el jugador es un renderizador
+ * puro y no debe poder deducir el acierto antes del reveal (anti-spoiler, opción B).
+ */
+export type ActiveQuestion = { prompt: string; options: string[] };
+
+/**
+ * §5.6b-A — Reveal que el HOST fija al CERRAR la Pregunta (de `quiz-close` en modo BD o
+ * de `getQuestion`/`DEMO_WINES` en modo demo) y difunde. `correctOptionIndex` apunta a la
+ * opción correcta dentro de `ActiveQuestion.options`; `revealedWine` (ficha completa) solo
+ * llega en la última fase del vino para el podio del vino.
+ */
+export type RevealInfo = {
+  correctOptionIndex: number;
+  correctLabel: string;
+  revealedWine?: unknown;
+};
+
+/**
  * Iniciales para el avatar por defecto cuando un participante no tiene foto (§5.11).
  * Devuelve 1–2 letras MAYÚSCULAS: la inicial de la primera y la última palabra
  * (una sola letra si solo hay una palabra). Tolera vacío, espacios extra y
@@ -103,6 +122,26 @@ export type RoomState = {
    * llegar a 0 lo dispara el host reusando `advance()` (reparte §5.5), no el reloj del cliente.
    */
   deadline?: number;
+  /**
+   * §5.6b-A — Pregunta activa difundida. La fija el HOST al entrar en `playing/quiz`
+   * (de la `quiz-source`: BD o demo) y viaja en el broadcast; el jugador la RENDERIZA tal
+   * cual (ya no deriva con `getQuestion`). Sin respuestas (anti-spoiler). `undefined` fuera
+   * de quiz o mientras el host aún no la ha fijado (el jugador muestra "cargando…").
+   */
+  activeQuestion?: ActiveQuestion;
+  /**
+   * §5.6b-A — Reveal difundido. Lo fija el HOST al cerrar `quiz→reveal` (de `quiz-close` en
+   * BD o local en demo) y viaja en el broadcast; el jugador pinta la opción correcta
+   * (`correctOptionIndex`/`correctLabel`) y, si procede, `revealedWine`. Solo significativo
+   * en `reveal`; se limpia (`undefined`) al entrar en una Pregunta nueva.
+   */
+  reveal?: RevealInfo;
+  /**
+   * §5.6b-A — Fuente de datos del juego para el badge "Datos demo". `"bd"` = preguntas/
+   * settings/reveal de las edge functions; `"demo"` = fallback a constantes/`DEMO_WINES`.
+   * Lo fija y difunde el HOST (al montar y, si un cierre cae a demo, también al cerrar).
+   */
+  source?: "bd" | "demo";
   updatedAt: number;
 };
 

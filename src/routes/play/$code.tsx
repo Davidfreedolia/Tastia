@@ -6,13 +6,11 @@ import { useRoomChannel } from "@/lib/use-room-channel";
 import {
   FASE_LABEL,
   initials,
-  isCorrect,
   STAGE_LABEL,
   WINE_COUNT,
   type Participant,
   type RoomState,
 } from "@/lib/session";
-import { getQuestion } from "@/lib/wines";
 import { downscaleImage } from "@/lib/photo";
 import { supabaseConfigured } from "@/lib/supabase";
 
@@ -160,6 +158,8 @@ function Companion({ code, name, photo }: { code: string; name: string; photo?: 
               · Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]}
             </span>
           )}
+          {/* §5.6b-A — badge discreto: el juego corre con datos demo (la edge function no respondió). */}
+          {state.source === "demo" && <DemoBadge />}
         </div>
 
         <CompanionBody
@@ -227,12 +227,26 @@ function CompanionBody({
   );
 }
 
+/** Etiqueta discreta "Datos demo" (§5.6b-A): el juego corre sin la edge function. */
+function DemoBadge() {
+  return (
+    <span
+      className="ml-2 rounded-none border border-amber-500/60 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600"
+      title="El juego usa datos de muestra: la base de datos no respondió."
+    >
+      Datos demo
+    </span>
+  );
+}
+
 /**
- * Companion — Pregunta y Revelación de la fase (§5.2). Deriva la Pregunta de forma
- * determinista con `getQuestion(wineIndex, fase)` (mismo orden que la Sala). En `quiz`
- * muestra 4 opciones pulsables (resalta la elegida, permite cambiar mientras está abierto);
- * en `reveal` resalta la correcta y muestra tu ✓/✗ (sin opción = ✗). El jugador solo
- * responde: nunca avanza la máquina de estados.
+ * Companion — Pregunta y Revelación de la fase (§5.2/§5.6b-A). RENDERIZA lo que el host
+ * difunde en `RoomState`: `state.activeQuestion` (enunciado + opciones, sin respuesta) y
+ * `state.reveal` (opción correcta). Ya NO deriva con `getQuestion` (anti-spoiler: el bundle
+ * del jugador no contiene la respuesta antes del reveal). En `quiz` muestra opciones pulsables
+ * (resalta la elegida, permite cambiar mientras está abierto); en `reveal` resalta la correcta
+ * (`reveal.correctOptionIndex`) y muestra tu ✓/✗ (sin opción = ✗). Si aún no hay
+ * `activeQuestion`, muestra "cargando…". El jugador solo responde: nunca avanza la máquina.
  */
 function PlayerQuiz({
   state,
@@ -245,11 +259,23 @@ function PlayerQuiz({
   myAnswer: number | null;
   meId: string;
 }) {
-  const q = getQuestion(state.wineIndex, state.fase);
   const isReveal = state.step === "reveal";
-  const gotIt = myAnswer !== null && isCorrect(myAnswer, q);
+  const question = state.activeQuestion;
+  const correctIndex = state.reveal?.correctOptionIndex;
+  const gotIt = myAnswer !== null && correctIndex !== undefined && myAnswer === correctIndex;
   // §5.5 — tu "+X" de esta Pregunta (solo si has acertado; en reveal).
   const myAward = state.lastAward?.[meId];
+
+  if (question === undefined) {
+    return (
+      <div className="mt-4 rounded-none border border-primary/40 bg-card p-4 text-center">
+        <p className="text-center text-xs uppercase tracking-wider text-foreground/55">
+          Vino {state.wineIndex + 1} · {FASE_LABEL[state.fase]}
+        </p>
+        <p className="serif mt-2 text-lg font-bold text-foreground/50">Cargando pregunta…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-4 rounded-none border border-primary/40 bg-card p-4">
@@ -265,12 +291,12 @@ function PlayerQuiz({
           />
         </p>
       )}
-      <p className="serif mt-1 text-center text-lg font-bold">{q.prompt}</p>
+      <p className="serif mt-1 text-center text-lg font-bold">{question.prompt}</p>
 
       <div className="mt-4 grid gap-2">
-        {q.options.map((opt, i) => {
+        {question.options.map((opt, i) => {
           const selected = myAnswer === i;
-          const correct = isReveal && i === q.correctIndex;
+          const correct = isReveal && i === correctIndex;
           // En reveal: verde la correcta, rojo tu elección si falló; selección normal en quiz.
           const cls = isReveal
             ? correct

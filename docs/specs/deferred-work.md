@@ -63,3 +63,13 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
 - Coordinar con Salvador (formato de players/foto) y depende de su deploy. Carril nuestro = la llamada
   desde el cliente; la function es suya.
 - → Abordar tras §5.6b-A.
+
+## §5.6b-A — (anti-spoiler) `DEMO_WINES`/`getQuestion` siguen en el bundle del jugador
+
+- Hallazgo de la revisión adversarial. El objetivo de §5.6b-A era sacar las respuestas del bundle de
+  `/play`; se quitó el import directo del componente, pero la cadena estática
+  `play → use-room-channel → quiz-source → wines` sigue enviando `DEMO_WINES`/`getQuestion` al cliente.
+- **Riesgo real bajo:** son datos **demo** (las respuestas reales de la BD viven en la edge function y
+  NUNCA llegan al cliente). Solo "filtra" en modo demo, donde de todas formas son de muestra.
+- → Cerrar haciendo el motor demo **host-only** (p.ej. `import()` dinámico de `wines`/`quiz-source` en
+  el efecto host de `use-room-channel`, fuera del grafo estático de `/play`). Diferido por decisión de David.

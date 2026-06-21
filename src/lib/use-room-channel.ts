@@ -3,15 +3,19 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabase, supabaseConfigured } from "./supabase";
 import {
   advanceState,
-  computeAwards,
   initialRoomState,
-  quizDeadline,
   type Fase,
   type Participant,
   type PlayerEvent,
   type RoomState,
 } from "./session";
-import { getQuestion } from "./wines";
+import {
+  demoQuizSource,
+  loadQuizSource,
+  secondsFor,
+  type CloseResult,
+  type QuizSource,
+} from "./quiz-source";
 
 /** Clave intrínseca de la Pregunta actual `(wineIndex, fase)`. Las respuestas/selección
  *  se etiquetan con ella, así que al cambiar de Pregunta los valores viejos se ignoran
@@ -66,6 +70,19 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
   const meIdRef = useRef<string>("");
   const stateRef = useRef<RoomState>(state);
   stateRef.current = state;
+  // §5.6b-A — Fuente del quiz (BD o demo). Arranca SÍNCRONA en demo para que el host pueda
+  // fijar `activeQuestion`/`deadline` desde el primer `advance` aunque el bootstrap aún no
+  // haya respondido; el efecto de abajo la sustituye por la de BD cuando `loadQuizSource`
+  // resuelve. La consume `advance()` (host); el jugador solo renderiza lo difundido.
+  const quizSourceRef = useRef<QuizSource>(demoQuizSource());
+  // §5.6b-A — Fuente CAPTURADA de la Pregunta en curso: se fija al ENTRAR en el quiz y se usa al
+  // CERRAR, para que servir y puntuar usen SIEMPRE la misma fuente (aunque `quizSourceRef` cambie a
+  // media pregunta cuando `loadQuizSource` resuelve). Nunca puntúa una pregunta BD con demo (ni al revés).
+  const activeSrcRef = useRef<QuizSource>(quizSourceRef.current);
+  // §5.6b-A — Guard de reentrada del cierre `quiz→reveal`: `closeQuiz` es async (await de la
+  // edge function), y el timer y el botón pueden dispararse a la vez; este flag garantiza un
+  // ÚNICO cierre por Pregunta (el segundo se ignora).
+  const closingRef = useRef(false);
   // Espejo de `answersRec` para que el `advance()` memoizado lea las respuestas vigentes sin
   // recrearse en cada respuesta (mismo patrón que `stateRef`); el reparto §5.5 lo consume.
   const answersRecRef = useRef(answersRec);
@@ -89,51 +106,96 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
   );
 
   /**
-   * Host: única transición de la máquina de estados (§5.1). Aplica `advanceState()`
-   * y difunde el resultado. En §5.3 el paso `quiz → reveal` también se disparará por
-   * temporizador; aquí solo lo dispara el host (el jugador nunca controla el avance).
+   * Host: única transición de la máquina de estados (§5.1), ahora ASYNC (§5.6b-A) porque el
+   * cierre `quiz→reveal` puntúa/revela vía la `quiz-source` (la BD lo hace con un `await` a
+   * `quiz-close`; en demo es síncrono envuelto en una Promise). Los llamadores (botón y timer)
+   * la invocan fire-and-forget; el `closingRef` evita un doble cierre si coinciden.
+   *
+   * Al ENTRAR en quiz fija `activeQuestion` (sin respuesta) + `deadline` (de los settings) +
+   * `source` y los difunde; al CERRAR aplica `reveal` + reparto y los difunde. El jugador solo
+   * renderiza lo difundido (ya no deriva con `getQuestion`).
    */
-  const advance = useCallback(() => {
+  const advance = useCallback(async () => {
     if (role !== "host") return;
     // Igual que updateState: efecto de red fuera del updater (StrictMode-safe).
     const prev = stateRef.current;
     const next: RoomState = { ...advanceState(prev), updatedAt: Date.now() };
 
-    // §5.3 — Temporizador autoritativo: al ENTRAR en un quiz (lobby→1.ª Pregunta o
-    // reveal→siguiente fase) la Sala fija el `deadline` absoluto según la fase y lo difunde;
-    // fuera de quiz no hay cuenta atrás (`deadline` ausente). El cierre real al vencer lo
-    // dispara el efecto host-only de abajo reusando este mismo `advance()`.
+    const isClosing =
+      prev.stage === "playing" &&
+      prev.step === "quiz" &&
+      next.stage === "playing" &&
+      next.step === "reveal";
+
+    // §5.6b-A — Al ENTRAR en un quiz: el host fija la pregunta activa (de la quiz-source, sin
+    // respuesta), el `deadline` absoluto según los settings de esa fase y el `source`; limpia el
+    // reveal anterior. Fuera de quiz no hay cuenta atrás ni pregunta activa.
     if (next.stage === "playing" && next.step === "quiz") {
-      next.deadline = quizDeadline(next.fase, Date.now());
+      const src = quizSourceRef.current;
+      activeSrcRef.current = src; // captura la fuente para servir Y cerrar ESTA Pregunta
+      next.activeQuestion = src.questionFor(next.wineIndex, next.fase);
+      next.deadline = Date.now() + secondsFor(src.settings, next.fase) * 1000;
+      next.reveal = undefined;
+      next.source = src.source;
     } else {
       next.deadline = undefined;
     }
 
-    // §5.5 — Reparto de puntos EXACTAMENTE en el cierre `playing/quiz → playing/reveal`,
-    // una sola vez por Pregunta: las `answers` ya se descartan al cambiar de Pregunta (§5.2),
-    // así que re-entrar a `reveal` no puede re-repartir.
-    if (
-      prev.stage === "playing" &&
-      prev.step === "quiz" &&
-      next.stage === "playing" &&
-      next.step === "reveal"
-    ) {
-      // Solo cuentan las respuestas de la Pregunta que se cierra (su clave `(wineIndex, fase)`).
-      const k = qKey(prev);
-      const rec = answersRecRef.current;
-      const rawMap = rec.key === k ? rec.map : {};
-      // §5.5 (revisión): solo cuentan las respuestas de jugadores AÚN presentes — uno que
-      // respondió y se fue no debe ocupar un puesto del bonus ni acumular puntos fantasma.
-      const presentIds = new Set(Object.keys(channelRef.current?.presenceState() ?? {}));
-      const map = Object.fromEntries(
-        Object.entries(rawMap).filter(([id]) => presentIds.has(id)),
-      );
-      const awards = computeAwards(map, getQuestion(prev.wineIndex, prev.fase));
-      // Acumula sobre `scores` (no muta el previo) y transporta el reparto en `lastAward`.
-      const scores = { ...prev.scores };
-      for (const [id, pts] of Object.entries(awards)) scores[id] = (scores[id] ?? 0) + pts;
-      next.scores = scores;
-      next.lastAward = awards;
+    // §5.5/§5.6b-A — Cierre `playing/quiz → playing/reveal`: puntúa y revela una sola vez por
+    // Pregunta. Guard de reentrada (`closingRef`) durante el `await` de `quiz-close`: si ya hay
+    // un cierre en curso, el segundo disparo (timer/botón) se ignora.
+    if (isClosing) {
+      if (closingRef.current) return;
+      closingRef.current = true;
+      try {
+        // Solo cuentan las respuestas de la Pregunta que se cierra (su clave `(wineIndex, fase)`).
+        const k = qKey(prev);
+        const rec = answersRecRef.current;
+        const rawMap = rec.key === k ? rec.map : {};
+        // §5.5 (revisión): solo cuentan las respuestas de jugadores AÚN presentes — uno que
+        // respondió y se fue no debe ocupar un puesto del bonus ni acumular puntos fantasma.
+        const presentIds = new Set(Object.keys(channelRef.current?.presenceState() ?? {}));
+        const map = Object.fromEntries(
+          Object.entries(rawMap).filter(([id]) => presentIds.has(id)),
+        );
+
+        // MISMA fuente que sirvió la Pregunta (capturada al entrar): nunca mezcla BD↔demo.
+        const src = activeSrcRef.current;
+        let r: CloseResult;
+        try {
+          r = await src.closeQuiz(prev.wineIndex, prev.fase, map);
+        } catch {
+          // `quiz-close` (BD) falló: NO se puntúa con demo (sería otra pregunta, otro orden de
+          // opciones). La ronda queda SIN puntos y sin marcar correcta — el juego no se rompe.
+          r = { correctOptionIndex: -1, correctLabel: "", awards: {} };
+        }
+
+        // Guard de carrera: si durante el `await` el estado cambió (reset/avance), NO clobbear.
+        const cur = stateRef.current;
+        if (
+          cur.stage !== "playing" ||
+          cur.step !== "quiz" ||
+          cur.wineIndex !== prev.wineIndex ||
+          cur.fase !== prev.fase
+        ) {
+          return;
+        }
+
+        // Acumula sobre `scores` (no muta el previo); coerciona a número (payload de red).
+        const scores = { ...prev.scores };
+        for (const [id, pts] of Object.entries(r.awards)) {
+          scores[id] = (scores[id] ?? 0) + Number(pts || 0);
+        }
+        next.scores = scores;
+        next.lastAward = r.awards;
+        next.reveal = {
+          correctOptionIndex: r.correctOptionIndex,
+          correctLabel: r.correctLabel,
+          revealedWine: r.revealedWine,
+        };
+      } finally {
+        closingRef.current = false;
+      }
     } else {
       // Fuera del cierre de quiz, el "+X" no aplica: se limpia al entrar en una Pregunta nueva.
       next.lastAward = {};
@@ -151,6 +213,23 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     setAnswersRec({ key: "", map: {}, nextSeq: 0 }); // §5.2 — descarta respuestas de la cata anterior.
     broadcastState(next);
   }, [role, broadcastState]);
+
+  // §5.6b-A — Carga de la fuente del quiz al montar (host-only). Intenta la BD (`quiz-bootstrap`);
+  // si falla/timeout o Supabase no está configurado, queda la demo síncrona inicial. Al resolver,
+  // sustituye `quizSourceRef` y difunde el `source` para el badge "Datos demo". No bloquea el
+  // primer `advance`: hasta que resuelva, el host usa la demo (juego plenamente funcional).
+  useEffect(() => {
+    if (role !== "host") return;
+    let alive = true;
+    loadQuizSource(code).then((src) => {
+      if (!alive) return;
+      quizSourceRef.current = src;
+      updateState({ source: src.source });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [role, code, updateState]);
 
   // §5.3 — Cierre automático HOST-AUTORITATIVO. Cuando el estado es `playing/quiz` con un
   // `deadline`, la Sala (y SOLO la Sala) programa un único `setTimeout` que, al vencer y SI
@@ -170,7 +249,7 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
       // p.ej. otra `(wineIndex,fase)`/step o `deadline` distinto), no re-dispara.
       const s = stateRef.current;
       if (s.stage === "playing" && s.step === "quiz" && s.deadline === deadline) {
-        advance();
+        void advance(); // §5.6b-A — `advance` es async; fire-and-forget (el guard evita doble cierre).
       }
     }, delay);
     return () => clearTimeout(id);
