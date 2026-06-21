@@ -16,6 +16,7 @@ import {
   type CloseResult,
   type QuizSource,
 } from "./quiz-source";
+import { buildFinishPayload } from "./session-finish";
 
 /** Clave intrínseca de la Pregunta actual `(wineIndex, fase)`. Las respuestas/selección
  *  se etiquetan con ella, así que al cambiar de Pregunta los valores viejos se ignoran
@@ -65,6 +66,13 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     nextSeq: 0,
   });
   const [myAnswerRec, setMyAnswerRec] = useState<{ key: string; optionIndex: number } | null>(null);
+
+  // §5.6b-B — Persistencia de la partida al entrar en `final_podium` (host-only, modo BD).
+  // `finishedRef` = guard de idempotencia (igual que `closingRef`): `final_podium` se difunde y
+  // re-difunde (catch-up/presence sync + StrictMode), así que `session-finish` debe llamarse UNA
+  // vez por partida; `reset()` lo rearma. `finishState` = indicador discreto para la UI del host.
+  const finishedRef = useRef(false);
+  const [finishState, setFinishState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const meIdRef = useRef<string>("");
@@ -211,6 +219,9 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     const next = { ...initialRoomState(), updatedAt: Date.now() };
     setState(next);
     setAnswersRec({ key: "", map: {}, nextSeq: 0 }); // §5.2 — descarta respuestas de la cata anterior.
+    // §5.6b-B — rearma el guard de persistencia: la siguiente partida en BD podrá persistir de nuevo.
+    finishedRef.current = false;
+    setFinishState("idle");
     broadcastState(next);
   }, [role, broadcastState]);
 
@@ -254,6 +265,50 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     }, delay);
     return () => clearTimeout(id);
   }, [role, state.stage, state.step, state.deadline, advance]);
+
+  // §5.6b-B — Persistencia HOST-AUTORITATIVA al entrar en `final_podium` (solo modo BD). El host
+  // construye `players[]` (jugadores ordenados por puntos → posición) + la foto del ganador y llama
+  // a `session-finish` UNA sola vez (guard `finishedRef`, anti re-broadcast/StrictMode). En demo el
+  // payload es `null` (no se persiste). Si la llamada falla, NO rompe el podio: solo marca "error".
+  useEffect(() => {
+    if (role !== "host") return;
+    if (state.stage !== "final_podium") return;
+    if (finishedRef.current) return; // ya disparado en esta partida (re-broadcast / re-entrada).
+
+    const payload = buildFinishPayload({
+      code,
+      hostName: name ?? "Sala",
+      participants,
+      scores: state.scores,
+      source: quizSourceRef.current.source,
+    });
+    if (payload === null) return; // demo o sin jugadores: nada que persistir.
+
+    // Marca el guard ANTES del await (anti doble-disparo en StrictMode / re-renders).
+    finishedRef.current = true;
+    setFinishState("saving");
+
+    // Aplica el resultado. Si falla: loguea y rearma `finishedRef` (permite reintentar si cambia algún
+    // disparador — NO en bucle). Solo refleja el estado si seguimos en este podio: un `reset()` o avance
+    // durante la llamada lo invalida (no pisar el nuevo estado con un "saved/error" tardío).
+    const settle = (ok: boolean, err?: unknown) => {
+      if (!ok) {
+        console.error("[session-finish] no se pudo persistir la sesión:", err);
+        finishedRef.current = false;
+      }
+      if (stateRef.current.stage === "final_podium") setFinishState(ok ? "saved" : "error");
+    };
+
+    const sb = getSupabase();
+    if (!sb) {
+      settle(false, new Error("Supabase no configurado"));
+      return;
+    }
+    sb.functions
+      .invoke("session-finish", { body: payload })
+      .then(({ error }) => settle(!error, error))
+      .catch((e) => settle(false, e));
+  }, [role, state.stage, state.source, state.scores, participants, code, name]);
 
   useEffect(() => {
     if (!supabaseConfigured) return;
@@ -408,5 +463,6 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     answers, // host — playerId → optionIndex de la Pregunta actual (✓/✗ en reveal)
     answeredIds, // host — Set de jugadores que han respondido (contrato §5.11/§5.5)
     myAnswer, // player — su elección local (null si no ha respondido)
+    finishState, // host — §5.6b-B: estado de la persistencia en final_podium (idle/saving/saved/error)
   };
 }
