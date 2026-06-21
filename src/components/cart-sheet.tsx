@@ -91,6 +91,10 @@ export function CartSheet({ open, onOpenChange, items, setQty, remove, clear, on
     >
       <SheetContent
         side="right"
+        // El autocompletado del navegador (direcciones) abre un popup NATIVO fuera del DOM del
+        // diálogo; Radix lo trata como "clic fuera" y cerraría el carrito a media compra. Evitamos
+        // el cierre por interacción fuera: se cierra con la ✕ o Escape (no por autofill ni overlay).
+        onInteractOutside={(e) => e.preventDefault()}
         className="w-full sm:max-w-md p-0 flex flex-col bg-card border-l border-border/60"
       >
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/60 text-left">
