@@ -39,10 +39,14 @@ entonces, en preview corre en **modo demo** (badge "Datos demo").
 | **§Activar** | Ruta pública `/activar`: valida `access_code` (solo `pagado`) → host en `/room/<code>` | #18 |
 | **§5.8b Banco preguntas** | CRUD de `game_questions` por vino/fase en `/admin` (RLS, `options` string[]) | #21 |
 | **§5.8c Clasif. vinos** | Editar `category` + `classification_id` por vino en `/admin` (coherencia tipo↔clasif.) | #22 |
+| **§5.6b-A Anti-spoiler** | Motor demo host-only: las respuestas demo salen del bundle de `/play` | #24 |
 
 > **Bucle comercio→juego COMPLETO** (§A→§B1→§B2→§Activar). Para activarlo en modo TEST (sin LIVE), seguir
 > `docs/puesta-en-marcha.md` (poner `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
-> `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY` en Vercel + redeploy + compra de test con `4242…`).
+> `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_TASTIA_API_KEY` en Vercel + redeploy + compra de test con `4242…`).
+
+> **Traspaso + roadmap completo** (qué falta y de quién depende): `docs/handoff-cata-gamificada.md`.
+> **Guía del avatar para Andrés:** `docs/guion-avatar-sommelier.md`.
 
 Todas las features pasaron **PRD → spec → dev** con **revisión adversarial de 3 agentes**. Specs en
 `docs/specs/`. Contrato cliente↔backend en `docs/edge-functions-contract.md`. Campos exactos a validar

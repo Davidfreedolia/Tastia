@@ -80,7 +80,40 @@ Guía paso a paso: `docs/puesta-en-marcha.md`.
 
 ---
 
-## 5. Conclusión
+## 5. Roadmap — secuencia y responsables
+
+Nuestro carril (cliente del juego + comercio + admin + landing) está **cerrado**. A partir de aquí, en
+**paralelo** donde se pueda:
+
+### Vía crítica
+1. **Backend funcional — Salvador (BD / edge / RLS).** Sin esto el juego corre en demo y el admin no guarda.
+   - Desplegar y validar las **edge functions** `quiz-bootstrap` / `quiz-close` / `session-finish`.
+   - **RLS de escritura para admins** en `game_settings` / `game_questions` / `wines` (hoy el admin muestra "sin permiso" si faltan).
+   - **Migraciones de endurecimiento:** `UNIQUE(stripe_session_id)` + `UNIQUE(access_code)` en `orders`; `activation_expires_at` (caducidad); tabla de sesión de sala (persistencia / reloj en servidor, §5.9).
+   - **Ficha de cata server-side para el avatar** (`avatar-brief` o equivalente): notas + pistas + identidad secreta del vino, sin exponerla a los móviles.
+2. **Avatar-sommelier — Andrés (§5.4, Workstream C).** Guía completa en **`docs/guion-avatar-sommelier.md`**
+   (anclada en la máquina de estados real). Spike de proveedor (latencia <300 ms) + voz ElevenLabs (ES) +
+   cerebro LLM (ficha de sesión + anti-spoiler) + 1 stream por grupo. Depende de la ficha server-side (con Salvador).
+
+### Validación y diseño (tras nuestro carril)
+3. **Revisión end-to-end — Ignacio.** Validar el flujo completo con datos/secretos reales: compra (test) →
+   pedido → `/activar` → sala → juego desde la BD → podio; multijugador (presence, reconexión, host ausente);
+   el admin (§5.8a/b/c). Reportar regresiones a quien corresponda por carril.
+4. **Diseño + diseño a producción — Quique.** Revisión de diseño y sistema premium/anti-pompós; la **Sala**
+   (con el avatar), la **tienda** y el **companion móvil**; llevar el diseño a producción.
+
+### Activación / negocio
+5. **David.** Poner los secretos de **test** en Vercel + diagnosticar el **email §B2** (`puesta-en-marcha.md`,
+   `deferred-work.md` §B2). Decisiones de negocio: compliance de alcohol (age gate, impuestos, envío),
+   pricing y sourcing de vinos. Pasar a Stripe **LIVE** solo tras los endurecimientos y el compliance.
+
+### Pipeline de entrega (regla)
+`feat/*` → PR a `dev` → revisión adversarial → `dev`→`main` (producción). Cada carril valida lo suyo;
+**Ignacio** hace el e2e y **Quique** el pase de diseño a producción.
+
+---
+
+## 6. Conclusión
 
 Nuestro carril (cliente del juego + comercio + admin + landing) está **completo y en producción**. Lo que
 queda son blocantes reales que **no son más código nuestro**: activar/probar secretos (tú) y BD/edge
