@@ -38,6 +38,7 @@ entonces, en preview corre en **modo demo** (badge "Datos demo").
 | **§Stripe-B2 Recibo** | Email Resend + QR del `access_code` (enlace `/activar?code=…`); best-effort | #17 |
 | **§Activar** | Ruta pública `/activar`: valida `access_code` (solo `pagado`) → host en `/room/<code>` | #18 |
 | **§5.8b Banco preguntas** | CRUD de `game_questions` por vino/fase en `/admin` (RLS, `options` string[]) | #21 |
+| **§5.8c Clasif. vinos** | Editar `category` + `classification_id` por vino en `/admin` (coherencia tipo↔clasif.) | #22 |
 
 > **Bucle comercio→juego COMPLETO** (§A→§B1→§B2→§Activar). Para activarlo en modo TEST (sin LIVE), seguir
 > `docs/puesta-en-marcha.md` (poner `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,

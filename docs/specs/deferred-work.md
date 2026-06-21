@@ -49,12 +49,13 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   PENDIENTE de coordinación: policy RLS de escritura de `game_questions` para admins (si las escrituras dan
   0 filas en prod → Salvador); el `.select("id")` lo delata honestamente.
 
-## §5.8c — Clasificación de vinos (admin): asignar `wines.category`/`classification_id`
+## §5.8c — Clasificación de vinos (admin): asignar `wines.category`/`classification_id` — ✅ HECHO (#22)
 
 - Split de §5.8 (Admin del juego). Editar tipo (`category`) y clasificación (`classification_id` →
   `wine_classifications`) de cada vino desde `/admin`.
 - Nota: el importador CSV (#8) ya rellena ambos al importar; esto sería edición/corrección manual.
-- → Abordar tras §5.8a/§5.8b.
+- ✅ HECHO en #22 (spec-clasificacion-vinos.md). Editor en `/admin` con coherencia tipo↔clasificación.
+  PENDIENTE de coordinación: policy RLS de escritura de `wines` para admins (si 0 filas en prod → Salvador).
 
 ## §5.6b-B — Persistencia de sesión (cliente): `session-finish`
 
