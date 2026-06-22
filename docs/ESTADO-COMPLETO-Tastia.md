@@ -84,7 +84,7 @@ secretos en cuentas de David (Stripe/Resend/Supabase).
 
 | Responsable | Pendiente |
 |-------------|-----------|
-| **Salvador** (BD/edge/RLS) | **Desplegar+validar** `quiz-bootstrap`/`quiz-close`/`session-finish` — **ya implementadas** en `supabase/functions/` (solo `supabase functions deploy` + e2e) · **aplicar** la migración `0013_orders_hardening.sql` (`db push`) · **RLS de escritura admin** (`game_settings`/`game_questions`/`wines`) · pendiente real: **tabla de sesión de sala** (§5.9) · **ficha de cata server-side** para el avatar |
+| **Salvador** (BD/edge/RLS) | **Carril casi cerrado.** ✅ Esquema del juego + RLS `admin_all_*` + 1 admin registrado + `0013` (índice único + `activation_expires_at`) **verificados/aplicados en prod** (22-jun). Solo falta **desplegar las 3 edge functions** (`supabase functions deploy quiz-bootstrap quiz-close session-finish`) + e2e. NO se construye aún la **tabla de sesión de sala §5.9** (estado en vivo): contradice specs congeladas + depende de pregunta de cliente #6. **Ficha server-side del avatar** = bloqueada por Andrés |
 | **Andrés** (avatar §5.4) | Construir Tasti siguiendo `guion-*.md`: spike de proveedor (<300 ms) + voz ElevenLabs (ES/EN) + cerebro LLM + 1 stream |
 | **Ignacio** | **Revisión end-to-end** con datos/secretos reales: compra→activar→sala→juego desde BD→podio; multijugador; admin |
 | **Quique** | **Revisión de diseño** + sistema premium + llevar el **diseño a producción** (Sala/avatar, tienda, companion) |

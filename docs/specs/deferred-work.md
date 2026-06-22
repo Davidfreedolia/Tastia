@@ -115,10 +115,11 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
 ## Stripe §B1 — (robustez) endurecimientos del webhook (de la revisión adversarial)
 
 - §B1 (webhook + pedido + access_code) está hecho. `payment_status === "paid"` ya se comprueba. Pendiente:
-- **Idempotencia robusta:** ✅ HECHO. Migración `0013_orders_hardening.sql` añade
-  **`UNIQUE(stripe_session_id)`** (parcial, where not null) y el webhook trata la violación `23505` de
-  ESE constraint como **200** (no 500), acotada por `error.details` para no confundirla con una colisión
-  de `access_code`. Falta solo aplicar la migración (`supabase db push`, con Salvador).
+- **Idempotencia robusta:** ✅ HECHO Y APLICADO A PROD (22-jun-2026, vía MCP). Migración
+  `0013_orders_hardening.sql` añade **`UNIQUE(stripe_session_id)`** (parcial, where not null) +
+  `activation_expires_at`; verificado en prod (`orders_stripe_session_id_key` existe). El webhook trata la
+  violación `23505` de ESE constraint como **200** (no 500), acotada por `error.details` para no
+  confundirla con una colisión de `access_code`. (PR #26 lleva el código del webhook a `dev`.)
 - **`access_code` único:** sin constraint en BD; añadir **`UNIQUE(access_code)`** (migración) + reintento
   ante colisión cuando se use para activar la sala (§B2/activación). Quitar también el sesgo de módulo
   (rejection sampling) y el fallback a `Math.random` (en Vercel siempre hay Web Crypto).
