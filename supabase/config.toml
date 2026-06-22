@@ -1,0 +1,19 @@
+# Config de la CLI de Supabase (cata gamificada). El proyecto remoto es la fuente de verdad;
+# las migraciones se aplican con `supabase db push` (o en Studio) y las functions con
+# `supabase functions deploy`. Ref del proyecto: tyuehzsqvjpjysxdihsh.
+project_id = "tyuehzsqvjpjysxdihsh"
+
+# Edge functions del juego (§5.6b). Las llaman clientes ANÓNIMOS (la Sala/host y los jugadores
+# entran por QR, sin SESIÓN de usuario) — pero `supabase-js` (`functions.invoke`) SIEMPRE envía
+# la ANON KEY como `Authorization: Bearer`, y la anon key ES un JWT válido del proyecto. Por eso
+# `verify_jwt = true` NO bloquea al cliente legítimo y sí rechaza peticiones sin clave: es lo
+# desplegado en prod (verificado vía MCP) y estrictamente más seguro. La defensa de fondo sigue:
+# usan service_role, validan inputs y NUNCA devuelven la respuesta correcta antes del reveal.
+[functions.quiz-bootstrap]
+verify_jwt = true
+
+[functions.quiz-close]
+verify_jwt = true
+
+[functions.session-finish]
+verify_jwt = true

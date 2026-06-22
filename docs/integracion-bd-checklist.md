@@ -1,5 +1,8 @@
 # Checklist de integración BD ↔ cliente (§5.6b) — para validar end-to-end
 
+> ✅ Las 3 edge functions **ya están implementadas** en `supabase/functions/` devolviendo exactamente
+> estos campos. Falta **desplegar** (`supabase functions deploy`) y correr este checklist contra la BD real.
+
 *El cliente (en `dev`) ya llama a las 3 edge functions con FALLBACK a demo. Para que el modo **BD** real
 funcione, las functions de Salvador deben devolver EXACTAMENTE estos campos (mismos nombres/forma). Si no
 coinciden, el cliente cae a demo (badge "Datos demo") o no puntúa — sin romperse. Esto es lo que el

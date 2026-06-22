@@ -104,6 +104,17 @@ export const Route = createFileRoute("/api/stripe-webhook")({
           .from("orders")
           .insert(orderInsertFromSession(session, accessCode));
         if (error) {
+          // Violación de UNIQUE(stripe_session_id) (entrega CONCURRENTE de Stripe, que el
+          // check-then-insert de arriba no cubre): el pedido ya está procesado por la otra
+          // entrega → 200 idempotente, NO 500 (evita reintentos de Stripe ~3 días).
+          // Acotado al constraint de stripe_session_id: una colisión de access_code (otro 23505,
+          // 1/31⁸) debe caer a 500 para que Stripe reintente y se regenere un code nuevo.
+          const detail = `${error.message ?? ""} ${error.details ?? ""}`;
+          if (error.code === "23505" && /stripe_session_id/.test(detail)) {
+            return new Response(JSON.stringify({ received: true, duplicate: true }), {
+              status: 200,
+            });
+          }
           console.error("[stripe-webhook] Error al insertar el pedido", error);
           // 500 → Stripe reintentará el evento.
           return new Response("DB error", { status: 500 });
@@ -141,16 +152,31 @@ export const Route = createFileRoute("/api/stripe-webhook")({
             const activationUrl = `${origin}/activar?code=${accessCode}`;
             const qrDataUrl = await QRCode.toDataURL(activationUrl);
 
-            await new Resend(resendKey).emails.send(
-              buildReceiptEmail({
-                to: email,
-                accessCode,
-                totalCents: session.amount_total ?? 0,
-                activationUrl,
-                qrDataUrl,
-                livemode: session.livemode ?? false,
-              }),
-            );
+            const built = buildReceiptEmail({
+              to: email,
+              accessCode,
+              totalCents: session.amount_total ?? 0,
+              activationUrl,
+              qrDataUrl,
+              livemode: session.livemode ?? false,
+            });
+
+            // IMPORTANTE: `emails.send` NO lanza ante errores de la API de Resend; devuelve
+            // `{ data, error }`. Si no se inspecciona, un rechazo (remitente no verificado —
+            // p.ej. el de prueba `onboarding@resend.dev` solo entrega al dueño de la cuenta —,
+            // quota agotada, etc.) pasa EN SILENCIO: ni email ni log. Aquí se loguea el motivo
+            // exacto y el `from` usado, que es justo lo que faltaba para diagnosticar el §B2.
+            const { data: sent, error: sendError } = await new Resend(resendKey).emails.send(built);
+            if (sendError) {
+              console.error(
+                `[receipt] Resend RECHAZÓ el envío (from="${built.from}", to="${email}"): ` +
+                  `${sendError.name ?? "error"} — ${sendError.message ?? JSON.stringify(sendError)}`,
+              );
+            } else {
+              console.info(
+                `[receipt] recibo enviado id=${sent?.id ?? "?"} from="${built.from}" to="${email}"`,
+              );
+            }
           }
         } catch (err) {
           console.error("[receipt] fallo al enviar el recibo", err);
