@@ -48,8 +48,10 @@ supabase link --project-ref tyuehzsqvjpjysxdihsh   # una vez
 supabase functions deploy quiz-bootstrap quiz-close session-finish
 ```
 
-`verify_jwt = false` (en `supabase/config.toml`) porque los clientes son anónimos. No hay
-secretos extra: `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta el runtime.
+`verify_jwt = true` (en `supabase/config.toml`): aunque los clientes son anónimos (sin sesión),
+`supabase-js` envía la anon key como `Authorization: Bearer` y esa anon key es un JWT válido del
+proyecto, así que `verify_jwt` no bloquea al cliente legítimo y sí rechaza peticiones sin clave.
+No hay secretos extra: `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta el runtime.
 
 > **Requisito de datos para el modo BD:** que existan vinos activos con su ficha
 > (`wines` + `tasting_notes` + `classification_id`). El importador CSV (`scripts/import-wines.mjs`)
