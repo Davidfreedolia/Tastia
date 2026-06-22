@@ -1,0 +1,17 @@
+# Config de la CLI de Supabase (cata gamificada). El proyecto remoto es la fuente de verdad;
+# las migraciones se aplican con `supabase db push` (o en Studio) y las functions con
+# `supabase functions deploy`. Ref del proyecto: tyuehzsqvjpjysxdihsh.
+project_id = "tyuehzsqvjpjysxdihsh"
+
+# Edge functions del juego (§5.6b). Las llaman clientes ANÓNIMOS (la Sala/host y los
+# jugadores entran por QR, sin sesión), así que `verify_jwt = false`. La seguridad va por
+# dentro: usan service_role, validan inputs y NUNCA devuelven la respuesta correcta antes
+# del reveal (anti-spoiler).
+[functions.quiz-bootstrap]
+verify_jwt = false
+
+[functions.quiz-close]
+verify_jwt = false
+
+[functions.session-finish]
+verify_jwt = false

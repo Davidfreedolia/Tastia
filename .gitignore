@@ -20,6 +20,10 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Supabase CLI scratch + Deno lock de las edge functions (deps remotas, no se versiona aquí)
+supabase/.temp/
+deno.lock
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
