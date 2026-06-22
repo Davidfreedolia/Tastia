@@ -115,9 +115,10 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
 ## Stripe §B1 — (robustez) endurecimientos del webhook (de la revisión adversarial)
 
 - §B1 (webhook + pedido + access_code) está hecho. `payment_status === "paid"` ya se comprueba. Pendiente:
-- **Idempotencia robusta:** hoy es check-then-insert por `stripe_session_id` (cubre reintentos
-  secuenciales de Stripe). El race de entregas concurrentes necesita **`UNIQUE(stripe_session_id)`** en
-  `orders` (= migración → coordinar con Salvador) + tratar la violación única como 200 (no 500).
+- **Idempotencia robusta:** ✅ HECHO. Migración `0013_orders_hardening.sql` añade
+  **`UNIQUE(stripe_session_id)`** (parcial, where not null) y el webhook trata la violación `23505` de
+  ESE constraint como **200** (no 500), acotada por `error.details` para no confundirla con una colisión
+  de `access_code`. Falta solo aplicar la migración (`supabase db push`, con Salvador).
 - **`access_code` único:** sin constraint en BD; añadir **`UNIQUE(access_code)`** (migración) + reintento
   ante colisión cuando se use para activar la sala (§B2/activación). Quitar también el sesgo de módulo
   (rejection sampling) y el fallback a `Math.random` (en Vercel siempre hay Web Crypto).
@@ -139,13 +140,14 @@ Hallazgos de la revisión adversarial de `spec-estructura-sesion-rondas.md` que 
   recibo. El pedido + access_code quedan guardados (recuperable manual). Endurecer con alerta/outbox
   (`receipt_failures`) para reenvío.
 - **`RESEND_FROM` verificado:** sin remitente verificado en Resend, todo envío falla en silencio = go-live.
-- **[PRUEBA PROD 21-jun-2026, PAUSADO]** el resto del bucle (pago→pedido→`/activar`→sala) funciona en prod,
-  pero el email §B2 NO llega y en Resend NO aparece ningún intento → la llamada a Resend fue rechazada o no
-  se hizo. Config verificada OK (`RESEND_TASTIA_API_KEY` en Production, deploy posterior). Sospecha: quota
-  diaria compartida de Resend (~100/día) o la restricción del remitente `onboarding@resend.dev` (solo
-  entrega al email de la cuenta). DIAGNÓSTICO pendiente: línea `[receipt]` en los **runtime logs de Vercel**
-  (no build) o **Resend → Usage**. Reanudar una compra NUEVA (idempotencia: reenviar el evento viejo NO
-  redispara el email).
+- **[PRUEBA PROD 21-jun-2026] → CAUSA RAÍZ ENCONTRADA + ARREGLADA (22-jun-2026).** El bug: `Resend.emails.send`
+  **NO lanza** ante errores de la API; devuelve `{ data, error }`. El webhook **descartaba** ese resultado,
+  así que un rechazo (remitente `onboarding@resend.dev` solo entrega al dueño de la cuenta; o quota) pasaba
+  EN SILENCIO → ni email ni log (justo lo observado). ✅ Arreglado en `stripe-webhook.ts`: ahora se inspecciona
+  `{ data, error }` y se loguea el motivo exacto + el `from` usado (`[receipt] Resend RECHAZÓ …` / `[receipt]
+  recibo enviado id=…`). **Para que SÍ entregue** falta solo (David, sin código): verificar un dominio en
+  Resend y poner `RESEND_FROM="Tastia <algo@tu-dominio>"` en Vercel (Production) → redeploy → compra NUEVA
+  (reenviar el evento viejo NO redispara el email). Si vuelve a fallar, el log de Vercel ya dirá el porqué.
 
 ## §Activar — (robustez) endurecimientos de la revisión adversarial
 

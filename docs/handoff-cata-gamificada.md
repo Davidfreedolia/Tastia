@@ -53,12 +53,12 @@ Realtime, host-autoritario) + **packs físicos** con compra online. Estado actua
 ### A) Tú (David) — activar / probar (modo TEST, sin LIVE)
 Guía paso a paso: `docs/puesta-en-marcha.md`.
 - Poner en Vercel (Production) los secretos de test: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_TASTIA_API_KEY` → redeploy → compra de test con `4242…`.
-- **Email §B2 (pausado):** en la prueba de prod todo el bucle funcionó salvo el email. En Resend no aparecía ningún intento → la llamada se rechazó o no se hizo. **Sospecha:** quota diaria de Resend (~100/día, compartida) o la restricción del remitente `onboarding@resend.dev` (solo entrega al email de tu cuenta). **Diagnóstico:** línea `[receipt]` en los **runtime logs de Vercel** (no build) o **Resend → Usage**. Detalle en `deferred-work.md` §B2.
+- **Email §B2 (causa raíz arreglada en código):** el bug era que el webhook descartaba el `{ data, error }` de Resend, así que un rechazo (remitente `onboarding@resend.dev` solo entrega al dueño de la cuenta, o quota) pasaba en silencio. Ya se loguea el motivo exacto. **Para que entregue de verdad, te queda (sin código):** verificar un dominio en Resend + poner `RESEND_FROM="Tastia <algo@tu-dominio>"` en Vercel (Production) → redeploy → compra NUEVA. Detalle en `deferred-work.md` §B2.
 
 ### B) Salvador — BD / edge functions / RLS
 - **RLS de escritura para admins** en `game_settings` / `game_questions` / `wines`: sin esa policy, el admin (§5.8a/b/c) muestra honestamente "sin permiso" y no guarda. (El `.select("id")` lo delata, no rompe nada.)
-- **Desplegar y validar las edge functions** `quiz-bootstrap`/`quiz-close`/`session-finish` y comprobar el juego **desde la BD** end-to-end (hoy corre el fallback demo si no están).
-- **Endurecimientos que necesitan migración:** `UNIQUE(stripe_session_id)` y `UNIQUE(access_code)` en `orders` (idempotencia robusta / canje seguro); columna `activation_expires_at` (caducidad de activación); tabla de sesión de sala (persistencia / autoridad del reloj en servidor, §5.9).
+- **Edge functions YA IMPLEMENTADAS** (carril nuestro) en `supabase/functions/` (`quiz-bootstrap`/`quiz-close`/`session-finish`), conforme al contrato y a la derivación FR-12. Falta **desplegarlas** (`supabase functions deploy quiz-bootstrap quiz-close session-finish`) **y validar** el juego **desde la BD** end-to-end (hoy corre el fallback demo si no están desplegadas). Ver `supabase/functions/README.md`.
+- **Migraciones de endurecimiento:** ✅ `0013_orders_hardening.sql` (carril nuestro) ya añade `UNIQUE(stripe_session_id)` + `activation_expires_at` (`access_code` ya era UNIQUE); falta **aplicarla** (`supabase db push`). Sigue pendiente (feature mayor, su propia spec): **tabla de sesión de sala** (persistencia / autoridad del reloj en servidor, §5.9).
 
 ### C) Andrés — avatar-sommelier (§5.4)
 - Integración del avatar + voz (iframe en la Sala). Fuera de nuestro carril.
@@ -87,7 +87,7 @@ Nuestro carril (cliente del juego + comercio + admin + landing) está **cerrado*
 
 ### Vía crítica
 1. **Backend funcional — Salvador (BD / edge / RLS).** Sin esto el juego corre en demo y el admin no guarda.
-   - Desplegar y validar las **edge functions** `quiz-bootstrap` / `quiz-close` / `session-finish`.
+   - **Desplegar y validar** las **edge functions** `quiz-bootstrap` / `quiz-close` / `session-finish` — **ya implementadas** en `supabase/functions/` (carril nuestro); solo falta `supabase functions deploy` + validación e2e.
    - **RLS de escritura para admins** en `game_settings` / `game_questions` / `wines` (hoy el admin muestra "sin permiso" si faltan).
    - **Migraciones de endurecimiento:** `UNIQUE(stripe_session_id)` + `UNIQUE(access_code)` en `orders`; `activation_expires_at` (caducidad); tabla de sesión de sala (persistencia / reloj en servidor, §5.9).
    - **Ficha de cata server-side para el avatar** (`avatar-brief` o equivalente): notas + pistas + identidad secreta del vino, sin exponerla a los móviles.
