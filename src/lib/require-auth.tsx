@@ -3,9 +3,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { getSupabase } from "./supabase";
 
 /**
- * Gate de cliente para la web "en construcción": si no hay sesión de Supabase,
- * redirige a la pantalla naranja ("/"). La comprobación es solo en cliente
- * (useEffect) para evitar rebotes en cargas SSR/hard-load.
+ * Gate de cliente para zonas de equipo (p. ej. `/admin`): si no hay sesión de
+ * Supabase, redirige a `/login`. (La landing es pública desde que se retiró el
+ * gate "en construcción"; `/` ya no es la puerta de acceso.) La comprobación es
+ * solo en cliente (useEffect) para evitar rebotes en cargas SSR/hard-load.
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
       if (data.session) setOk(true);
-      else navigate({ to: "/" });
+      else navigate({ to: "/login" });
     });
     return () => {
       active = false;

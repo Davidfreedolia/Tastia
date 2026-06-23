@@ -29,7 +29,7 @@ function LoginPage() {
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (err) setError(err.message);
-    else navigate({ to: "/landing" }); // tras el login → toda la web
+    else navigate({ to: "/admin" }); // tras el login → el panel de equipo (la web ya es pública)
   }
 
   return (
