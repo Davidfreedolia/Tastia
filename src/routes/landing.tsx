@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { RequireAuth } from "@/lib/require-auth";
 import { I18nProvider, useI18n, type Lang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -52,11 +51,9 @@ export const Route = createFileRoute("/landing")({
     ],
   }),
   component: () => (
-    <RequireAuth>
-      <I18nProvider>
-        <Landing />
-      </I18nProvider>
-    </RequireAuth>
+    <I18nProvider>
+      <Landing />
+    </I18nProvider>
   ),
 });
 
