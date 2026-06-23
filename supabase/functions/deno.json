@@ -1,0 +1,9 @@
+{
+  // Las edge functions de Supabase usan imports `https://esm.sh/...` inline (patrón documentado
+  // y seguro para `supabase functions deploy`); silenciamos la regla que los desaconseja.
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix"]
+    }
+  }
+}

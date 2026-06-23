@@ -53,12 +53,12 @@ Realtime, host-autoritario) + **packs físicos** con compra online. Estado actua
 ### A) Tú (David) — activar / probar (modo TEST, sin LIVE)
 Guía paso a paso: `docs/puesta-en-marcha.md`.
 - Poner en Vercel (Production) los secretos de test: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_TASTIA_API_KEY` → redeploy → compra de test con `4242…`.
-- **Email §B2 (pausado):** en la prueba de prod todo el bucle funcionó salvo el email. En Resend no aparecía ningún intento → la llamada se rechazó o no se hizo. **Sospecha:** quota diaria de Resend (~100/día, compartida) o la restricción del remitente `onboarding@resend.dev` (solo entrega al email de tu cuenta). **Diagnóstico:** línea `[receipt]` en los **runtime logs de Vercel** (no build) o **Resend → Usage**. Detalle en `deferred-work.md` §B2.
+- **Email §B2 (causa raíz arreglada en código):** el bug era que el webhook descartaba el `{ data, error }` de Resend, así que un rechazo (remitente `onboarding@resend.dev` solo entrega al dueño de la cuenta, o quota) pasaba en silencio. Ya se loguea el motivo exacto. **Para que entregue de verdad, te queda (sin código):** verificar un dominio en Resend + poner `RESEND_FROM="Tastia <algo@tu-dominio>"` en Vercel (Production) → redeploy → compra NUEVA. Detalle en `deferred-work.md` §B2.
 
 ### B) Salvador — BD / edge functions / RLS
 - **RLS de escritura para admins** en `game_settings` / `game_questions` / `wines`: sin esa policy, el admin (§5.8a/b/c) muestra honestamente "sin permiso" y no guarda. (El `.select("id")` lo delata, no rompe nada.)
-- **Desplegar y validar las edge functions** `quiz-bootstrap`/`quiz-close`/`session-finish` y comprobar el juego **desde la BD** end-to-end (hoy corre el fallback demo si no están).
-- **Endurecimientos que necesitan migración:** `UNIQUE(stripe_session_id)` y `UNIQUE(access_code)` en `orders` (idempotencia robusta / canje seguro); columna `activation_expires_at` (caducidad de activación); tabla de sesión de sala (persistencia / autoridad del reloj en servidor, §5.9).
+- **Edge functions ✅ DESPLEGADAS EN PROD** (23-jun, carril nuestro) en `supabase/functions/` (`quiz-bootstrap` v4 · `quiz-close`/`session-finish` v3), conforme al contrato y a la derivación FR-12. Smoke-test en vivo OK: `quiz-bootstrap`→200 con `{settings, wines, questions}` **sin** respuestas; `verify_jwt` acepta la publishable key (el cliente anónimo no se bloquea). El deploy va `--project-ref tyuehzsqvjpjysxdihsh` **desde la raíz del repo** (los imports de `_shared/` se resuelven contra el CWD). Falta solo **validar e2e desde la BD** con datos reales. Ver `supabase/functions/README.md`.
+- **Migraciones de endurecimiento:** ✅ `0013_orders_hardening.sql` **APLICADA A PROD** (22-jun, vía MCP): `UNIQUE(stripe_session_id)` + `activation_expires_at` verificados en vivo (`access_code` ya era UNIQUE). Verificado además que el esquema del juego (`game_settings`/`game_questions`+`fase`/`game_sessions`/`players`/`wine_classifications`/`order_wines`), las RLS `admin_all_*` y **1 admin registrado** YA están en prod → **la parte de BD/RLS de Salvador está hecha**. Pendiente real: ✅ **3 edge functions ya desplegadas en prod** (23-jun); solo queda la **validación e2e**. La **tabla de sesión de sala §5.9** (persistencia del estado EN VIVO / reloj en servidor) NO se construye aún: contradice las specs congeladas (estado en vivo efímero a propósito) y depende de la **pregunta abierta de cliente #6** (¿la sesión pausa+reanuda al recaer el host?).
 
 ### C) Andrés — avatar-sommelier (§5.4)
 - Integración del avatar + voz (iframe en la Sala). Fuera de nuestro carril.
@@ -87,7 +87,7 @@ Nuestro carril (cliente del juego + comercio + admin + landing) está **cerrado*
 
 ### Vía crítica
 1. **Backend funcional — Salvador (BD / edge / RLS).** Sin esto el juego corre en demo y el admin no guarda.
-   - Desplegar y validar las **edge functions** `quiz-bootstrap` / `quiz-close` / `session-finish`.
+   - **Validar** las **edge functions** `quiz-bootstrap` / `quiz-close` / `session-finish` — ✅ **ya desplegadas en prod** (23-jun, carril nuestro); solo queda la validación e2e.
    - **RLS de escritura para admins** en `game_settings` / `game_questions` / `wines` (hoy el admin muestra "sin permiso" si faltan).
    - **Migraciones de endurecimiento:** `UNIQUE(stripe_session_id)` + `UNIQUE(access_code)` en `orders`; `activation_expires_at` (caducidad); tabla de sesión de sala (persistencia / reloj en servidor, §5.9).
    - **Ficha de cata server-side para el avatar** (`avatar-brief` o equivalente): notas + pistas + identidad secreta del vino, sin exponerla a los móviles.
@@ -98,14 +98,16 @@ Nuestro carril (cliente del juego + comercio + admin + landing) está **cerrado*
 ### Validación y diseño (tras nuestro carril)
 3. **Revisión end-to-end — Ignacio.** Validar el flujo completo con datos/secretos reales: compra (test) →
    pedido → `/activar` → sala → juego desde la BD → podio; multijugador (presence, reconexión, host ausente);
-   el admin (§5.8a/b/c). Reportar regresiones a quien corresponda por carril.
+   el admin (§5.8a/b/c). Reportar regresiones a quien corresponda por carril. **URLs y guion de prueba:**
+   `docs/integracion-bd-checklist.md` §0 (base `dev`: `tastia-git-dev-freedolias-projects-77c959bb.vercel.app` → `/room/TEST` + `/play/TEST`).
 4. **Diseño + diseño a producción — Quique.** Revisión de diseño y sistema premium/anti-pompós; la **Sala**
    (con el avatar), la **tienda** y el **companion móvil**; llevar el diseño a producción.
 
 ### Activación / negocio
-5. **David.** Poner los secretos de **test** en Vercel + diagnosticar el **email §B2** (`puesta-en-marcha.md`,
-   `deferred-work.md` §B2). Decisiones de negocio: compliance de alcohol (age gate, impuestos, envío),
-   pricing y sourcing de vinos. Pasar a Stripe **LIVE** solo tras los endurecimientos y el compliance.
+5. **David.** Poner los secretos de **test** en Vercel. Decisiones de negocio: compliance de alcohol
+   (age gate, impuestos, envío), pricing y sourcing de vinos. **Stripe se queda en TEST/demo**
+   (decidido 22-jun-2026): sin claves LIVE ni cobro real; el bucle de compra usa tarjetas de prueba.
+   (Email §B2: causa raíz ya arreglada en código; solo falta `RESEND_FROM` verificado — opcional, no bloquea.)
 
 ### Pipeline de entrega (regla)
 `feat/*` → PR a `dev` → revisión adversarial → `dev`→`main` (producción). Cada carril valida lo suyo;
