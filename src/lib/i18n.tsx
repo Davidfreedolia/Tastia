@@ -10,17 +10,16 @@ export const strings = {
   nav_ranking: { es: "Ranking", en: "Ranking" },
   nav_cta: { es: "Elegir mi pack", en: "Choose my pack" },
 
-  hero_kicker: { es: "Edición · No. 01", en: "Issue · No. 01" },
   hero_video_caption: { es: "60 segundos de cata", en: "60 seconds of tasting" },
   hero_play: { es: "Ver experiencia", en: "Watch experience" },
 
-  hero_h1_line1: { es: "Catad vino con amigos", en: "Taste wine with friends" },
-  hero_h1_line2: { es: "Sin protocolos, sin tonterías, sin historias", en: "No protocols, no fuss, no stories" },
+  hero_h1_line1: { es: "Catas de vino con tus amigos y un sommelier IA.", en: "Wine tastings with your friends and an AI sommelier." },
+  hero_h1_line2: { es: "Sin protocolos, sin tonterías.", en: "No protocols, no fuss." },
   hero_sub: {
     es: "Pides tu pack, te llega a casa, escaneáis un QR y un sommelier con voz y cara os guía en una cata a ciegas. Sin registros, sin exámenes, sin tonterías.",
     en: "Order your pack, it arrives home, you scan a QR, and a sommelier with a face and voice guides you through a blind tasting. No sign-ups, no exams, no nonsense.",
   },
-  hero_cta: { es: "Elegir mi pack", en: "Choose my pack" },
+  hero_cta: { es: "Elige tu pack", en: "Choose your pack" },
   hero_micro: {
     es: "Pago en 1 clic · Sin cuenta · Recibo por email",
     en: "1-click payment · No account · Email receipt",
@@ -30,33 +29,33 @@ export const strings = {
 
   how_title: { es: "Cómo funciona", en: "How it works" },
   how_sub: {
-    es: "Cuatro pasos. Cero fricción. Cero registros.",
-    en: "Four steps. Zero friction. Zero sign-ups.",
+    es: "Cuatro pasos, cero fricción.",
+    en: "Four steps, zero friction.",
   },
-  how_1_t: { es: "Compra", en: "Buy" },
-  how_1_d: { es: "1 clic, sin cuenta.", en: "1 click, no account." },
+  how_1_t: { es: "Cómpralo", en: "Buy it" },
+  how_1_d: { es: "1 clic, sin registro.", en: "1 click, no sign-up." },
   how_2_t: { es: "Recíbelo en casa", en: "Get it at home" },
   how_2_d: {
-    es: "4 vinos, fundas de cata a ciegas, QR y sacacorchos (1er pedido).",
-    en: "4 wines, blind-tasting sleeves, QR codes and a corkscrew (first order).",
+    es: "4 vinos, fundas de cata, QRs de acceso y sacacorchos.* *Sólo en primeros pedidos.",
+    en: "4 wines, tasting sleeves, access QRs and a corkscrew.* *First orders only.",
   },
-  how_3_t: { es: "Escanea el QR", en: "Scan the QR" },
+  how_3_t: { es: "Escanea los QR", en: "Scan the QRs" },
   how_3_d: {
-    es: "Se abre la cata, sin instalar nada.",
-    en: "The tasting opens, nothing to install.",
+    es: "Acceso directo, sin instalar nada.",
+    en: "Direct access, nothing to install.",
   },
-  how_4_t: { es: "Jugad juntos", en: "Play together" },
+  how_4_t: { es: "¡Empieza la cata!", en: "Start the tasting!" },
   how_4_d: {
-    es: "El sommelier-avatar os guía en directo.",
-    en: "The avatar sommelier hosts you live.",
+    es: "El sommelier IA os guía en directo.",
+    en: "The AI sommelier hosts you live.",
   },
   how_no_signup: { es: "Sin registros", en: "No sign-ups" },
 
   friends_tag: { es: "Cata en grupo", en: "Group tasting" },
-  friends_title: { es: "La mesa con amigos, sin barreras", en: "The table with friends, no barriers" },
+  friends_title: { es: "El vino con amigos, sin barreras", en: "Wine with friends, no barriers" },
   friends_desc: {
-    es: "Hasta 8 personas en la misma sala, en casa o repartidos entre ciudades. El sommelier de IA guía la cata a ciegas con quinielas, puntuaciones y ranking en directo.",
-    en: "Up to 8 people in the same room, at home or spread across cities. The AI sommelier guides the blind tasting with guesses, scores and live ranking.",
+    es: "Hasta 8 jugadores en la misma sala, desde casa o incluso en remoto. El sommelier de IA guía la cata a ciegas, con apuestas, puntuaciones y ranking en tiempo real.",
+    en: "Up to 8 players in the same room, from home or even remotely. The AI sommelier hosts the blind tasting with bets, scores and a live ranking.",
   },
   friends_item_1: { es: "Hasta 8 amigos en la sala", en: "Up to 8 friends in the room" },
   friends_item_2: { es: "Cata a ciegas con fundas opacas", en: "Blind tasting with opaque sleeves" },
@@ -71,46 +70,46 @@ export const strings = {
   packs_buy: { es: "Comprar", en: "Buy" },
   packs_from: { es: "Desde", en: "From" },
   packs_soon: {
-    es: "Próximamente: packs Parker y Grand Cru.",
-    en: "Coming soon: Parker and Grand Cru packs.",
+    es: "Los primeros 100 pedidos recibirán un sacacorchos profesional Coravin.",
+    en: "The first 100 orders will receive a professional Coravin corkscrew.",
   },
 
   pack1_name: { es: "Winelover", en: "Winelover" },
-  pack1_tag: { es: "Para empezar a catar", en: "To start tasting" },
+  pack1_tag: { es: "Perfecto para iniciarse", en: "Perfect to get started" },
   pack1_price: { es: "80€", en: "€80" },
   pack1_inc: {
     es: "4 vinos (10-25€/botella), fundas para cata a ciegas, acceso a la cata online, QR de instrucciones, sacacorchos (solo 1er pedido).",
     en: "4 wines (€10-25/bottle), blind-tasting sleeves, online tasting access, instructions QR, corkscrew (first order only).",
   },
   pack1_long: {
-    es: "El pack ideal para vuestra primera cata en grupo. Cuatro vinos accesibles y muy distintos entre sí para que las diferencias salten a la copa, sin tecnicismos.",
-    en: "The ideal pack for your first group tasting. Four accessible wines, very different from each other, so the contrasts jump out in the glass — no jargon.",
+    es: "Cuatro vinos accesibles y muy distintos entre sí para que las diferencias salten a la copa, sin tecnicismos.",
+    en: "Four accessible wines, very different from each other, so the contrasts jump out in the glass — no jargon.",
   },
   pack1_features: {
-    es: "4 vinos seleccionados (10-25€)|Fundas opacas numeradas|Cata online con sommelier IA (≈60 min)|Sacacorchos Tastia (1er pedido)|Hasta 8 jugadores en la sala",
-    en: "4 hand-picked wines (€10-25)|Numbered opaque sleeves|Online tasting with AI sommelier (~60 min)|Tastia corkscrew (first order)|Up to 8 players in the room",
+    es: "4 vinos gama media (10-25€)|Fundas opacas numeradas|2 QRs de acceso (sala de cata y app del jugador)|Cata online con sommelier IA",
+    en: "4 mid-range wines (€10-25)|Numbered opaque sleeves|2 access QRs (tasting room and player app)|Online tasting with AI sommelier",
   },
 
   pack2_name: { es: "Enology", en: "Enology" },
-  pack2_tag: { es: "Para subir de nivel", en: "To level up" },
+  pack2_tag: { es: "El salto de nivel", en: "The level-up" },
   pack2_price: { es: "120€", en: "€120" },
   pack2_inc: {
     es: "4 vinos (25-40€/botella) + todo lo anterior.",
     en: "4 wines (€25-40/bottle) + everything above.",
   },
   pack2_long: {
-    es: "Un salto de gama claro: vinos con más capa, crianza y carácter. El sommelier sube el listón con quinielas más finas (variedad, D.O., añada) y comentarios más técnicos cuando los pidáis.",
-    en: "A clear step up: wines with more depth, ageing and character. The sommelier raises the bar with finer guesses (grape, region, vintage) and more technical commentary when you ask for it.",
+    es: "El listón sube con una selección de vinos de calidad reconocida, que convertirán la cata en una verdadera masterclass.",
+    en: "The bar rises with a selection of wines of recognised quality that will turn the tasting into a true masterclass.",
   },
   pack2_features: {
-    es: "4 vinos de gama media (25-40€)|Fundas opacas numeradas|Cata online con sommelier IA (≈75 min)|Modo retos: quinielas avanzadas|Ficha de cata descargable",
-    en: "4 mid-range wines (€25-40)|Numbered opaque sleeves|Online tasting with AI sommelier (~75 min)|Challenge mode: advanced guesses|Downloadable tasting sheet",
+    es: "4 vinos gama media-alta (25-40€)|Fundas opacas numeradas|2 QRs de acceso (sala de cata y app del jugador)|Cata online con sommelier IA",
+    en: "4 mid-to-high-range wines (€25-40)|Numbered opaque sleeves|2 access QRs (tasting room and player app)|Online tasting with AI sommelier",
   },
 
   pack3_name: { es: "Deluxe", en: "Deluxe" },
   pack3_tag: {
-    es: "Para los que ya saben (o creen)",
-    en: "For those who know (or think they do)",
+    es: "Los mimados del viñedo",
+    en: "The vineyard's darlings",
   },
   pack3_price: { es: "160€", en: "€160" },
   pack3_inc: {
@@ -118,33 +117,33 @@ export const strings = {
     en: "4 premium wines (>€40/bottle) + everything above.",
   },
   pack3_long: {
-    es: "Cuatro vinos premium para una velada inolvidable: D.O. de prestigio, añadas escogidas y algún caprichito que descolocará incluso al que “se las sabe todas”. Ideal para regalar.",
-    en: "Four premium wines for an unforgettable evening: prestige regions, hand-picked vintages, and a curveball or two that will throw off even the know-it-all. A great gift.",
+    es: "Vinos de autor hechos para disfrutar. Bodegas de prestigio y ediciones especiales conseguirán un rato inolvidable.",
+    en: "Signature wines made to be enjoyed. Prestige wineries and special editions for an unforgettable evening.",
   },
   pack3_features: {
-    es: "4 vinos premium (>40€)|Fundas opacas numeradas|Cata online con sommelier IA (≈90 min)|Modo experto + cata vertical opcional|Tarjeta regalo personalizable",
-    en: "4 premium wines (>€40)|Numbered opaque sleeves|Online tasting with AI sommelier (~90 min)|Expert mode + optional vertical tasting|Personalised gift card",
+    es: "4 vinos de autor (>40€)|Fundas opacas numeradas|2 QRs de acceso (sala de cata y app del jugador)|Cata online con sommelier IA",
+    en: "4 signature wines (>€40)|Numbered opaque sleeves|2 access QRs (tasting room and player app)|Online tasting with AI sommelier",
   },
 
 
   why_title: { es: "Por qué engancha", en: "Why it hooks you" },
   why_1_t: {
-    es: "Un sommelier con cara y voz",
-    en: "A sommelier with a face and voice",
+    es: "Sommelier basado en IA",
+    en: "AI-powered sommelier",
   },
   why_1_d: {
-    es: "Una IA que os guía en directo, se adapta a vuestro nivel y os pica un poco.",
-    en: "An AI that hosts you live, adapts to your level, and teases you a little.",
+    es: "Un experto en vinos os acompañará a lo largo de la cata, adaptándose a vuestro nivel con un punto ácido.",
+    en: "A wine expert hosts the tasting, adapts to your level and teases you a little.",
   },
-  why_2_t: { es: "Es un juego", en: "It's a game" },
+  why_2_t: { es: "No es sólo un juego.", en: "It's not just a game." },
   why_2_d: {
-    es: "Quinielas a ciegas (variedad, D.O., precio, añada), puntos y ranking en vivo.",
-    en: "Blind guesses (grape, region, price, vintage), points and a live leaderboard.",
+    es: "Apuestas de cata, puntuaciones y ranking en vivo.",
+    en: "Tasting bets, scores and a live ranking.",
   },
-  why_3_t: { es: "Cata a ciegas de verdad", en: "A real blind tasting" },
+  why_3_t: { es: "Experiencia de cata a ciegas real", en: "A real blind tasting experience" },
   why_3_d: {
-    es: "Las fundas tapan la botella; que gane el mejor paladar, no la etiqueta.",
-    en: "The sleeves hide the bottle; let the best palate win, not the label.",
+    es: "Las reglas se basan en la misma normativa que emplean los profesionales del sector.",
+    en: "The rules follow the same standards used by industry professionals.",
   },
 
   modal_title: {
@@ -204,16 +203,16 @@ export const strings = {
   link_legal: { es: "Aviso legal", en: "Legal notice" },
   link_shipping: { es: "Envíos y devoluciones", en: "Shipping & returns" },
   footer_rights: {
-    es: "© 2026 Tastia. Bebe con cabeza.",
-    en: "© 2026 Tastia. Drink responsibly.",
+    es: "© 2026 TastIA.",
+    en: "© 2026 TastIA.",
   },
   footer_age_warning: {
     es: "La venta de bebidas alcohólicas está prohibida a menores de 18 años (Ley 17/2022 y Ley 5/2002). El consumo excesivo es perjudicial para la salud. Bebe con moderación.",
-    en: "The sale of alcoholic beverages is forbidden to under-18s. Excessive consumption is harmful to health. Drink responsibly.",
+    en: "The sale of alcoholic beverages is forbidden to under-18s (Law 17/2022 and Law 5/2002). Excessive consumption is harmful to health. Drink responsibly.",
   },
   footer_company: {
-    es: "David Castellà Gil · NIF N52626358 · C/ Exemple 1, 08001 Barcelona · hola@tastia.org",
-    en: "David Castellà Gil · VAT N52626358 · C/ Exemple 1, 08001 Barcelona · hola@tastia.org",
+    es: "NCH Grupo 4 · hola@tastia.org",
+    en: "NCH Grupo 4 · hola@tastia.org",
   },
 
   age_title: { es: "¿Eres mayor de 18 años?", en: "Are you over 18?" },
@@ -298,12 +297,12 @@ export const strings = {
   // Ranking section
   rank_eyebrow: { es: "Ranking mensual · Premios reales", en: "Monthly ranking · Real prizes" },
   rank_title: {
-    es: "Catad. Sumad puntos. Llevaos premios.",
-    en: "Taste. Earn points. Win prizes.",
+    es: "El ranking de TastIA",
+    en: "TastIA's ranking",
   },
   rank_sub: {
-    es: "Cada cata os da puntos: por acertar variedad, D.O., precio o añada. Cada mes coronamos al Top 3 con premios de verdad.",
-    en: "Every tasting earns points: nail the grape, region, price or vintage. Each month we crown the Top 3 with real prizes.",
+    es: "Vuestra cata suma puntos con premios asegurados. Cada mes, coronamos al TastIA Top 3 con espectaculares premios. Pero no será fácil… Tendréis que convertiros en verdaderos expertos del vino para haceros con ellos. ¡Buena cata!",
+    en: "Every tasting adds points with guaranteed prizes. Each month we crown the TastIA Top 3 with spectacular rewards. But it won't be easy… You'll have to become true wine experts to claim them. Happy tasting!",
   },
   rank_month: { es: "Junio 2026 · en curso", en: "June 2026 · in progress" },
   rank_days_left: { es: "días restantes", en: "days left" },
@@ -318,15 +317,18 @@ export const strings = {
   rank_p3_prize: { es: "Pack Winelover + decantador de autor", en: "Winelover Pack + designer decanter" },
   rank_pts: { es: "pts", en: "pts" },
   rank_rules_title: { es: "Cómo se puntúa", en: "How scoring works" },
-  rank_rule_1: { es: "+20 pts · acertar la variedad", en: "+20 pts · guess the grape" },
-  rank_rule_2: { es: "+30 pts · acertar la D.O.", en: "+30 pts · guess the region" },
-  rank_rule_3: { es: "+15 pts · acertar el rango de precio", en: "+15 pts · guess the price range" },
-  rank_rule_4: { es: "+25 pts · acertar la añada (±1)", en: "+25 pts · guess the vintage (±1)" },
-  rank_rule_5: { es: "x2 · multiplicador de racha semanal", en: "x2 · weekly streak multiplier" },
+  rank_rule_1: { es: "+20 pts · Variedad de uva", en: "+20 pts · Grape variety" },
+  rank_rule_2: { es: "+30 pts · D.O.", en: "+30 pts · Region (D.O.)" },
+  rank_rule_3: { es: "+15 pts · Rango de precio", en: "+15 pts · Price range" },
+  rank_rule_4: { es: "+25 pts · Rango de añada", en: "+25 pts · Vintage range" },
   rank_cta: { es: "Entrar al ranking", en: "Join the ranking" },
-  rank_disclaimer: {
-    es: "Cada pack jugado cuenta. Premios enviados en los 7 días siguientes al cierre del mes.",
-    en: "Every pack played counts. Prizes shipped within 7 days of month end.",
+  rank_disclaimer_title: {
+    es: "Cada pack jugado cuenta.",
+    en: "Every pack played counts.",
+  },
+  rank_disclaimer_body: {
+    es: "Premios enviados en los 7 días siguientes al cierre del mes.",
+    en: "Prizes shipped within 7 days of month end.",
   },
 } satisfies Dict;
 

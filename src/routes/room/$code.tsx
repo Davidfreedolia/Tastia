@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Countdown } from "@/components/Countdown";
 import { useRoomChannel } from "@/lib/use-room-channel";
+import { mockRoom, type MockScenario } from "@/lib/mock-room";
 import {
   FASE_LABEL,
   initials,
@@ -11,7 +13,15 @@ import {
   type RoomState,
 } from "@/lib/session";
 
+// `?mock=quiz|reveal|wine-podium|final` (o `?mock=1` → reveal) pinta la Sala con datos demo
+// sin Supabase ni jugadores reales: útil para iterar sobre el layout.
+const MOCK_SCENARIO = z.enum(["quiz", "reveal", "wine-podium", "final"]);
+const mockSearch = z
+  .object({ mock: z.union([MOCK_SCENARIO, z.literal("1"), z.literal("")]).optional() })
+  .parse;
+
 export const Route = createFileRoute("/room/$code")({
+  validateSearch: (s) => mockSearch(s),
   component: RoomPage,
 });
 
@@ -39,7 +49,12 @@ function nextLabel(state: RoomState, hasPlayers: boolean): string {
 
 function RoomPage() {
   const { code } = Route.useParams();
-  const room = useRoomChannel({ code, role: "host" });
+  const { mock } = Route.useSearch();
+  const scenario: MockScenario | null =
+    mock === undefined ? null : mock === "1" || mock === "" ? "reveal" : mock;
+
+  const liveRoom = useRoomChannel({ code, role: "host" });
+  const room = scenario ? mockRoom(scenario) : liveRoom;
 
   if (!room.configured) return <SetupNotice />;
 
@@ -53,84 +68,191 @@ function RoomPage() {
   const onAdvance = isFinal ? reset : advance;
   const label = isFinal ? "Nueva cata ▸" : nextLabel(state, players.length > 0);
 
+  const host = participants.find((p) => p.isHost);
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-card px-5 py-3">
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+      {/* Avatar del sommelier — iframe a pantalla completa; el resto del layout va por encima. */}
+      {/* TODO: sustituir por el iframe del proveedor real (HeyGen / Anam / Tavus). */}
+      <iframe
+        className="fixed inset-0 z-0 h-full w-full border-0 bg-ink"
+        src="https://www.youtube.com/embed/ycKMCy8JAco?autoplay=1&mute=1&loop=1&playlist=ycKMCy8JAco&controls=0&modestbranding=1&rel=0&playsinline=1"
+        title="Sommelier-avatar (placeholder)"
+        allow="autoplay; encrypted-media; picture-in-picture"
+        allowFullScreen
+      />
+
+      {/* Top bar overlay — fondo ink/50 con texto en cream (light mode). */}
+      <header className="fixed left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-between gap-3 bg-ink/50 px-5 py-3 text-cream">
         <div className="flex items-center gap-3">
-          <span className="serif text-xl font-bold text-primary">Tastia · Sala</span>
-          <code className="rounded-none bg-secondary px-2 py-1 text-sm font-bold tracking-widest">{code}</code>
+          <span className="serif text-xl font-bold leading-none">
+            <span className="text-cream">Tast</span>
+            <span className="text-white">IA</span>
+          </span>
+          <div className="inline-flex w-fit items-baseline gap-2 rounded-full bg-[color-mix(in_oklab,var(--foreground)_55%,transparent)] px-3 py-1 text-cream">
+            <span className="font-sans text-sm font-normal">Sala</span>
+            <span className="font-sans text-sm font-semibold tracking-widest">{code}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-4 text-sm text-cream">
           <span className="flex items-center gap-2">
-            <span className={`inline-block h-2.5 w-2.5 rounded-full ${connected ? "bg-green-500" : "bg-amber-500"}`} />
+            {host && <HeaderAvatar name={host.name} photo={host.photo} />}
+            <span
+              className={`inline-block h-2.5 w-2.5 rounded-full ${connected ? "bg-green-500" : "bg-amber-500"}`}
+            />
             {connected ? "conectado" : "conectando…"}
           </span>
-          <span className="font-semibold">{STAGE_LABEL[state.stage]}</span>
-          {state.stage === "playing" && (
-            <span className="text-foreground/70">
-              Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]}
-            </span>
-          )}
-          {/* §5.6b-A — badge discreto: el juego corre con datos demo (la edge function no respondió). */}
-          {state.source === "demo" && <DemoBadge />}
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl gap-6 px-5 py-6 lg:grid-cols-[1.4fr_1fr]">
-        {/* Tablero: avatar + controles */}
-        <section className="flex flex-col gap-4">
-          {/* Slot del avatar del sommelier (iframe del proveedor: HeyGen / Anam / Tavus) */}
-          <div className="relative aspect-video w-full overflow-hidden rounded-none border border-border/60 bg-ink">
-            {/* TODO: sustituir por <iframe src={avatarUrl} ... /> del proveedor de avatar en tiempo real */}
-            <div className="absolute inset-0 grid place-items-center text-center text-cream/80">
-              <div>
-                <p className="serif text-2xl font-bold">Sommelier-avatar</p>
-                <p className="mt-1 text-sm text-cream/60">iframe del proveedor (próximamente)</p>
-              </div>
-            </div>
-          </div>
+      {/* Tablero central: pregunta / reveal / podios. Overlay sobre el iframe, alineado abajo. */}
+      <section className="fixed bottom-6 left-6 z-10 w-72">
+        {state.stage === "playing" && (
+          <HostQuiz state={state} players={players} answers={answers} answeredIds={answeredIds} />
+        )}
+        {state.stage === "wine_podium" && (
+          <Podium
+            title={`Podio parcial · tras el vino ${state.wineIndex + 1}/${WINE_COUNT}`}
+            players={players}
+            scores={state.scores}
+          />
+        )}
+        {state.stage === "final_podium" && (
+          <>
+            <Podium title="Podio final 🏆" players={players} scores={state.scores} highlightTop />
+            <FinishIndicator finishState={finishState} />
+          </>
+        )}
+      </section>
 
-          {/* Fase en juego: Pregunta (quiz) o Revelación (reveal) — §5.2. */}
-          {state.stage === "playing" && (
-            <HostQuiz state={state} players={players} answers={answers} answeredIds={answeredIds} />
-          )}
-
-          {/* Podio parcial tras cerrar el vino N */}
-          {state.stage === "wine_podium" && (
-            <Podium
-              title={`Podio parcial · tras el vino ${state.wineIndex + 1}/${WINE_COUNT}`}
-              players={players}
-              scores={state.scores}
-            />
-          )}
-
-          {/* Podio final */}
-          {state.stage === "final_podium" && (
-            <>
-              <Podium title="Podio final 🏆" players={players} scores={state.scores} highlightTop />
-              {/* §5.6b-B — indicador discreto de la persistencia (solo en modo BD; en demo no se llama). */}
-              <FinishIndicator finishState={finishState} />
-            </>
-          )}
-
-          {/* Controles del anfitrión */}
-          <div className="rounded-none border border-border/60 bg-card p-4">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">Control del anfitrión</p>
-            <Button variant="wine" size="lg" disabled={disabled} onClick={onAdvance}>
-              {label}
-            </Button>
-            <p className="mt-3 text-xs text-foreground/55">
-              Los jugadores se unen en <span className="font-semibold">tastia.app/play/{code}</span>
-            </p>
-          </div>
-        </section>
-
-        {/* Panel de participantes (foto/inicial + nombre + puntos), siempre presente */}
-        <aside className="flex flex-col gap-4">
+      {/* Participantes — alineado a la derecha del viewport, abajo.
+          En modo mock solo se muestra en `quiz` (en reveal/podio/final estorba al previsualizar). */}
+      {(scenario === null || scenario === "quiz") && (
+        <aside className="fixed bottom-6 right-6 z-10 w-[min(420px,40vw)]">
           <ParticipantPanel state={state} players={players} answeredIds={answeredIds} />
         </aside>
-      </main>
+      )}
+
+      {/* Control del anfitrión — flotante, centrado abajo. */}
+      <div className="fixed bottom-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center rounded-2xl border border-border/60 bg-card/95 p-4 shadow-lg backdrop-blur">
+        <p className="mb-3 text-center text-xs font-bold uppercase tracking-wider text-foreground/55">
+          Control del anfitrión
+        </p>
+        <Button variant="wine" size="lg" disabled={disabled} onClick={onAdvance} className="h-14 rounded-lg">
+          {label}
+        </Button>
+        <p className="mt-3 text-center text-xs text-foreground/55">
+          Los jugadores se unen en <span className="font-semibold">tastia.app/play/{code}</span>
+        </p>
+      </div>
     </div>
+  );
+}
+
+/** Icono check (acierto / opción correcta). */
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="5 12 10 17 19 7" />
+    </svg>
+  );
+}
+
+/** Icono X (fallo). */
+function CrossIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <line x1="6" y1="6" x2="18" y2="18" />
+      <line x1="18" y1="6" x2="6" y2="18" />
+    </svg>
+  );
+}
+
+/** Icono guion (jugador que no respondió). */
+function DashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3}
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <line x1="6" y1="12" x2="18" y2="12" />
+    </svg>
+  );
+}
+
+/** Medalla SVG para los podios — 1.º oro, 2.º plata, 3.º bronce. */
+function MedalIcon({ place }: { place: 1 | 2 | 3 }) {
+  const color =
+    place === 1
+      ? "text-gold"
+      : place === 2
+        ? "text-[oklch(0.6401_0_0)]"
+        : "text-[oklch(0.72_0.11_85.85)]";
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 shrink-0 ${color}`}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M7 2 L9.5 9 L12 6.5 L14.5 9 L17 2 Z" opacity="0.75" />
+      <circle cx="12" cy="16" r="6" />
+      <text
+        x="12"
+        y="18.5"
+        textAnchor="middle"
+        fontSize="6.5"
+        fontWeight="700"
+        fill="white"
+      >
+        {place}
+      </text>
+    </svg>
+  );
+}
+
+/** Avatar compacto para el top bar (foto o iniciales). */
+function HeaderAvatar({ name, photo }: { name: string; photo?: string }) {
+  if (photo) {
+    return (
+      <img
+        src={photo}
+        alt={name || "Anfitrión"}
+        className="h-7 w-7 shrink-0 rounded-full border border-border/60 object-cover"
+      />
+    );
+  }
+  return (
+    <span
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border/60 bg-secondary text-xs font-bold text-foreground/70"
+      role="img"
+      aria-label={name || "Anfitrión"}
+    >
+      {initials(name) || "·"}
+    </span>
   );
 }
 
@@ -161,18 +283,6 @@ function FinishIndicator({ finishState }: { finishState: "idle" | "saving" | "sa
   );
 }
 
-/** Etiqueta discreta "Datos demo" (§5.6b-A): el juego corre sin la edge function. */
-function DemoBadge() {
-  return (
-    <span
-      className="rounded-none border border-amber-500/60 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600"
-      title="El juego usa datos de muestra: la base de datos no respondió."
-    >
-      Datos demo
-    </span>
-  );
-}
-
 /**
  * Sala — Pregunta y Revelación de la fase (§5.2/§5.6b-A). RENDERIZA lo que el host difunde en
  * `RoomState`: `state.activeQuestion` (enunciado + opciones, sin respuesta) y `state.reveal`
@@ -197,11 +307,10 @@ function HostQuiz({
   const answeredCount = players.filter((p) => answeredIds.has(p.id)).length;
 
   return (
-    <div className="rounded-none border border-primary/40 bg-card p-4">
+    <div className="rounded-2xl border border-primary/40 bg-card/95 p-4 shadow-lg backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">
-          Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]} ·{" "}
-          {isReveal ? "Revelación" : "Pregunta"}
+          Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]}
         </p>
         {/* §5.3 — cuenta atrás cosmética, solo durante el quiz con deadline fijado. */}
         {!isReveal && state.deadline !== undefined && (
@@ -213,10 +322,10 @@ function HostQuiz({
       </div>
 
       {question === undefined ? (
-        <p className="serif mt-1 text-2xl font-bold text-foreground/50">Cargando pregunta…</p>
+        <p className="serif mt-1 text-4xl font-bold text-foreground/50">Cargando pregunta…</p>
       ) : (
         <>
-          <p className="serif mt-1 text-2xl font-bold">{question.prompt}</p>
+          <p className="serif mt-1 text-4xl font-bold">{question.prompt}</p>
 
           <ul className="mt-3 grid gap-2 sm:grid-cols-2">
             {question.options.map((opt, i) => {
@@ -224,14 +333,14 @@ function HostQuiz({
               return (
                 <li
                   key={i}
-                  className={`flex items-center justify-between rounded-none border px-3 py-2 text-sm ${
+                  className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${
                     correct
                       ? "border-green-600 bg-green-600/15 font-semibold"
-                      : "border-border/60 bg-secondary/40"
+                      : "border-muted bg-white"
                   }`}
                 >
                   <span>{opt}</span>
-                  {correct && <span className="text-green-600">✓ correcta</span>}
+                  {correct && <CheckIcon className="h-6 w-6 text-green-600" />}
                 </li>
               );
             })}
@@ -241,11 +350,6 @@ function HostQuiz({
             <p className="mt-3 text-sm text-foreground/70">
               Han respondido <span className="font-bold text-primary">{answeredCount}</span> de{" "}
               {players.length} jugador{players.length === 1 ? "" : "es"}.
-              {players.length > 0 && answeredCount > 0 && (
-                <span className="ml-1 text-foreground/55">
-                  ({players.filter((p) => answeredIds.has(p.id)).map((p) => p.name).join(", ")})
-                </span>
-              )}
             </p>
           ) : (
             <ul className="mt-3 space-y-1 text-sm">
@@ -259,7 +363,13 @@ function HostQuiz({
                     <span className="font-medium">{p.name}</span>
                     <span className={`flex items-center gap-2 ${ok ? "text-green-600" : "text-primary"}`}>
                       {ok && award ? <span className="font-bold">+{award}</span> : null}
-                      <span>{ans === undefined ? "✗ no respondió" : ok ? "✓ acertó" : "✗ falló"}</span>
+                      {ans === undefined ? (
+                        <DashIcon className="h-6 w-6 text-foreground/55" />
+                      ) : ok ? (
+                        <CheckIcon className="h-6 w-6 text-green-600" />
+                      ) : (
+                        <CrossIcon className="h-6 w-6 text-red-500" />
+                      )}
                     </span>
                   </li>
                 );
@@ -302,7 +412,7 @@ function ParticipantPanel({
       : new Set<string>();
 
   return (
-    <div className="rounded-none border border-border/60 bg-card p-4">
+    <div className="rounded-2xl border border-border/60 bg-card/95 p-4 shadow-lg backdrop-blur">
       <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">
         Participantes ({players.length})
       </p>
@@ -343,24 +453,41 @@ function ParticipantTile({
   isLeader: boolean;
   isFinal: boolean;
 }) {
-  // Halo: solo en quiz. Verde si respondió; rojo/opaco si no. Neutro fuera del quiz.
-  const halo = quizPhase
-    ? answered
-      ? "border-green-600 ring-2 ring-green-600/60"
-      : "border-red-500/50 opacity-50"
-    : "border-border/60";
-  const leader = isLeader ? "bg-gold/15 border-gold ring-2 ring-gold/60" : "bg-secondary/40";
+  // Tarjeta por defecto: fondo blanco con borde --muted. El líder mantiene el oro (bg + borde).
+  // En quiz: además se podrá superponer la capa olive con el check blanco al responder.
+  const tileClass = isLeader
+    ? "bg-gold/15 border-gold ring-2 ring-gold/60"
+    : "border-muted bg-white text-ink";
 
   return (
     <li
-      className={`flex flex-col items-center gap-2 rounded-none border p-3 text-center transition-all ${quizPhase ? halo : `${leader} border`}`}
+      className={`relative flex flex-col items-center gap-2 overflow-hidden rounded-lg border p-3 text-center transition-all ${tileClass}`}
     >
-      <Avatar name={participant.name} photo={participant.photo} answered={quizPhase ? answered : undefined} />
+      <Avatar name={participant.name} photo={participant.photo} inverted />
       <span className="line-clamp-1 w-full text-sm font-medium" title={participant.name}>
         {isLeader ? `${isFinal ? "🏆" : "🥇"} ` : ""}
         {participant.name}
       </span>
       <span className="serif text-sm font-bold text-primary">{score} pts</span>
+
+      {quizPhase && answered && (
+        <span
+          className="pointer-events-none absolute inset-0 grid place-items-center bg-olive/80"
+          aria-label="Respondió"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-10 w-10 text-white"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="5 12 10 17 19 7" />
+          </svg>
+        </span>
+      )}
     </li>
   );
 }
@@ -369,28 +496,29 @@ function ParticipantTile({
 function Avatar({
   name,
   photo,
-  answered,
+  inverted,
 }: {
   name: string;
   photo?: string;
-  answered?: boolean;
+  /** En quiz las iniciales se invierten: círculo --ink con texto blanco. */
+  inverted?: boolean;
 }) {
-  // Anillo del avatar coherente con el halo de la tesela durante el quiz.
-  const ring =
-    answered === undefined ? "" : answered ? "ring-2 ring-green-600" : "ring-2 ring-red-500/60";
   const label = initials(name) || "·";
   if (photo) {
     return (
       <img
         src={photo}
         alt={name || "Participante"}
-        className={`h-14 w-14 shrink-0 rounded-full border border-border/60 object-cover ${ring}`}
+        className="h-14 w-14 shrink-0 rounded-full border border-border/60 object-cover"
       />
     );
   }
+  const tone = inverted
+    ? "bg-ink text-white"
+    : "border border-border/60 bg-secondary text-foreground/70";
   return (
     <span
-      className={`grid h-14 w-14 shrink-0 place-items-center rounded-full border border-border/60 bg-secondary text-lg font-bold text-foreground/70 ${ring}`}
+      className={`grid h-14 w-14 shrink-0 place-items-center rounded-full text-lg font-bold ${tone}`}
       role="img"
       aria-label={name || "Participante"}
     >
@@ -416,7 +544,7 @@ function Podium({
   // máximo (cuando el máximo > 0), no solo el primero de la lista.
   const maxScore = ranked.length > 0 ? (scores[ranked[0].id] ?? 0) : 0;
   return (
-    <div className="rounded-none border border-primary/40 bg-card p-5">
+    <div className="rounded-2xl border border-primary/40 bg-card/95 p-5 shadow-lg backdrop-blur">
       <p className="text-xs font-bold uppercase tracking-wider text-foreground/55">{title}</p>
       {ranked.length === 0 ? (
         <p className="mt-3 text-sm text-foreground/55">Sin jugadores.</p>
@@ -425,14 +553,15 @@ function Podium({
           {ranked.map((p, idx) => (
             <li
               key={p.id}
-              className={`flex items-center justify-between rounded-none px-3 py-2 ${
+              className={`flex items-center justify-between rounded-lg border px-3 py-2 ${
                 highlightTop && maxScore > 0 && (scores[p.id] ?? 0) === maxScore
-                  ? "bg-gold text-ink"
-                  : "bg-secondary/50"
+                  ? "border-gold bg-gold text-ink"
+                  : "border-muted bg-white"
               }`}
             >
-              <span className="font-semibold">
-                {["🥇", "🥈", "🥉"][idx] ?? `${idx + 1}.`} {p.name}
+              <span className="flex items-center gap-2 font-semibold">
+                {idx < 3 ? <MedalIcon place={(idx + 1) as 1 | 2 | 3} /> : <span>{idx + 1}.</span>}
+                {p.name}
               </span>
               <span className="serif font-bold">{scores[p.id] ?? 0} pts</span>
             </li>

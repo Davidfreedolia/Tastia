@@ -27,13 +27,15 @@ export function LogoIcon({ className = "h-9 w-9" }: { className?: string }) {
   );
 }
 
-export function Logo({ className = "" }: { className?: string }) {
+export function Logo({ className = "", light = false }: { className?: string; light?: boolean }) {
   return (
     <a href="#top" className={`flex items-center gap-2.5 min-w-0 group ${className}`}>
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform duration-300 group-hover:scale-105">
         <LogoIcon className="h-6 w-6" />
       </span>
-      <span className="serif text-2xl font-bold tracking-tight truncate">Tastia</span>
+      <span className="serif text-2xl font-bold tracking-tight truncate">
+        Tast<span className={light ? "logo-ia logo-ia--light" : "logo-ia"}>IA</span>
+      </span>
     </a>
   );
 }
