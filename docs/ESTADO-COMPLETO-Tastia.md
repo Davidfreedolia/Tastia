@@ -30,9 +30,10 @@ secretos en cuentas de David (Stripe/Resend/Supabase).
 | 🛠️ Admin del juego (ajustes · preguntas · clasificación) | ✅ En producción | `/admin`, `game-*.ts`, `wine-classification.ts` |
 | 🔒 Anti-spoiler (motor demo host-only) | ✅ En producción | `use-room-channel.ts` |
 | 🌍 i18n (ES/CA/EN/FR) | ✅ En producción | `i18n.tsx` |
+| 🔓 Acceso web — gate "en construcción" retirado | ✅ En `dev` (landing pública `/`→`/landing`; `/admin` sigue protegido) · pendiente `dev`→`main` | `index.tsx`, `landing.tsx` |
 | 🤖 Avatar-sommelier (Tasti) | 📋 Guías listas, por construir | `docs/guion-*.md` (Andrés) |
 | 🗄️ Edge functions del juego (bootstrap/close/finish) | ✅ Desplegadas en prod (23-jun) | `supabase/functions/` |
-| 🗄️ RLS escritura admin + migraciones de endurecimiento | ⏳ Pendiente | Salvador |
+| 🗄️ RLS escritura admin (`admin_all_*`) + migración `0013` | ✅ Aplicadas/verificadas en prod (22-jun) | Salvador |
 | ✅ Revisión end-to-end | ⏳ Pendiente | Ignacio |
 | 🎨 Diseño + diseño a producción | ⏳ Pendiente | Quique |
 | 🔑 Activar/probar secretos + email §B2 | ⏳ Pendiente | David |
@@ -106,6 +107,8 @@ secretos en cuentas de David (Stripe/Resend/Supabase).
 5. ⏳ **Activación / negocio** (David) — secretos test, email §B2 (causa raíz arreglada; falta dominio Resend + `RESEND_FROM`), compliance; **Stripe se queda en TEST/demo** (sin go-live).
 
 > **Bloqueado a propósito (no son olvidos):** §5.9 estado de sesión EN VIVO / reloj en servidor (espera la **pregunta de cliente #6**: ¿la sesión pausa+reanuda al recaer el host?) y la **ficha server-side del avatar** (espera a Andrés). Ver `deferred-work.md`.
+>
+> **Estado a 23-jun:** todo el carril propio está consolidado en `dev` — backend del juego + **coherencia de preguntas** + **landing pública** (sin gate "en construcción"). El backend (edge functions + esquema) ya está **vivo en Supabase prod**; la landing pública se publica con el próximo `dev`→`main`.
 
 **Pipeline:** `feat/*` → PR a `dev` → revisión adversarial → `dev`→`main`. Ignacio hace el e2e; Quique el pase de diseño a producción.
 
@@ -127,8 +130,10 @@ secretos en cuentas de David (Stripe/Resend/Supabase).
 - **Regla dura:** `feat/*` → PR a `dev` → `dev`→`main` para publicar. **Nunca** commit directo a `main`.
 - Supabase **`tyuehzsqvjpjysxdihsh`** (cuenta separada). Envs de comercio en Vercel: `STRIPE_SECRET_KEY`,
   `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_TASTIA_API_KEY`.
-- _Estado de ramas hoy:_ `dev` va por delante de `main` solo en **documentación** (guiones del avatar +
-  este estado); el código de `main` está al día (hasta #25).
+- _Estado de ramas hoy (23-jun):_ `dev` va por delante de `main` en **código** (cierre del backend del
+  juego: coherencia de preguntas + config de edge functions; **landing pública**) además de documentación.
+  Publicar esos cambios de cliente requiere `dev`→`main`. El backend del juego (edge functions + esquema)
+  ya está vivo en Supabase prod, desplegado out-of-band vía CLI (independiente de `main`).
 
 ---
 
