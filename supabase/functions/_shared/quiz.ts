@@ -135,19 +135,22 @@ function gamificacionKeyFor(wineIndex: number): GamificacionKey {
   return GAMIFICACION_KEYS[wineIndex % GAMIFICACION_KEYS.length];
 }
 
-/** Valor de un atributo de la ficha (correcto o distractor del pool). `null` si falta el dato. */
-function attrValue(ficha: WineFicha, fase: Fase): string | null {
+/**
+ * Valor del atributo que pregunta `(fase, gamiKey)` en una ficha CUALQUIERA. Para distractores,
+ * `gamiKey` es el de la PREGUNTA (el del vino preguntado), NO la rotación de la ficha de la que se
+ * extrae el distractor — así "¿qué variedad?" toma variedades de los otros vinos, no su
+ * clasificación/precio (paridad con `getQuestion` de `src/lib/wines.ts`). `null` si falta el dato.
+ */
+function attrValue(ficha: WineFicha, fase: Fase, gamiKey: GamificacionKey | null): string | null {
   if (fase !== "gamificacion") return ficha.tasting[fase];
-  const key = gamificacionKeyFor(ficha.wineIndex);
-  if (key === "grape") return ficha.grape;
-  if (key === "classification") return ficha.classificationLabel;
+  if (gamiKey === "grape") return ficha.grape;
+  if (gamiKey === "classification") return ficha.classificationLabel;
   return ficha.priceBucket;
 }
 
-function fallbackPoolFor(ficha: WineFicha, fase: Fase): readonly string[] {
+function fallbackPoolFor(fase: Fase, gamiKey: GamificacionKey | null): readonly string[] {
   if (fase === "gamificacion") {
-    const key = gamificacionKeyFor(ficha.wineIndex);
-    return key === "classification" ? [] : (FALLBACK_POOLS[key] ?? []);
+    return gamiKey === "classification" ? [] : (FALLBACK_POOLS[gamiKey!] ?? []);
   }
   return FALLBACK_POOLS[fase] ?? [];
 }
@@ -167,26 +170,27 @@ function deriveQuestion(
 ): ServerQuestion | null {
   const ficha = fichas[wineIndex];
   if (!ficha) return null;
-  const value = attrValue(ficha, fase);
+  // Clave de gamificación de la PREGUNTA (la del vino preguntado). Se usa también para extraer el
+  // MISMO atributo de los otros vinos como distractores (no la rotación propia de cada uno).
+  const gamiKey = fase === "gamificacion" ? gamificacionKeyFor(wineIndex) : null;
+  const value = attrValue(ficha, fase, gamiKey);
   if (!value) return null; // ficha incompleta para esta fase → sin pregunta derivable
 
-  const isClasif = fase === "gamificacion" && gamificacionKeyFor(wineIndex) === "classification";
-  const prompt = fase === "gamificacion"
-    ? GAMIFICACION_PROMPT[gamificacionKeyFor(wineIndex)]
-    : SENSORIAL_PROMPT[fase];
+  const isClasif = gamiKey === "classification";
+  const prompt = fase === "gamificacion" ? GAMIFICACION_PROMPT[gamiKey!] : SENSORIAL_PROMPT[fase];
 
   let distractorSource: string[];
   if (isClasif) {
     distractorSource = ficha.category ? classifSiblings(ficha.category, value) : [];
   } else {
-    // Mismo atributo de los OTROS vinos del pack (rotación estable) + pool curado.
+    // MISMO atributo (el de la pregunta) de los OTROS vinos del pack (rotación estable) + pool curado.
     const fromPack: string[] = [];
     for (let k = 1; k < fichas.length; k++) {
       const other = fichas[(wineIndex + k) % fichas.length];
-      const v = attrValue(other, fase);
+      const v = attrValue(other, fase, gamiKey);
       if (v) fromPack.push(v);
     }
-    distractorSource = [...fromPack, ...fallbackPoolFor(ficha, fase)];
+    distractorSource = [...fromPack, ...fallbackPoolFor(fase, gamiKey)];
   }
 
   // Dedup contra el correcto y entre sí; tomar 3.

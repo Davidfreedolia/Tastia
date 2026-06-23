@@ -31,7 +31,7 @@ secretos en cuentas de David (Stripe/Resend/Supabase).
 | 🔒 Anti-spoiler (motor demo host-only) | ✅ En producción | `use-room-channel.ts` |
 | 🌍 i18n (ES/CA/EN/FR) | ✅ En producción | `i18n.tsx` |
 | 🤖 Avatar-sommelier (Tasti) | 📋 Guías listas, por construir | `docs/guion-*.md` (Andrés) |
-| 🗄️ Edge functions del juego (bootstrap/close/finish) | 🟡 Implementadas, sin desplegar | `supabase/functions/` |
+| 🗄️ Edge functions del juego (bootstrap/close/finish) | ✅ Desplegadas en prod (23-jun) | `supabase/functions/` |
 | 🗄️ RLS escritura admin + migraciones de endurecimiento | ⏳ Pendiente | Salvador |
 | ✅ Revisión end-to-end | ⏳ Pendiente | Ignacio |
 | 🎨 Diseño + diseño a producción | ⏳ Pendiente | Quique |
@@ -84,11 +84,11 @@ secretos en cuentas de David (Stripe/Resend/Supabase).
 
 | Responsable | Pendiente |
 |-------------|-----------|
-| **Salvador** (BD/edge/RLS) | **Carril casi cerrado.** ✅ Esquema del juego + RLS `admin_all_*` + 1 admin registrado + `0013` (índice único + `activation_expires_at`) **verificados/aplicados en prod** (22-jun). Solo falta **desplegar las 3 edge functions** (`supabase functions deploy quiz-bootstrap quiz-close session-finish`) + e2e. NO se construye aún la **tabla de sesión de sala §5.9** (estado en vivo): contradice specs congeladas + depende de pregunta de cliente #6. **Ficha server-side del avatar** = bloqueada por Andrés |
+| **Salvador** (BD/edge/RLS) | **Carril casi cerrado.** ✅ Esquema del juego + RLS `admin_all_*` + 1 admin registrado + `0013` (índice único + `activation_expires_at`) **verificados/aplicados en prod** (22-jun). ✅ **3 edge functions desplegadas en prod** (23-jun; smoke-test `quiz-bootstrap`→200, `verify_jwt` acepta la publishable key). Falta solo la **validación e2e con datos reales** (Ignacio). NO se construye aún la **tabla de sesión de sala §5.9** (estado en vivo): contradice specs congeladas + depende de pregunta de cliente #6. **Ficha server-side del avatar** = bloqueada por Andrés |
 | **Andrés** (avatar §5.4) | Construir Tasti siguiendo `guion-*.md`: spike de proveedor (<300 ms) + voz ElevenLabs (ES/EN) + cerebro LLM + 1 stream |
 | **Ignacio** | **Revisión end-to-end** con datos/secretos reales: compra→activar→sala→juego desde BD→podio; multijugador; admin |
 | **Quique** | **Revisión de diseño** + sistema premium + llevar el **diseño a producción** (Sala/avatar, tienda, companion) |
-| **David** | Secretos de **test** en Vercel · **email §B2: causa raíz arreglada en código** → solo falta verificar dominio en Resend + `RESEND_FROM` en Vercel · compliance de alcohol, pricing, sourcing · Stripe **LIVE** (al final) |
+| **David** | Secretos de **test** en Vercel · **email §B2: causa raíz arreglada en código** → solo falta verificar dominio en Resend + `RESEND_FROM` en Vercel · compliance de alcohol, pricing, sourcing · **Stripe se queda en TEST/demo** (decidido 22-jun-2026: sin claves LIVE, sin cobro real; el bucle de compra usa tarjetas de prueba) |
 
 > El **email §B2** tenía un bug de causa raíz **ya arreglado**: el webhook descartaba el `{ data, error }`
 > de Resend, así que un rechazo (remitente de prueba que solo entrega al dueño, o quota) pasaba en silencio.
@@ -99,11 +99,11 @@ secretos en cuentas de David (Stripe/Resend/Supabase).
 
 ## 6. 🗺️ Roadmap (secuencia)
 
-1. **Backend funcional** (Salvador) — vía crítica: sin esto el juego corre en demo y el admin no guarda. Las **edge functions ya están implementadas** (`supabase/functions/`); falta `supabase functions deploy` + RLS de escritura admin + migraciones.
+1. **Backend funcional** (Salvador) — vía crítica: sin esto el juego corre en demo y el admin no guarda. Las **edge functions ya están desplegadas en prod** (23-jun) y el esquema/RLS del juego + `0013` están aplicados → el backend ya es funcional. Queda la validación e2e.
 2. **Avatar Tasti** (Andrés) — en paralelo; depende de la ficha server-side de Salvador.
 3. **Revisión end-to-end** (Ignacio) — tras nuestro carril, con todo conectado.
 4. **Diseño a producción** (Quique).
-5. **Activación / negocio** (David) — secretos test, email, compliance; Stripe LIVE al final.
+5. **Activación / negocio** (David) — secretos test, email, compliance; **Stripe se queda en TEST/demo** (sin go-live).
 
 **Pipeline:** `feat/*` → PR a `dev` → revisión adversarial → `dev`→`main`. Ignacio hace el e2e; Quique el pase de diseño a producción.
 
