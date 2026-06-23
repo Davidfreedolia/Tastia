@@ -1,9 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { RequireAuth } from "@/lib/require-auth";
-import { I18nProvider, useI18n, type Lang } from "@/lib/i18n";
+import { I18nProvider, useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CartSheet, type CartItem } from "@/components/cart-sheet";
@@ -11,6 +18,7 @@ import { AgeGate } from "@/components/age-gate";
 import { LegalModal, type LegalTab } from "@/components/legal-modal";
 import { Logo, LogoIcon } from "@/components/logo";
 import {
+  Settings,
   ShoppingBag,
   PackageOpen,
   QrCode,
@@ -20,25 +28,22 @@ import {
   EyeOff,
   Check,
   Lock,
-  Sparkles,
   Play,
   Medal,
   Gift,
   Flame,
+  Wine,
+  BottleWine,
 } from "lucide-react";
-import { Reveal } from "@/components/reveal";
-import heroVideoNew from "@/assets/hero-video-new.mp4.asset.json";
+import { useGsapScene, gsap } from "@/hooks/use-gsap";
+import heroPoster from "@/assets/hero-poster.jpg";
 import packWineloverImg from "@/assets/pack-winelover.jpg";
 import packEnologyImg from "@/assets/pack-enology.jpg";
 import packDeluxeImg from "@/assets/pack-deluxe.jpg";
-import productBox from "@/assets/product-box.jpg";
-import productQr from "@/assets/product-qr.jpg";
-import productFriends from "@/assets/product-friends.jpg";
 import winner1 from "@/assets/winner-1.jpg";
 import winner2 from "@/assets/winner-2.jpg";
 import winner3 from "@/assets/winner-3.jpg";
-import tastingTableImg from "@/assets/tasting-table.jpg.asset.json";
-
+import tastingTableImg from "@/assets/tasting-table.png";
 
 export const Route = createFileRoute("/landing")({
   head: () => ({
@@ -60,72 +65,70 @@ export const Route = createFileRoute("/landing")({
   ),
 });
 
-function LangToggle() {
+function LangToggle({ light = false }: { light?: boolean }) {
   const { lang, setLang } = useI18n();
-  const opt = (l: Lang, label: string) => (
-    <button
-      key={l}
-      onClick={() => setLang(l)}
-      aria-pressed={lang === l}
-      aria-label={`Switch language to ${label}`}
-      className={`min-h-[44px] min-w-[44px] px-3 py-1 text-sm font-semibold rounded-none transition ${
-        lang === l
-          ? "bg-foreground text-background"
-          : "text-foreground/70 hover:text-foreground"
-      }`}
-    >
-      {label}
-    </button>
-  );
+  const isEn = lang === "en";
+  const toggle = () => setLang(isEn ? "es" : "en");
+  const active = light ? "text-cream" : "text-foreground";
+  const dim = light ? "text-cream/40" : "text-foreground/40";
+  const trackBg = light ? "bg-cream/25" : "bg-foreground/20";
   return (
-    <div
-      role="group"
-      aria-label="Language"
-      className="inline-flex items-center rounded-none border border-border/70 bg-background/70 p-1"
-    >
-      {opt("es", "ES")}
-      <span aria-hidden className="text-foreground/30">|</span>
-      {opt("en", "EN")}
+    <div className="inline-flex items-center gap-2 text-sm font-semibold">
+      <span className={isEn ? dim : active}>ES</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={isEn}
+        aria-label="Toggle language"
+        onClick={toggle}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full ${trackBg} transition-colors data-[on=true]:bg-primary`}
+        data-on={isEn}
+      >
+        <span
+          className={`inline-block h-5 w-5 transform rounded-full bg-background shadow transition-transform ${
+            isEn ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
+      </button>
+      <span className={isEn ? active : dim}>EN</span>
     </div>
   );
 }
 
-function Header({ onCta }: { onCta: () => void }) {
-  const { t } = useI18n();
+function Header({ onCta: _onCta }: { onCta: () => void }) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-md bg-background/75 border-b border-border/60">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 h-16 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-        <Logo />
-        <nav className="flex items-center gap-2 sm:gap-4">
-          <a
-            href="#packs"
-            className="hidden sm:inline text-sm font-medium text-foreground/80 hover:text-foreground px-2 py-2"
-          >
-            {t("nav_packs")}
-          </a>
-          <a
-            href="#how"
-            className="hidden md:inline text-sm font-medium text-foreground/80 hover:text-foreground px-2 py-2"
-          >
-            {t("nav_how")}
-          </a>
-          <a
-            href="#ranking"
-            className="hidden md:inline text-sm font-medium text-foreground/80 hover:text-foreground px-2 py-2"
-          >
-            {t("nav_ranking")}
-          </a>
+    <header
+      className={`fixed top-0 inset-x-0 z-40 transition-colors duration-300 ${
+        scrolled ? "bg-cream/80 backdrop-blur-md border-b border-border/40" : "bg-transparent"
+      }`}
+    >
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 h-16 grid grid-cols-3 items-center gap-3">
+        <div className="justify-self-start">
           <a
             href="/admin"
-            className="hidden sm:inline text-sm font-semibold text-primary hover:underline px-2 py-2"
+            aria-label="Admin"
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition ${
+              scrolled
+                ? "text-foreground/70 hover:text-foreground hover:bg-foreground/5"
+                : "text-cream/85 hover:text-cream hover:bg-cream/10"
+            }`}
           >
-            Admin
+            <Settings className="h-5 w-5" />
           </a>
-          <LangToggle />
-          <Button variant="wine" size="sm" onClick={onCta} className="hidden sm:inline-flex">
-            {t("nav_cta")}
-          </Button>
-        </nav>
+        </div>
+        <div className={`justify-self-center ${scrolled ? "" : "text-cream"}`}>
+          <Logo light={!scrolled} />
+        </div>
+        <div className="justify-self-end">
+          <LangToggle light={!scrolled} />
+        </div>
       </div>
     </header>
   );
@@ -133,92 +136,153 @@ function Header({ onCta }: { onCta: () => void }) {
 
 function Hero({ onCta }: { onCta: () => void }) {
   const { t } = useI18n();
-  return (
-    <section id="top" className="relative min-h-[520px] md:min-h-[640px] overflow-hidden">
-      {/* Full-width video background */}
-      <video
-        key={heroVideoNew.url}
-        src={heroVideoNew.url}
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover"
-        aria-label="Experiencia Tastia"
-      />
-      {/* Gradient overlay for readability */}
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-ink/85 via-ink/55 to-ink/35" />
 
-      {/* Content overlaid on video */}
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-16 md:py-24 h-full flex items-center">
-        <Reveal className="max-w-lg">
-          <div className="relative rounded-none bg-wine p-8 sm:p-10 md:p-12 flex flex-col justify-center">
-            <span aria-hidden className="block text-ink/40 mb-4 text-xl leading-none">·</span>
-            <h1 className="serif text-5xl sm:text-6xl md:text-[4.5rem] leading-[0.95] font-bold tracking-tight text-ink">
-              {t("hero_h1_line1")}
-              <span className="block mt-2 italic font-bold text-cream">
-                {t("hero_h1_line2")}
-              </span>
-            </h1>
-            <button
-              onClick={onCta}
-              className="mt-8 self-start text-[11px] tracking-[0.3em] uppercase font-bold text-ink border-b border-ink/50 pb-1 hover:border-ink hover:text-ink transition-colors"
-            >
-              {t("hero_cta")}
-            </button>
-            {/* Decorative top color ticks */}
-            <div aria-hidden className="absolute -top-1 left-6 flex gap-1.5">
-              <span className="block h-1.5 w-10 rounded-none bg-olive" />
-              <span className="block h-1.5 w-6 rounded-none bg-ink" />
-              <span className="block h-1.5 w-8 rounded-none bg-gold" />
+  const sceneRef = useGsapScene<HTMLElement>(({ scope, reduced, desktop }) => {
+    const poster = scope.querySelector<HTMLElement>(".hero-poster");
+    const overlay = scope.querySelector<HTMLElement>(".hero-overlay");
+    const block = scope.querySelector<HTMLElement>(".hero-block");
+    const lines = scope.querySelectorAll<HTMLElement>(".hero-line");
+    const cta = scope.querySelector<HTMLElement>(".hero-cta");
+    const ticks = scope.querySelectorAll<HTMLElement>(".hero-tick");
+
+    if (reduced) {
+      gsap.set([poster, overlay, block, lines, cta, ticks], { clearProps: "all" });
+      return;
+    }
+
+    if (!desktop) {
+      gsap.from(block, { y: 24, opacity: 0, duration: 0.8, ease: "power2.out" });
+      gsap.from(lines, {
+        y: 20,
+        opacity: 0,
+        stagger: 0.12,
+        duration: 0.7,
+        ease: "power2.out",
+        delay: 0.15,
+      });
+      gsap.from(cta, { opacity: 0, duration: 0.6, delay: 0.6 });
+      return;
+    }
+
+    const pinTarget = scope.querySelector<HTMLElement>(".hero-pin");
+    if (!pinTarget) return;
+
+    gsap.set(poster, { scale: 1.18, filter: "brightness(0.55)" });
+    gsap.set(overlay, { opacity: 1 });
+    gsap.set(block, { clipPath: "inset(0 100% 0 0)" });
+    gsap.set(lines, { yPercent: 60, opacity: 0 });
+    gsap.set(cta, { opacity: 0, y: 10 });
+    gsap.set(ticks, { scaleX: 0, transformOrigin: "left center" });
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: pinTarget,
+        start: "top top",
+        end: "+=120%",
+        pin: true,
+        scrub: 0.6,
+        anticipatePin: 1,
+      },
+    });
+
+    tl.to(poster, { scale: 1, filter: "brightness(1)", ease: "power2.out", duration: 1 }, 0)
+      .to(overlay, { opacity: 0.7, duration: 1, ease: "power1.out" }, 0)
+      .to(block, { clipPath: "inset(0 0% 0 0)", ease: "expo.out", duration: 1.2 }, 0.2)
+      .to(ticks, { scaleX: 1, ease: "power2.out", duration: 0.6, stagger: 0.08 }, 0.4)
+      .to(lines, { yPercent: 0, opacity: 1, ease: "expo.out", duration: 1, stagger: 0.25 }, 0.5)
+      .to(cta, { opacity: 1, y: 0, ease: "power2.out", duration: 0.6 }, 1.2);
+
+    // Subtle ambient float on the wine block (independent of scroll)
+    gsap.to(block, {
+      y: "+=6",
+      duration: 3.2,
+      ease: "sine.inOut",
+      repeat: -1,
+      yoyo: true,
+    });
+  }, []);
+
+  return (
+    <section ref={sceneRef} id="top" className="relative">
+      <div className="hero-pin relative h-screen min-h-[560px] overflow-hidden">
+        <img
+          src={heroPoster}
+          alt=""
+          aria-hidden
+          className="hero-poster absolute inset-0 h-full w-full object-cover will-change-transform"
+        />
+        <div
+          aria-hidden
+          className="hero-overlay absolute inset-0 bg-gradient-to-r from-ink/85 via-ink/55 to-ink/35"
+        />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 h-full flex items-center">
+          <div className="max-w-2xl">
+            <div className="hero-block relative rounded-none bg-wine p-8 sm:p-10 md:p-12 flex flex-col justify-center will-change-transform">
+              <h1 className="serif text-5xl sm:text-6xl md:text-[4.5rem] leading-[0.95] font-bold tracking-tight text-ink overflow-hidden">
+                <span className="hero-line block">{t("hero_h1_line1")}</span>
+                <span className="hero-line block mt-2 italic font-bold text-cream">
+                  {(() => {
+                    const text = t("hero_h1_line2");
+                    const idx = text.indexOf(",");
+                    if (idx === -1) return text;
+                    return (
+                      <>
+                        {text.slice(0, idx + 1)}
+                        <br />
+                        {text.slice(idx + 1).trimStart()}
+                      </>
+                    );
+                  })()}
+                </span>
+              </h1>
+              <button
+                onClick={onCta}
+                className="hero-cta mt-8 self-start text-[11px] tracking-[0.3em] uppercase font-bold text-ink border-b border-ink/50 pb-1 hover:border-ink hover:text-ink transition-colors"
+              >
+                {t("hero_cta")}
+              </button>
+              <div aria-hidden className="absolute -top-1 left-6 flex gap-1.5">
+                <span className="hero-tick block h-1.5 w-10 rounded-none bg-olive" />
+                <span className="hero-tick block h-1.5 w-6 rounded-none bg-ink" />
+                <span className="hero-tick block h-1.5 w-8 rounded-none bg-gold" />
+              </div>
             </div>
           </div>
-        </Reveal>
-      </div>
-
-      {/* Icon strip */}
-      <div className="relative">
-        <IconStrip />
-      </div>
-    </section>
-  );
-}
-
-function IconStrip() {
-  const items = [
-    { Icon: Sparkles, label: "Sin protocolos" },
-    { Icon: EyeOff, label: "A ciegas" },
-    { Icon: Mic, label: "Sommelier IA" },
-    { Icon: Trophy, label: "Ranking mensual" },
-    { Icon: Lock, label: "Sin registro" },
-  ];
-  return (
-    <div className="bg-olive">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-5">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-y-3 gap-x-6 items-center">
-          {items.map(({ Icon, label }) => (
-            <div key={label} className="flex items-center gap-2.5 text-sm font-semibold text-cream">
-              <Icon className="h-4 w-4 text-gold shrink-0" aria-hidden />
-              <span className="truncate">{label}</span>
-            </div>
-          ))}
         </div>
       </div>
-    </div>
+
+    </section>
   );
 }
 
 function MarqueeStrip() {
   const { t } = useI18n();
-  const items = [t("strip_1"), t("strip_2"), t("strip_3"), t("strip_4"), t("strip_5"), t("strip_6")];
+  const items = [
+    t("strip_1"),
+    t("strip_2"),
+    t("strip_3"),
+    t("strip_4"),
+    t("strip_5"),
+    t("strip_6"),
+  ];
   const row = [...items, ...items];
   return (
     <div className="relative bg-primary text-primary-foreground overflow-hidden">
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-primary to-transparent z-10" />
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-primary to-transparent z-10" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-primary to-transparent z-10"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-primary to-transparent z-10"
+      />
       <div className="flex w-max marquee py-3">
         {row.map((label, i) => (
-          <span key={i} className="flex items-center gap-3 px-6 serif text-base sm:text-lg italic whitespace-nowrap">
+          <span
+            key={i}
+            className="flex items-center gap-3 px-6 serif text-base sm:text-lg italic whitespace-nowrap"
+          >
             {label}
             <span aria-hidden className="h-1.5 w-1.5 rounded-none bg-accent" />
           </span>
@@ -228,245 +292,162 @@ function MarqueeStrip() {
   );
 }
 
-function Bento() {
-  return (
-    <section className="py-10 md:py-14">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        {/* Row 1 */}
-        <div className="grid gap-3 md:grid-cols-12 md:gap-4">
-          <Reveal className="md:col-span-4">
-            <div className="relative h-72 md:h-96 overflow-hidden rounded-none">
-              <img src={winner1} alt="Brindis" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-            </div>
-          </Reveal>
-          <Reveal delay={120} className="md:col-span-4">
-            <div className="h-72 md:h-96 rounded-none bg-card border border-border/60 p-6 sm:p-8 flex flex-col items-center justify-center text-center">
-              <div className="grid grid-cols-3 gap-4 sm:gap-6">
-                {[
-                  { bg: "color-mix(in oklab, var(--olive) 28%, var(--card))", label: "Vino" },
-                  { bg: "color-mix(in oklab, var(--primary) 28%, var(--card))", label: "Copa" },
-                  { bg: "color-mix(in oklab, var(--accent) 45%, var(--card))", label: "Amigos" },
-                ].map((c) => (
-                  <div key={c.label} className="flex flex-col items-center gap-3">
-                    <div
-                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-none"
-                      style={{ background: c.bg }}
-                      aria-hidden
-                    />
-                    <span className="text-xs sm:text-sm font-medium text-foreground/80">{c.label}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-8 serif italic text-sm text-foreground/60">Tres ingredientes. Una experiencia.</p>
-            </div>
-          </Reveal>
-          <Reveal delay={240} className="md:col-span-4">
-            <div className="h-72 md:h-96 rounded-none bg-accent text-accent-foreground p-7 sm:p-9 flex flex-col justify-center">
-              <p className="serif text-xl sm:text-2xl leading-snug font-semibold">
-                &ldquo;Cataron 4 vinos a ciegas y la del Priorat acabó ganando. Risas garantizadas.&rdquo;
-              </p>
-              <p className="mt-5 text-xs uppercase tracking-[0.25em] font-bold">— Marta · Barcelona</p>
-            </div>
-          </Reveal>
-        </div>
-
-        {/* Row 2 */}
-        <div className="grid gap-3 md:grid-cols-12 md:gap-4 mt-3 md:mt-4">
-          <Reveal className="md:col-span-4">
-            <div className="relative h-64 md:h-80 rounded-none bg-primary text-primary-foreground overflow-hidden flex items-center justify-center">
-              <div aria-hidden className="absolute -bottom-10 -left-10 h-40 w-40 rounded-none bg-accent/40 blur-2xl" />
-              <div className="relative text-center px-6 flex flex-col items-center">
-                <LogoIcon className="h-24 w-24 text-ink" />
-              </div>
-            </div>
-          </Reveal>
-          <Reveal delay={120} className="md:col-span-8">
-            <div className="relative h-64 md:h-80 rounded-none overflow-hidden">
-              <img src={winner2} alt="Cata Tastia" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-              <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
-              <div className="absolute bottom-5 right-5 text-right text-[color:var(--cream)]">
-                <h3 className="serif text-2xl sm:text-3xl font-bold">Pack Winelover</h3>
-                <p className="text-xs sm:text-sm opacity-85">4 vinos · cata online · sin registro</p>
-                <p className="serif text-xl mt-1">80€</p>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Values() {
-  const items = [
-    { src: productBox, label: "Cuidado en cada detalle", bg: "bg-secondary" },
-    { src: productQr, label: "QR sin instalación", bg: "bg-primary text-primary-foreground" },
-    { src: productFriends, label: "Pensado para amigos", bg: "bg-olive text-cream" },
-  ];
-  return (
-    <section className="py-14 md:py-20 bg-gold">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="rounded-none bg-card p-6 sm:p-10 md:p-12">
-          <div className="grid gap-6 sm:gap-8 md:grid-cols-3">
-            {items.map((it, i) => (
-              <Reveal key={it.label} delay={i * 120}>
-                <figure className={`relative h-80 rounded-none overflow-hidden ${it.bg}`}>
-                  <div className="absolute inset-x-6 top-6 bottom-20 overflow-hidden" style={{ borderRadius: "9999px 9999px 8px 8px" }}>
-                    <img src={it.src} alt={it.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                  </div>
-                  <figcaption className="absolute bottom-5 left-5 right-5">
-                    <span className="inline-block bg-olive text-cream px-4 py-2.5 serif text-sm font-semibold rounded-none">
-                      {it.label}
-                    </span>
-                  </figcaption>
-                </figure>
-              </Reveal>
-            ))}
-          </div>
-
-
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-
-
 function HowItWorks() {
   const { t } = useI18n();
   const steps = [
-    { icon: ShoppingBag, t: t("how_1_t"), d: t("how_1_d"), highlight: true },
-    { icon: PackageOpen, t: t("how_2_t"), d: t("how_2_d") },
-    { icon: QrCode, t: t("how_3_t"), d: t("how_3_d") },
-    { icon: Users, t: t("how_4_t"), d: t("how_4_d") },
+    { icons: [ShoppingBag], t: t("how_1_t"), d: t("how_1_d"), highlight: true },
+    { icons: [PackageOpen], t: t("how_2_t"), d: t("how_2_d") },
+    { icons: [QrCode], t: t("how_3_t"), d: t("how_3_d") },
+    { icons: [BottleWine], t: t("how_4_t"), d: t("how_4_d") },
   ];
 
-  // Subtle gradient stops: cream → burdeos a lo largo de los 4 pasos
-  const tints = [
-    "color-mix(in oklab, var(--primary) 5%, var(--card))",
-    "color-mix(in oklab, var(--primary) 14%, var(--card))",
-    "var(--gold)",
-    "var(--primary)",
-  ];
+  const sceneRef = useGsapScene<HTMLElement>(({ scope, reduced, desktop }) => {
+    const header = scope.querySelector<HTMLElement>(".how-header");
+    const items = scope.querySelectorAll<HTMLElement>(".step-item");
+    const numbers = scope.querySelectorAll<HTMLElement>(".step-number");
+    const watermarks = scope.querySelectorAll<HTMLElement>(".step-watermark-icon");
+    const pillars = scope.querySelectorAll<HTMLElement>(".pillar");
+
+    if (reduced) return;
+
+    if (!desktop) {
+      gsap.from(header, { y: 24, opacity: 0, duration: 0.7, ease: "power2.out" });
+      gsap.from(items, {
+        y: 30,
+        opacity: 0,
+        stagger: 0.1,
+        duration: 0.6,
+        ease: "power2.out",
+        delay: 0.2,
+      });
+      gsap.from(pillars, {
+        y: 30,
+        opacity: 0,
+        stagger: 0.1,
+        duration: 0.6,
+        ease: "power2.out",
+        delay: 0.5,
+      });
+      return;
+    }
+
+    const pin = scope.querySelector<HTMLElement>(".how-pin");
+    if (!pin) return;
+
+    gsap.set(header, { y: 40, opacity: 0 });
+    gsap.set(items, { y: 60, opacity: 0 });
+    gsap.set(numbers, { scale: 0.5, opacity: 0 });
+    gsap.set(watermarks, { opacity: 0, scale: 0.7 });
+    gsap.set(pillars, { y: 50, opacity: 0 });
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: pin,
+        start: "top 5%",
+        end: "+=200%",
+        pin: true,
+        pinSpacing: true,
+        scrub: 0.6,
+        anticipatePin: 1,
+      },
+    });
+
+    tl.to(header, { y: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, 0)
+      .to(items, { y: 0, opacity: 1, duration: 1, ease: "expo.out", stagger: 0.35 }, 0.4)
+      .to(
+        numbers,
+        { scale: 1, opacity: 1, duration: 0.7, ease: "back.out(1.6)", stagger: 0.35 },
+        0.55,
+      )
+      .to(
+        watermarks,
+        { opacity: 0.18, scale: 1, duration: 1, ease: "power2.out", stagger: 0.35 },
+        0.55,
+      )
+      .to(pillars, { y: 0, opacity: 1, duration: 1, ease: "expo.out", stagger: 0.25 }, 2.0);
+
+    // Ambient: slow rotation of watermark icons
+    watermarks.forEach((el, i) => {
+      gsap.to(el, {
+        rotation: i % 2 === 0 ? 8 : -8,
+        duration: 4 + i * 0.3,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+      });
+    });
+  }, []);
 
   return (
-    <section id="how" className="py-20 md:py-28">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <Reveal>
-          <div className="max-w-2xl">
+    <section ref={sceneRef} id="how" className="bg-background">
+      <div className="how-pin min-h-[95vh] flex flex-col justify-center py-16">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 w-full">
+          <div className="how-header max-w-2xl">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">{t("how_title")}</h2>
             <p className="mt-3 text-foreground/70">{t("how_sub")}</p>
           </div>
-        </Reveal>
 
-        <ol className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
-          {steps.map((s, i) => {
-            const Icon = s.icon;
-            const isLast = i === steps.length - 1;
-            const isFirst = i === 0;
-            const isDark = i >= 2;
-            // Horizontal arrow shape (lg+): notch on the left (except first), point on the right (except last)
-            const clip = isFirst && isLast
-              ? "none"
-              : isFirst
-              ? "polygon(0 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 0 100%)"
-              : isLast
-              ? "polygon(0 0, 100% 0, 100% 100%, 0 100%, 22px 50%)"
-              : "polygon(0 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 0 100%, 22px 50%)";
-
-            return (
-              <Reveal
-                key={i}
-                as="li"
-                delay={i * 110}
-                className="relative lg:-ml-2 first:lg:ml-0"
-                style={{ zIndex: steps.length - i }}
-              >
-                <div
-                  className="group relative h-full p-6 pl-7 lg:pl-10 lg:pr-9 transition-transform duration-300 hover:-translate-y-1"
-                  style={{ minHeight: "210px" }}
-                >
-                  {/* desktop chevron */}
-                  <div
-                    aria-hidden
-                    className="hidden lg:block absolute inset-0"
-                    style={{
-                      background: tints[i],
-                      clipPath: clip,
-                      boxShadow: "0 8px 24px -16px rgba(0,0,0,0.25)",
-                    }}
-                  />
-                  {/* mobile card */}
-                  <div
-                    aria-hidden
-                    className="lg:hidden absolute inset-0 rounded-none border border-border/60 shadow-soft"
-                    style={{ background: tints[i] }}
-                  />
-
-                  <div
-                    className="relative"
-                    style={{ color: isDark ? "var(--primary-foreground)" : "var(--foreground)" }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className="grid h-11 w-11 place-items-center rounded-none transition-transform group-hover:scale-110"
-                        style={{
-                          background: isDark
-                            ? "color-mix(in oklab, white 18%, transparent)"
-                            : "color-mix(in oklab, var(--primary) 14%, transparent)",
-                          color: isDark ? "var(--primary-foreground)" : "var(--primary)",
-                        }}
+          <ol className="steps-list grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0 mt-10">
+            {steps.map((s, i) => {
+              const Icons = s.icons;
+              return (
+                <li key={i} data-step={i} className="step-item lg:-ml-2 first:lg:ml-0">
+                  <div className="step-card group relative h-full p-6 pl-7 lg:pl-10 lg:pr-9 transition-transform duration-300 hover:-translate-y-1">
+                    <div className="step-card-body relative flex flex-col items-center text-center">
+                      {/* Watermark icon(s) — sits behind number + text */}
+                      <div
+                        aria-hidden
+                        data-step={i}
+                        className="step-watermark absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-2 pointer-events-none z-0"
                       >
-                        <Icon className="h-5 w-5" aria-hidden />
-                      </span>
+                        {Icons.map((IconCmp, idx) => (
+                          <IconCmp key={idx} className="step-watermark-icon h-40 w-40" />
+                        ))}
+                      </div>
+
+                      {/* Number in rounded wrapper */}
                       <span
-                        className="serif text-2xl font-bold"
-                        style={{
-                          color: isDark
-                            ? "color-mix(in oklab, white 60%, transparent)"
-                            : "color-mix(in oklab, var(--foreground) 30%, transparent)",
-                        }}
+                        data-step={i}
+                        className="step-number relative z-10 grid place-items-center rounded-full serif font-bold transition-transform group-hover:scale-105"
                       >
-                        0{i + 1}
+                        {i + 1}
                       </span>
+
+                      <h3 className="step-title relative z-10 mt-5 font-semibold">{s.t}</h3>
+                      <p className="step-desc relative z-10 mt-2 text-sm leading-relaxed">{s.d}</p>
                     </div>
-                    <h3 className="mt-5 text-xl font-semibold">{s.t}</h3>
-                    <p
-                      className="mt-2 text-sm leading-relaxed"
-                      style={{
-                        color: isDark
-                          ? "color-mix(in oklab, white 85%, transparent)"
-                          : "color-mix(in oklab, var(--foreground) 72%, transparent)",
-                      }}
-                    >
-                      {s.d}
-                    </p>
-                    {s.highlight && (
-                      <span className="mt-4 inline-flex items-center gap-1.5 rounded-none bg-accent/25 text-accent-foreground px-2.5 py-1 text-xs font-semibold">
-                        <Check className="h-3.5 w-3.5" aria-hidden /> {t("how_no_signup")}
-                      </span>
-                    )}
                   </div>
-                </div>
+                </li>
+              );
+            })}
+          </ol>
 
-                {/* Mobile down-arrow connector between steps */}
-                {!isLast && (
-                  <div
-                    aria-hidden
-                    className="lg:hidden flex justify-center"
-                    style={{ color: tints[i + 1], marginTop: "-2px", marginBottom: "-2px" }}
-                  >
-                    <svg width="22" height="14" viewBox="0 0 22 14" fill="currentColor">
-                      <polygon points="0,0 22,0 11,14" />
-                    </svg>
-                  </div>
-                )}
-              </Reveal>
-            );
-          })}
-        </ol>
+          <div className="mt-10 grid gap-6 lg:grid-cols-3">
+            <article className="pillar lg:col-span-2 rounded-none bg-primary text-primary-foreground p-8 md:p-10 shadow-card overflow-hidden relative">
+              <Mic className="h-14 w-14 text-white" aria-hidden />
+              <h3 className="pillar-title mt-5 serif font-bold">{t("why_1_t")}</h3>
+              <p className="mt-3 text-primary-foreground/85 text-base sm:text-lg max-w-xl">
+                {t("why_1_d")}
+              </p>
+            </article>
+
+            <article className="pillar rounded-none bg-card p-8 shadow-soft">
+              <Trophy className="h-14 w-14 text-foreground" aria-hidden />
+              <h3 className="pillar-title pillar-title--tight mt-5 serif font-bold">
+                {t("why_2_t")}
+              </h3>
+              <p className="mt-2 text-sm text-foreground/70">{t("why_2_d")}</p>
+            </article>
+
+            <article className="pillar pillar-blush lg:col-span-3 rounded-none p-8 shadow-soft flex flex-col sm:flex-row gap-6 sm:items-center">
+              <EyeOff className="h-14 w-14 text-primary shrink-0" aria-hidden />
+              <div>
+                <h3 className="pillar-title serif font-bold">{t("why_3_t")}</h3>
+                <p className="mt-2 text-sm text-foreground/70 max-w-2xl">{t("why_3_d")}</p>
+              </div>
+            </article>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -474,38 +455,116 @@ function HowItWorks() {
 
 function FriendsTasting() {
   const { t } = useI18n();
+
+  const sceneRef = useGsapScene<HTMLElement>(({ scope, reduced, desktop }) => {
+    const image = scope.querySelector<HTMLElement>(".friends-image");
+    const img = scope.querySelector<HTMLElement>(".friends-image img");
+    const tag = scope.querySelector<HTMLElement>(".friends-tag");
+    const title = scope.querySelector<HTMLElement>(".friends-title");
+    const desc = scope.querySelector<HTMLElement>(".friends-desc");
+    const items = scope.querySelectorAll<HTMLElement>(".friends-item");
+
+    if (reduced) return;
+
+    if (!desktop) {
+      gsap.from([tag, title, desc], {
+        y: 24,
+        opacity: 0,
+        stagger: 0.12,
+        duration: 0.7,
+        ease: "power2.out",
+      });
+      gsap.from(items, {
+        x: -20,
+        opacity: 0,
+        stagger: 0.1,
+        duration: 0.6,
+        ease: "power2.out",
+        delay: 0.4,
+      });
+      return;
+    }
+
+    const pin = scope.querySelector<HTMLElement>(".friends-pin");
+    if (!pin || !image) return;
+
+    gsap.set(image, { clipPath: "circle(0% at 20% 50%)" });
+    gsap.set(img, { scale: 1.25 });
+    gsap.set([tag, title, desc], { y: 40, opacity: 0 });
+    gsap.set(items, { x: -30, opacity: 0 });
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: pin,
+        start: "top 5%",
+        end: "+=160%",
+        pin: true,
+        scrub: 0.6,
+        anticipatePin: 1,
+      },
+    });
+
+    tl.to(image, { clipPath: "circle(100% at 20% 50%)", ease: "expo.out", duration: 1.4 }, 0)
+      .to(img, { scale: 1, ease: "power2.out", duration: 1.4 }, 0)
+      .to(tag, { y: 0, opacity: 1, ease: "power2.out", duration: 0.6 }, 0.5)
+      .to(title, { y: 0, opacity: 1, ease: "expo.out", duration: 0.9 }, 0.65)
+      .to(desc, { y: 0, opacity: 1, ease: "power2.out", duration: 0.7 }, 0.95)
+      .to(items, { x: 0, opacity: 1, ease: "power2.out", duration: 0.6, stagger: 0.2 }, 1.2);
+
+    // Ambient: gentle parallax drift on the image
+    gsap.to(img, {
+      y: -8,
+      duration: 4,
+      ease: "sine.inOut",
+      repeat: -1,
+      yoyo: true,
+    });
+  }, []);
+
   return (
-    <section className="py-14 md:py-20 bg-gold">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="grid gap-8 md:grid-cols-2 items-center">
-          <Reveal>
-            <div className="relative rounded-none overflow-hidden">
-              <img
-                src={tastingTableImg.url}
-                alt="Amigos en una cata a ciegas con Tastia"
-                loading="lazy"
-                className="w-full h-auto object-cover"
-              />
+    <section ref={sceneRef} className="relative overflow-hidden bg-gold">
+      <div className="friends-pin relative min-h-[95vh] flex items-center py-14 md:py-20">
+        {/* Desktop: full-height rounded image, left-aligned with 5vw overflow past viewport */}
+        <div className="friends-image hidden md:block absolute inset-y-0 rounded-r-full rounded-l-none overflow-hidden pointer-events-none">
+          <img
+            src={tastingTableImg}
+            alt="Amigos en una cata a ciegas con Tastia"
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover will-change-transform"
+          />
+        </div>
+
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 w-full">
+          <div className="grid gap-8 md:grid-cols-2 items-center">
+            {/* Mobile-only inline image */}
+            <div className="md:hidden">
+              <div className="relative rounded-3xl overflow-hidden">
+                <img
+                  src={tastingTableImg}
+                  alt="Amigos en una cata a ciegas con Tastia"
+                  loading="lazy"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
             </div>
-          </Reveal>
-          <Reveal delay={120}>
+            {/* Desktop spacer keeping right column aligned */}
+            <div className="hidden md:block" aria-hidden />
             <div className="flex flex-col justify-center">
-              <span className="text-[11px] tracking-[0.25em] uppercase font-bold text-ink/70">
+              <span className="friends-tag text-[11px] tracking-[0.25em] uppercase font-bold text-ink/70">
                 {t("friends_tag")}
               </span>
-              <h2 className="mt-3 serif text-3xl sm:text-4xl md:text-[2.75rem] leading-[1.05] font-bold text-ink">
+              <h2 className="friends-title mt-3 serif text-3xl sm:text-4xl md:text-[2.75rem] leading-[1.05] font-bold text-ink">
                 {t("friends_title")}
               </h2>
-              <p className="mt-4 text-base leading-relaxed text-ink/80 max-w-md">
+              <p className="friends-desc mt-4 text-base leading-relaxed text-ink/80 max-w-md">
                 {t("friends_desc")}
               </p>
               <ul className="mt-6 space-y-3">
-                {[
-                  t("friends_item_1"),
-                  t("friends_item_2"),
-                  t("friends_item_3"),
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm text-ink/80">
+                {[t("friends_item_1"), t("friends_item_2"), t("friends_item_3")].map((item) => (
+                  <li
+                    key={item}
+                    className="friends-item flex items-start gap-3 text-sm text-ink/80"
+                  >
                     <span className="grid h-5 w-5 shrink-0 place-items-center rounded-none bg-olive text-cream mt-0.5">
                       <Check className="h-3 w-3" aria-hidden />
                     </span>
@@ -514,7 +573,7 @@ function FriendsTasting() {
                 ))}
               </ul>
             </div>
-          </Reveal>
+          </div>
         </div>
       </div>
     </section>
@@ -571,21 +630,87 @@ function Packs({ onBuy }: { onBuy: (p: PackInfo) => void }) {
     },
   ];
 
-  return (
-    <section id="packs" className="scroll-mt-24 py-20 md:py-28 bg-secondary/40">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="max-w-2xl">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">{t("packs_title")}</h2>
-          <p className="mt-3 text-foreground/70">{t("packs_sub")}</p>
-        </div>
+  const sceneRef = useGsapScene<HTMLElement>(({ scope, reduced, desktop }) => {
+    const header = scope.querySelector<HTMLElement>(".packs-header");
+    const cards = scope.querySelectorAll<HTMLElement>(".pack-card");
+    const popular = scope.querySelector<HTMLElement>(".pack-card.is-popular");
+    const soon = scope.querySelector<HTMLElement>(".packs-soon");
 
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {packs.map((p, i) => (
-            <Reveal key={p.name} delay={i * 130}>
+    if (reduced) return;
+
+    if (!desktop) {
+      gsap.from(header, { y: 24, opacity: 0, duration: 0.7, ease: "power2.out" });
+      gsap.from(cards, {
+        y: 30,
+        opacity: 0,
+        stagger: 0.12,
+        duration: 0.6,
+        ease: "power2.out",
+        delay: 0.2,
+      });
+      gsap.from(soon, { opacity: 0, duration: 0.5, delay: 0.8 });
+      return;
+    }
+
+    const pin = scope.querySelector<HTMLElement>(".packs-pin");
+    if (!pin) return;
+
+    gsap.set(header, { y: 40, opacity: 0 });
+    gsap.set(cards, {
+      y: 80,
+      opacity: 0,
+      rotationX: -12,
+      transformPerspective: 900,
+      transformOrigin: "center bottom",
+    });
+    gsap.set(soon, { opacity: 0, y: 10 });
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: pin,
+        start: "top 5%",
+        end: "+=180%",
+        pin: true,
+        scrub: 0.6,
+        anticipatePin: 1,
+      },
+    });
+
+    tl.to(header, { y: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, 0)
+      .to(
+        cards,
+        { y: 0, opacity: 1, rotationX: 0, duration: 1.1, ease: "expo.out", stagger: 0.25 },
+        0.4,
+      )
+      .to(
+        popular,
+        {
+          scale: 1.03,
+          boxShadow: "0 30px 60px -20px rgba(0,0,0,0.25)",
+          duration: 0.8,
+          ease: "power2.out",
+        },
+        1.6,
+      )
+      .to(soon, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 2.1);
+  }, []);
+
+  return (
+    <section ref={sceneRef} id="packs" className="scroll-mt-24 bg-secondary/40">
+      <div className="packs-pin min-h-[95vh] flex flex-col justify-center py-16">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 w-full">
+          <div className="packs-header max-w-2xl">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">{t("packs_title")}</h2>
+            <p className="mt-3 text-foreground/70">{t("packs_sub")}</p>
+          </div>
+
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {packs.map((p) => (
               <Card
-                className={`relative flex h-full flex-col overflow-hidden rounded-none border bg-card hover-lift ${
+                key={p.name}
+                className={`pack-card relative flex h-full flex-col overflow-hidden rounded-none border bg-card will-change-transform ${
                   p.popular
-                    ? "border-primary shadow-card ring-1 ring-primary/40"
+                    ? "is-popular border-primary shadow-card ring-1 ring-primary/40"
                     : "border-border/70 shadow-soft"
                 }`}
               >
@@ -634,62 +759,18 @@ function Packs({ onBuy }: { onBuy: (p: PackInfo) => void }) {
                     onClick={() => onBuy(p)}
                     variant={p.popular ? "wine" : "outlineWine"}
                     size="lg"
-                    className="mt-auto w-full"
+                    className="pack-buy-btn mt-auto w-full"
                   >
-                    {p.popular && <Sparkles className="h-4 w-4" aria-hidden />}
                     {t("packs_buy")} · {p.price}
                   </Button>
                 </CardContent>
               </Card>
-            </Reveal>
-          ))}
+            ))}
+          </div>
 
-        </div>
-
-        <p className="mt-8 text-center text-sm text-foreground/60 italic">{t("packs_soon")}</p>
-      </div>
-    </section>
-  );
-}
-
-function Why() {
-  const { t } = useI18n();
-  return (
-    <section className="py-20 md:py-28 bg-green">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="max-w-2xl">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">{t("why_title")}</h2>
-        </div>
-
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          <article className="lg:col-span-2 rounded-none bg-primary text-primary-foreground p-8 md:p-10 shadow-card overflow-hidden relative">
-            <div aria-hidden className="absolute -right-10 -top-10 h-48 w-48 rounded-none bg-accent/30 blur-2xl" />
-            <span className="inline-grid h-12 w-12 place-items-center rounded-none bg-accent text-accent-foreground">
-              <Mic className="h-6 w-6" aria-hidden />
-            </span>
-            <h3 className="mt-5 serif text-2xl sm:text-3xl font-bold">{t("why_1_t")}</h3>
-            <p className="mt-3 text-primary-foreground/85 text-base sm:text-lg max-w-xl">
-              {t("why_1_d")}
-            </p>
-          </article>
-
-          <article className="rounded-none bg-card border border-border/70 p-8 shadow-soft">
-            <span className="inline-grid h-11 w-11 place-items-center rounded-none bg-accent/20 text-foreground">
-              <Trophy className="h-5 w-5" aria-hidden />
-            </span>
-            <h3 className="mt-5 serif text-xl font-bold">{t("why_2_t")}</h3>
-            <p className="mt-2 text-sm text-foreground/70">{t("why_2_d")}</p>
-          </article>
-
-          <article className="lg:col-span-3 rounded-none bg-gold p-8 shadow-soft flex flex-col sm:flex-row gap-6 sm:items-center">
-            <span className="inline-grid h-11 w-11 place-items-center rounded-none bg-primary/10 text-primary shrink-0">
-              <EyeOff className="h-5 w-5" aria-hidden />
-            </span>
-            <div>
-              <h3 className="serif text-xl font-bold">{t("why_3_t")}</h3>
-              <p className="mt-2 text-sm text-foreground/70 max-w-2xl">{t("why_3_d")}</p>
-            </div>
-          </article>
+          <p className="packs-soon mt-8 text-center text-sm text-foreground/60 italic">
+            {t("packs_soon")}
+          </p>
         </div>
       </div>
     </section>
@@ -700,7 +781,7 @@ function Footer({ onOpenLegal }: { onOpenLegal: (tab: LegalTab) => void }) {
   const { t } = useI18n();
   const linkCls = "text-sm text-foreground/75 hover:text-foreground py-1 text-left";
   return (
-    <footer className="border-t border-border/60 bg-secondary/30">
+    <footer className="border-t border-border/60 bg-white">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-12 grid gap-8 md:grid-cols-4">
         <div className="md:col-span-2">
           <Logo />
@@ -717,36 +798,90 @@ function Footer({ onOpenLegal }: { onOpenLegal: (tab: LegalTab) => void }) {
             {t("trust_pay")}
           </div>
           <div className="flex items-center gap-2" aria-label="Payment methods">
-            {["VISA", "MC", "Pay"].map((m) => (
-              <span
-                key={m}
-                aria-hidden
-                className="inline-flex items-center justify-center h-7 min-w-12 rounded-none border border-border bg-background px-2 text-[10px] font-bold tracking-wider text-foreground/70"
-              >
-                {m}
-              </span>
-            ))}
+            <span
+              aria-label="Visa"
+              className="inline-flex items-center justify-center h-10 w-16 rounded-none border border-border bg-background"
+            >
+              <svg viewBox="0 0 48 16" className="h-5" aria-hidden>
+                <text
+                  x="24"
+                  y="13"
+                  textAnchor="middle"
+                  fontFamily="Helvetica, Arial, sans-serif"
+                  fontWeight="900"
+                  fontSize="14"
+                  fontStyle="italic"
+                  fill="#1A1F71"
+                >
+                  VISA
+                </text>
+              </svg>
+            </span>
+            <span
+              aria-label="Mastercard"
+              className="inline-flex items-center justify-center h-10 w-16 rounded-none border border-border bg-background"
+            >
+              <svg viewBox="0 0 32 20" className="h-6" aria-hidden>
+                <circle cx="12" cy="10" r="7" fill="#EB001B" />
+                <circle cx="20" cy="10" r="7" fill="#F79E1B" />
+                <path d="M16 4.6a7 7 0 0 1 0 10.8 7 7 0 0 1 0-10.8z" fill="#FF5F00" />
+              </svg>
+            </span>
+            <span
+              aria-label="PayPal"
+              className="inline-flex items-center justify-center h-10 w-16 rounded-none border border-border bg-background"
+            >
+              <svg viewBox="0 0 64 16" className="h-4" aria-hidden>
+                <text
+                  x="32"
+                  y="13"
+                  textAnchor="middle"
+                  fontFamily="Helvetica, Arial, sans-serif"
+                  fontWeight="900"
+                  fontSize="14"
+                  fontStyle="italic"
+                  fill="#003087"
+                >
+                  Pay<tspan fill="#009CDE">Pal</tspan>
+                </text>
+              </svg>
+            </span>
           </div>
           <p className="text-sm text-foreground/65">{t("trust_ship")}</p>
-          <span aria-hidden className="inline-flex items-center justify-center h-9 min-w-12 border-2 border-foreground/80 px-2 text-xs font-black tracking-wider">
+          <span
+            aria-hidden
+            className="inline-flex items-center justify-center h-9 min-w-12 border-2 border-foreground/80 px-2 text-xs font-black tracking-wider"
+          >
             +18
           </span>
         </div>
 
         <nav className="flex flex-col gap-1 md:items-start" aria-label="Footer legal">
-          <a href="mailto:hola@tastia.org" className={linkCls}>{t("link_contact")}</a>
-          <button type="button" onClick={() => onOpenLegal("terms")} className={linkCls}>{t("link_terms")}</button>
-          <button type="button" onClick={() => onOpenLegal("privacy")} className={linkCls}>{t("link_privacy")}</button>
-          <button type="button" onClick={() => onOpenLegal("cookies")} className={linkCls}>{t("link_cookies")}</button>
-          <button type="button" onClick={() => onOpenLegal("legal")} className={linkCls}>{t("link_legal")}</button>
-          <button type="button" onClick={() => onOpenLegal("shipping")} className={linkCls}>{t("link_shipping")}</button>
+          <a href="mailto:hola@tastia.org" className={linkCls}>
+            {t("link_contact")}
+          </a>
+          <button type="button" onClick={() => onOpenLegal("terms")} className={linkCls}>
+            {t("link_terms")}
+          </button>
+          <button type="button" onClick={() => onOpenLegal("privacy")} className={linkCls}>
+            {t("link_privacy")}
+          </button>
+          <button type="button" onClick={() => onOpenLegal("cookies")} className={linkCls}>
+            {t("link_cookies")}
+          </button>
+          <button type="button" onClick={() => onOpenLegal("legal")} className={linkCls}>
+            {t("link_legal")}
+          </button>
+          <button type="button" onClick={() => onOpenLegal("shipping")} className={linkCls}>
+            {t("link_shipping")}
+          </button>
         </nav>
       </div>
     </footer>
   );
 }
 
-function Ranking({ onCta }: { onCta: () => void }) {
+function Ranking({ onCta: _onCta }: { onCta: () => void }) {
   const { t } = useI18n();
   const podium = [
     {
@@ -780,7 +915,7 @@ function Ranking({ onCta }: { onCta: () => void }) {
       pts: 1520,
       prize: t("rank_p3_prize"),
       img: winner3,
-      bg: "bg-[color:var(--blush)]",
+      bg: "bg-olive text-cream",
       accent: "from-ink/30",
       height: "md:h-64",
       medal: "🥉",
@@ -788,89 +923,120 @@ function Ranking({ onCta }: { onCta: () => void }) {
   ];
 
   return (
-    <section id="ranking" className="scroll-mt-24 relative overflow-hidden py-20 md:py-28 bg-wine text-wine-foreground">
-      <div aria-hidden className="pointer-events-none absolute -top-32 right-10 h-96 w-96 rounded-none bg-primary/30 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-10 h-96 w-96 rounded-none bg-accent/20 blur-3xl" />
+    <section
+      id="ranking"
+      className="scroll-mt-24 relative overflow-hidden bg-wine text-wine-foreground"
+    >
+      <div className="relative flex flex-col py-16">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-8 right-4 sm:right-10 opacity-10 select-none rotate-[30deg] origin-center"
+        >
+          <LogoIcon className="h-[28rem] w-[28rem] md:h-[36rem] md:w-[36rem]" />
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-32 right-10 h-96 w-96 rounded-none bg-primary/30 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-32 -left-10 h-96 w-96 rounded-none bg-accent/20 blur-3xl"
+        />
 
-      <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-        <Reveal>
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 w-full">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="max-w-2xl">
-              <span className="inline-flex items-center gap-2 rounded-none border border-accent/50 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent uppercase tracking-wider">
-                <Flame className="h-3.5 w-3.5" aria-hidden /> {t("rank_eyebrow")}
-              </span>
-              <h2 className="mt-5 serif text-4xl sm:text-5xl md:text-6xl font-bold leading-[1.02]">
+              <h2 className="serif text-4xl sm:text-5xl md:text-6xl font-bold leading-[1.02]">
                 {t("rank_title")}
               </h2>
               <p className="mt-4 text-base sm:text-lg text-wine-foreground/75 max-w-xl">
                 {t("rank_sub")}
               </p>
             </div>
-            <div className="rounded-none bg-olive px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-cream/60">
-                {t("rank_month")}
+          </div>
+
+          {/* Podium */}
+          <ol className="mt-14 grid gap-6 md:grid-cols-3 md:items-end">
+            {podium.map((p) => {
+              return (
+                <li
+                  key={p.place}
+                  data-place={p.place}
+                  className={`podium-card relative overflow-hidden border border-wine-foreground/10 ${p.bg} ${p.height} ${p.place === 1 ? "order-1" : p.place === 2 ? "order-2" : "order-3"} md:order-none flex flex-col`}
+                >
+                  <div className="relative h-54 md:h-54 overflow-hidden">
+                    <img
+                      src={p.img}
+                      alt={p.name}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover object-top"
+                    />
+                    <div
+                      aria-hidden
+                      className={`absolute inset-0 bg-gradient-to-t ${p.accent} to-transparent`}
+                    />
+                    <span
+                      data-place={p.place}
+                      className="podium-place absolute top-3 left-3 serif font-bold"
+                    >
+                      #{p.place}
+                    </span>
+                  </div>
+                  <div className="flex flex-1 flex-col gap-3 p-5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <h3 className="serif text-2xl font-bold leading-tight">{p.name}</h3>
+                      <span className="serif text-xl font-bold">
+                        <span>{new Intl.NumberFormat("es-ES").format(p.pts)}</span>
+                        <span className="ml-1 text-[10px] uppercase tracking-wider opacity-70">
+                          {t("rank_pts")}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="text-xs uppercase tracking-[0.18em] opacity-70">{p.city}</div>
+                    <div className="mt-auto inline-flex items-start gap-2 rounded-none bg-black/15 px-3 py-2 text-sm">
+                      <Gift className="h-4 w-4 mt-0.5 shrink-0" aria-hidden />
+                      <span>{p.prize}</span>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
+          {/* Rules + CTA */}
+          <div className="rules-wrapper relative mt-12">
+            <div
+              className="rules-bg absolute inset-y-0 left-1/2 -translate-x-1/2 w-full"
+              aria-hidden
+            />
+            <div className="rules-card relative p-6 md:p-8">
+              <div className="text-center">
+                <h3 className="rules-title serif font-bold">{t("rank_rules_title")}</h3>
               </div>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="serif text-3xl font-bold text-accent">12</span>
-                <span className="text-xs text-cream/70">{t("rank_days_left")}</span>
-              </div>
+              <ul className="rules-list grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[t("rank_rule_1"), t("rank_rule_2"), t("rank_rule_3"), t("rank_rule_4")].map(
+                  (r) => {
+                    const [pts, ...rest] = r.split(" · ");
+                    const text = rest.join(" · ").replace(/\bacertar\s+/gi, "");
+                    const target = parseInt(pts.replace(/\D/g, ""), 10);
+                    return (
+                      <li
+                        key={r}
+                        data-target={target}
+                        className="rules-item text-ink text-center"
+                      >
+                        <h3 className="rules-pts serif font-bold leading-none" aria-label={pts} />
+                        <p className="rules-text mt-2 flex items-center justify-center gap-2 text-ink/85">
+                          <Check className="h-4 w-4 text-primary shrink-0" aria-hidden />
+                          <span>{text}</span>
+                        </p>
+                      </li>
+                    );
+                  },
+                )}
+              </ul>
             </div>
           </div>
-        </Reveal>
-
-        {/* Podium */}
-        <ol className="mt-14 grid gap-6 md:grid-cols-3 md:items-end">
-          {podium.map((p, i) => (
-            <Reveal as="li" key={p.place} delay={i * 140} className={`relative rounded-none overflow-hidden border border-wine-foreground/10 ${p.bg} ${p.height} flex flex-col`}>
-              <div className="relative h-44 md:h-48 overflow-hidden">
-                <img src={p.img} alt={p.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                <div aria-hidden className={`absolute inset-0 bg-gradient-to-t ${p.accent} to-transparent`} />
-                <span className="absolute top-3 left-3 grid h-11 w-11 place-items-center rounded-none bg-background text-foreground serif text-xl font-bold shadow-soft">
-                  #{p.place}
-                </span>
-                <span className="absolute top-3 right-3 text-2xl" aria-hidden>{p.medal}</span>
-              </div>
-              <div className="flex flex-1 flex-col gap-3 p-5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="serif text-2xl font-bold leading-tight">{p.name}</h3>
-                  <span className="serif text-xl font-bold">{new Intl.NumberFormat('es-ES').format(p.pts)}<span className="ml-1 text-[10px] uppercase tracking-wider opacity-70">{t("rank_pts")}</span></span>
-                </div>
-                <div className="text-xs uppercase tracking-[0.18em] opacity-70">{p.city}</div>
-                <div className="mt-auto inline-flex items-start gap-2 rounded-none bg-black/15 px-3 py-2 text-sm">
-                  <Gift className="h-4 w-4 mt-0.5 shrink-0" aria-hidden />
-                  <span>{p.prize}</span>
-                </div>
-              </div>
-            </Reveal>
-          ))}
-        </ol>
-
-        {/* Rules + CTA */}
-        <div className="mt-12 grid gap-6 md:grid-cols-5">
-          <Reveal className="md:col-span-3 rounded-none bg-olive p-6 md:p-8">
-            <div className="flex items-center gap-2 text-accent">
-              <Medal className="h-5 w-5" aria-hidden />
-              <h3 className="serif text-xl font-bold text-cream">{t("rank_rules_title")}</h3>
-            </div>
-            <ul className="mt-5 grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              {[t("rank_rule_1"), t("rank_rule_2"), t("rank_rule_3"), t("rank_rule_4"), t("rank_rule_5")].map((r) => (
-                <li key={r} className="flex items-start gap-2 text-cream/85">
-                  <Check className="mt-0.5 h-4 w-4 text-accent shrink-0" aria-hidden />
-                  <span>{r}</span>
-                </li>
-              ))}
-            </ul>
-          </Reveal>
-
-          <Reveal delay={120} className="md:col-span-2 rounded-none bg-accent text-accent-foreground p-6 md:p-8 flex flex-col justify-between">
-            <div>
-              <div className="serif italic text-sm">{t("rank_eyebrow")}</div>
-              <p className="mt-2 serif text-2xl leading-snug font-bold">{t("rank_disclaimer")}</p>
-            </div>
-            <Button variant="wine" size="lg" onClick={onCta} className="mt-6 w-full rounded-none">
-              <Trophy className="h-4 w-4" aria-hidden /> {t("rank_cta")}
-            </Button>
-          </Reveal>
         </div>
       </div>
     </section>
@@ -884,7 +1050,10 @@ function Landing() {
   const [legalOpen, setLegalOpen] = useState(false);
   const [legalTab, setLegalTab] = useState<LegalTab>("terms");
   const [testPaidOpen, setTestPaidOpen] = useState(false);
-  const openLegal = (tab: LegalTab) => { setLegalTab(tab); setLegalOpen(true); };
+  const openLegal = (tab: LegalTab) => {
+    setLegalTab(tab);
+    setLegalOpen(true);
+  };
 
   // Handle the return from Stripe Checkout (?checkout=success|cancel). This is
   // an HONEST test-mode confirmation only — the durable order is §Stripe-B.
@@ -941,12 +1110,8 @@ function Landing() {
         <Hero onCta={handleHeaderCta} />
         <HowItWorks />
         <FriendsTasting />
-        <Bento />
         <Packs onBuy={handleBuy} />
-        <Values />
         <Ranking onCta={handleHeaderCta} />
-
-        <Why />
       </main>
       <Footer onOpenLegal={openLegal} />
 
@@ -975,7 +1140,12 @@ function Landing() {
         onOpenLegal={openLegal}
       />
 
-      <LegalModal open={legalOpen} onOpenChange={setLegalOpen} tab={legalTab} onTabChange={setLegalTab} />
+      <LegalModal
+        open={legalOpen}
+        onOpenChange={setLegalOpen}
+        tab={legalTab}
+        onTabChange={setLegalTab}
+      />
       <AgeGate />
 
       <Dialog open={testPaidOpen} onOpenChange={setTestPaidOpen}>

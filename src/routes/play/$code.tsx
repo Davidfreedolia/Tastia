@@ -1,8 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import { Countdown } from "@/components/Countdown";
 import { useRoomChannel } from "@/lib/use-room-channel";
+import { useMockPlayerRoom, type MockPlayerScenario } from "@/lib/mock-room";
 import {
   FASE_LABEL,
   initials,
@@ -14,12 +17,30 @@ import {
 import { downscaleImage } from "@/lib/photo";
 import { supabaseConfigured } from "@/lib/supabase";
 
+// Fondo común a TODO el flujo del jugador: clase `play-bg` definida en styles.css
+// (product-friends.jpg como cover). Se aplica en welcome/lobby/inner screens.
+const PLAY_BG = "play-bg bg-cover bg-center bg-no-repeat";
+
+// `?mock=lobby|quiz|reveal|wine-podium|final` (o `?mock=1` → quiz) previsualiza
+// la app del jugador sin Supabase ni anfitrión real: salta el join y pinta el
+// Companion con datos demo. Útil para iterar la UX sin esperar a que arranque la sala.
+const MOCK_PLAYER_SCENARIO = z.enum(["lobby", "quiz", "reveal", "wine-podium", "final"]);
+const mockSearch = z
+  .object({ mock: z.union([MOCK_PLAYER_SCENARIO, z.literal("1"), z.literal("")]).optional() })
+  .parse;
+
 export const Route = createFileRoute("/play/$code")({
+  validateSearch: (s) => mockSearch(s),
   component: PlayPage,
 });
 
 function PlayPage() {
   const { code } = Route.useParams();
+  const { mock } = Route.useSearch();
+  const scenario: MockPlayerScenario | null =
+    mock === undefined ? null : mock === "1" || mock === "" ? "quiz" : mock;
+
+  if (scenario) return <MockCompanion code={code} scenario={scenario} />;
   const [name, setName] = useState("");
   const [joined, setJoined] = useState(false);
   // §5.11 — foto opcional: data-URL reducido (~128px JPEG) o null (avatar de iniciales).
@@ -42,17 +63,22 @@ function PlayPage() {
     };
 
     return (
-      <div className="grid min-h-screen place-items-center bg-background px-6">
-        <form
+      <div className={`grid min-h-screen place-items-center bg-background px-6 ${PLAY_BG}`}>
+        <div className="flex w-full max-w-sm flex-col items-center">
+          {/* Logo TastIA — mismo del landing, 5% más grande, sobre el formulario. */}
+          <div className="play-welcome-logo mb-[5vh] text-cream">
+            <Logo light />
+          </div>
+          <form
           onSubmit={(e) => {
             e.preventDefault();
             // Solo unir si hay nombre y la foto ya no se está procesando: evita que Enter
             // sortee el botón deshabilitado y entre con la foto a medio resolver.
             if (name.trim() && !processing) setJoined(true);
           }}
-          className="w-full max-w-sm rounded-none border border-border/60 bg-card p-6 text-center"
+          className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 text-center"
         >
-          <h1 className="serif text-2xl font-bold text-primary">Únete a la cata</h1>
+          <h1 className="serif text-2xl font-bold text-ink">Únete a la cata</h1>
           <p className="mt-1 text-sm text-foreground/60">Sala {code}</p>
 
           {/* §5.11 — avatar opcional: foto reducida o iniciales del nombre. */}
@@ -73,16 +99,23 @@ function PlayPage() {
                 size="sm"
                 disabled={processing}
                 onClick={() => fileRef.current?.click()}
+                className="h-6 rounded-lg"
               >
                 {processing ? "Procesando…" : photo ? "Cambiar foto" : "Añadir foto"}
               </Button>
               {photo && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setPhoto(null)}>
-                  Sin foto
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPhoto(null)}
+                  aria-label="Quitar foto"
+                  className="h-6 w-6 rounded-lg p-0"
+                >
+                  <TrashIcon className="h-4 w-4" />
                 </Button>
               )}
             </div>
-            <p className="text-xs text-foreground/50">La foto es opcional. Sin ella se usa tu inicial.</p>
           </div>
 
           <input
@@ -90,12 +123,19 @@ function PlayPage() {
             onChange={(e) => setName(e.target.value)}
             placeholder="Tu nombre"
             maxLength={24}
-            className="mt-5 w-full rounded-none border border-border bg-background px-3 py-3 text-center text-lg outline-none focus:border-primary"
+            className="mt-5 w-full rounded-[8px] border border-border bg-[oklch(1_0_0)] px-3 py-3 text-left text-lg outline-none placeholder:text-left focus:border-primary"
           />
-          <Button type="submit" variant="wine" size="lg" className="mt-4 w-full" disabled={!name.trim() || processing}>
+          <Button
+            type="submit"
+            variant="wine"
+            size="lg"
+            className="mt-4 h-14 w-full rounded-lg"
+            disabled={!name.trim() || processing}
+          >
             Entrar
           </Button>
         </form>
+        </div>
       </div>
     );
   }
@@ -114,7 +154,7 @@ function Avatar({
   size?: "md" | "lg";
 }) {
   const dim = size === "lg" ? "h-20 w-20 text-xl" : "h-10 w-10 text-sm";
-  const label = initials(name) || "·";
+  const label = initials(name) || "A";
   if (photo) {
     return (
       <img
@@ -137,31 +177,54 @@ function Avatar({
 
 function Companion({ code, name, photo }: { code: string; name: string; photo?: string }) {
   const room = useRoomChannel({ code, role: "player", name, photo });
-  const { state, connected, participants, meId, submitAnswer, myAnswer } = room;
+  return <CompanionView code={code} room={room} />;
+}
+
+/** Variante mock (?mock=…): salta el join y pinta el Companion con datos demo. */
+function MockCompanion({ code, scenario }: { code: string; scenario: MockPlayerScenario }) {
+  const room = useMockPlayerRoom(scenario);
+  return <CompanionView code={code} room={room} />;
+}
+
+/** UI compartida entre el Companion real (Supabase) y el de previsualización (mock). */
+function CompanionView({
+  code,
+  room,
+}: {
+  code: string;
+  room: {
+    state: RoomState;
+    connected: boolean;
+    participants: Participant[];
+    meId: string;
+    submitAnswer: (i: number) => void;
+    myAnswer: number | null;
+  };
+}) {
+  const { state, participants, meId, submitAnswer, myAnswer } = room;
+  const players = participants.filter((p) => !p.isHost);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="flex items-center justify-between border-b border-border/60 bg-card px-4 py-3">
-        <span className="serif font-bold text-primary">Tastia</span>
-        <span className="flex items-center gap-2 text-xs text-foreground/60">
-          <span className={`inline-block h-2 w-2 rounded-full ${connected ? "bg-green-500" : "bg-amber-500"}`} />
-          {name}
+    <div className={`min-h-screen bg-background text-foreground ${PLAY_BG}`}>
+      {/* Top bar — mismo lenguaje visual que /room/$code.tsx (fixed, ink/50, cream).
+          Logo y chip "Sala" agrupados a la izquierda; etiqueta de etapa centrada. */}
+      <header className="fixed left-0 right-0 top-0 z-10 flex items-center justify-between gap-3 bg-ink/50 px-5 py-3 text-cream">
+        <div className="flex items-center gap-3">
+          <span className="serif text-xl font-bold leading-none">
+            <span className="text-cream">Tast</span>
+            <span className="text-white">IA</span>
+          </span>
+          <span className="inline-flex w-fit items-baseline gap-2 rounded-full bg-[color-mix(in_oklab,var(--foreground)_55%,transparent)] px-3 py-1 text-cream">
+            <span className="font-sans text-sm font-normal">Sala</span>
+            <span className="font-sans text-sm font-semibold tracking-widest">{code}</span>
+          </span>
+        </div>
+        <span className="text-sm font-semibold text-cream">
+          {STAGE_LABEL[state.stage]}
         </span>
       </header>
 
-      <main className="mx-auto max-w-md px-4 py-6">
-        <div className="rounded-none border border-border/60 bg-card p-3 text-center text-sm">
-          <span className="font-semibold">{STAGE_LABEL[state.stage]}</span>
-          {state.stage === "playing" && (
-            <span className="text-foreground/60">
-              {" "}
-              · Vino {state.wineIndex + 1}/{WINE_COUNT} · {FASE_LABEL[state.fase]}
-            </span>
-          )}
-          {/* §5.6b-A — badge discreto: el juego corre con datos demo (la edge function no respondió). */}
-          {state.source === "demo" && <DemoBadge />}
-        </div>
-
+      <main className="mx-auto max-w-md px-4 pb-6 pt-20">
         <CompanionBody
           state={state}
           participants={participants}
@@ -170,21 +233,55 @@ function Companion({ code, name, photo }: { code: string; name: string; photo?: 
           myAnswer={myAnswer}
         />
 
-        {participants.length > 0 && (
-          <div className="mt-6 rounded-none border border-border/60 bg-card p-3">
-            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-foreground/55">En la sala</p>
-            <ul className="flex flex-wrap gap-2 text-xs">
-              {participants.map((p) => (
-                <li key={p.id} className="rounded-none bg-secondary/60 px-2 py-1">
-                  {p.isHost ? "🖥️ " : ""}
-                  {p.name}
-                </li>
+        {players.length > 0 && state.stage === "lobby" && (
+          <div className="mt-6 rounded-2xl border border-border/60 bg-card p-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground/55">
+              En la sala ({players.length})
+            </p>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {players.map((p) => (
+                <LobbyPlayerTile key={p.id} participant={p} />
               ))}
             </ul>
           </div>
         )}
       </main>
     </div>
+  );
+}
+
+/** Tesela de jugador en lobby (mismo lenguaje visual que room/$code.tsx). */
+function LobbyPlayerTile({ participant }: { participant: Participant }) {
+  return (
+    <li className="relative flex flex-col items-center gap-2 overflow-hidden rounded-lg border border-muted bg-white p-3 text-center text-ink">
+      <LobbyAvatar name={participant.name} photo={participant.photo} />
+      <span className="line-clamp-1 w-full text-sm font-medium" title={participant.name}>
+        {participant.name}
+      </span>
+    </li>
+  );
+}
+
+/** Avatar para teselas del lobby: foto reducida o iniciales sobre fondo --ink (§5.11). */
+function LobbyAvatar({ name, photo }: { name: string; photo?: string }) {
+  const label = initials(name) || "A";
+  if (photo) {
+    return (
+      <img
+        src={photo}
+        alt={name || "Participante"}
+        className="h-14 w-14 shrink-0 rounded-full border border-border/60 object-cover"
+      />
+    );
+  }
+  return (
+    <span
+      className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink text-lg font-bold text-white"
+      role="img"
+      aria-label={name || "Participante"}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -203,7 +300,11 @@ function CompanionBody({
   myAnswer: number | null;
 }) {
   if (state.stage === "lobby") {
-    return <Msg>Estás dentro. Esperando a que el anfitrión empiece la cata…</Msg>;
+    return (
+      <h2 className="serif mt-6 text-center text-2xl font-bold text-[oklch(1_0_0)]">
+        Estás dentro. Esperando a que el anfitrión empiece la cata…
+      </h2>
+    );
   }
 
   if (state.stage === "playing") {
@@ -223,19 +324,7 @@ function CompanionBody({
 
   // final_podium
   return (
-    <CompanionScore title="¡Cata terminada! 🍷" state={state} participants={participants} meId={meId} final />
-  );
-}
-
-/** Etiqueta discreta "Datos demo" (§5.6b-A): el juego corre sin la edge function. */
-function DemoBadge() {
-  return (
-    <span
-      className="ml-2 rounded-none border border-amber-500/60 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600"
-      title="El juego usa datos de muestra: la base de datos no respondió."
-    >
-      Datos demo
-    </span>
+    <CompanionScore title="¡Ha terminado la cata!" state={state} participants={participants} meId={meId} final />
   );
 }
 
@@ -278,7 +367,8 @@ function PlayerQuiz({
   }
 
   return (
-    <div className="mt-4 rounded-none border border-primary/40 bg-card p-4">
+    <div className="flex min-h-[calc(100vh-5rem)] items-center">
+    <div className="w-full rounded-2xl border border-primary/40 bg-card p-4">
       <p className="text-center text-xs uppercase tracking-wider text-foreground/55">
         Vino {state.wineIndex + 1} · {FASE_LABEL[state.fase]}
       </p>
@@ -291,29 +381,32 @@ function PlayerQuiz({
           />
         </p>
       )}
-      <p className="serif mt-1 text-center text-lg font-bold">{question.prompt}</p>
+      <p className="serif mt-8 text-center text-3xl font-bold leading-[var(--tw-leading,var(--text-3xl--line-height))]">
+        {question.prompt}
+      </p>
 
-      <div className="mt-4 grid gap-2">
+      <div className="mt-8 grid gap-2">
         {question.options.map((opt, i) => {
           const selected = myAnswer === i;
           const correct = isReveal && i === correctIndex;
-          // En reveal: verde la correcta, rojo tu elección si falló; selección normal en quiz.
+          // Base: mismo lenguaje visual que el host (/room ?mock=quiz) — borde --muted + bg blanco.
+          // En reveal: verde para la correcta y primary para tu fallo; en quiz: primary para tu selección.
           const cls = isReveal
             ? correct
               ? "border-green-600 bg-green-600/15 font-semibold"
               : selected
                 ? "border-primary bg-primary/15"
-                : "border-border/60 bg-secondary/30"
+                : "border-muted bg-white"
             : selected
               ? "border-primary bg-primary/15 font-semibold"
-              : "border-border/70 bg-background hover:border-primary/60";
+              : "border-muted bg-white hover:border-primary/60";
           return (
             <button
               key={i}
               type="button"
               disabled={isReveal}
               onClick={() => submitAnswer(i)}
-              className={`flex items-center justify-between rounded-none border px-4 py-3 text-left text-base transition-colors disabled:cursor-default ${cls}`}
+              className={`flex h-14 items-center justify-between rounded-lg border px-4 text-left text-base transition-colors disabled:cursor-default ${cls}`}
             >
               <span>{opt}</span>
               {isReveal && correct && <span className="text-green-600">✓</span>}
@@ -324,22 +417,23 @@ function PlayerQuiz({
       </div>
 
       {!isReveal ? (
-        <p className="mt-3 text-center text-sm text-foreground/60">
+        <p className="mt-8 text-center text-sm text-foreground/60">
           {myAnswer === null ? "Toca tu respuesta (puedes cambiarla)." : "Respuesta enviada ✓ — puedes cambiarla."}
         </p>
       ) : (
-        <p className="mt-3 text-center text-sm font-semibold">
+        <p className="mt-8 text-center text-sm font-semibold">
           {myAnswer === null ? (
-            <span className="text-primary">✗ No respondiste</span>
+            <span className="text-[1.25em] font-bold text-primary">✗ No respondiste</span>
           ) : gotIt ? (
             <span className="text-green-600">
-              ✓ ¡Acertaste!{myAward ? <span className="ml-1 font-bold">+{myAward}</span> : null}
+              {myAward ? <span className="text-[1.25em] font-bold">+{myAward}</span> : null}
             </span>
           ) : (
-            <span className="text-primary">✗ Fallaste</span>
+            <span className="text-[1.25em] font-bold text-primary">✗ Fallaste</span>
           )}
         </p>
       )}
+    </div>
     </div>
   );
 }
@@ -365,22 +459,75 @@ function CompanionScore({
   const rank = ranked.findIndex((p) => p.id === meId) + 1;
 
   return (
-    <div className="mt-4 rounded-none border border-primary/40 bg-card p-5 text-center">
-      <p className="serif text-2xl font-bold">{title}</p>
-      <p className="mt-3 serif text-4xl font-bold text-primary">{state.scores[meId] ?? 0} pts</p>
-      {rank > 0 && (
-        <p className="mt-1 text-sm text-foreground/70">
-          {final
-            ? (["🥇 ¡Ganas!", "🥈 2º puesto", "🥉 3er puesto"][rank - 1] ?? `Puesto ${rank} de ${ranked.length}`)
-            : `Vas ${rank}º de ${ranked.length}`}
-        </p>
-      )}
+    <div className="flex min-h-[calc(100vh-5rem)] items-center">
+      <div className="w-full rounded-2xl border border-primary/40 bg-card p-5 text-center">
+        <p className="serif text-2xl font-bold">{title}</p>
+        <p className="mt-3 serif text-7xl font-bold text-primary">{state.scores[meId] ?? 0} pts</p>
+        {rank > 0 && (
+          <p className="mt-8 text-sm text-foreground/70">
+            {final ? (
+              rank <= 3 ? (
+                <span className="inline-flex items-center gap-2 text-[1.1em]">
+                  <MedalIcon place={rank as 1 | 2 | 3} />
+                  {rank === 1 ? "¡Ganas!" : rank === 2 ? "2º puesto" : "3er puesto"}
+                </span>
+              ) : (
+                `Puesto ${rank} de ${ranked.length}`
+              )
+            ) : (
+              `Vas ${rank}º de ${ranked.length}`
+            )}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
 
-function Msg({ children }: { children: React.ReactNode }) {
-  return <p className="mt-6 text-center text-foreground/70">{children}</p>;
+/** Medalla SVG para el podio final — 1.º oro, 2.º plata, 3.º bronce. Misma forma que /room. */
+function MedalIcon({ place }: { place: 1 | 2 | 3 }) {
+  const color =
+    place === 1
+      ? "text-gold"
+      : place === 2
+        ? "text-[oklch(0.6401_0_0)]"
+        : "text-[oklch(0.72_0.11_85.85)]";
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-[1.4em] w-[1.4em] shrink-0 ${color}`}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M7 2 L9.5 9 L12 6.5 L14.5 9 L17 2 Z" opacity="0.75" />
+      <circle cx="12" cy="16" r="6" />
+      <text x="12" y="18.5" textAnchor="middle" fontSize="6.5" fontWeight="700" fill="white">
+        {place}
+      </text>
+    </svg>
+  );
+}
+
+/** Icono papelera para el botón "quitar foto" del welcome. */
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
 }
 
 function SetupNotice() {
