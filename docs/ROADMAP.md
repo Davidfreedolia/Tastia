@@ -1,29 +1,33 @@
 # Tastia · Roadmap
 
-Equipo de 5 · decisiones por consenso. Estado a 2026-06-18.
+Equipo de 5 · decisiones por consenso. Estado a 2026-06-23.
 
-## ✅ Hecho (desplegado en https://tastia-eight.vercel.app)
-- Landing bilingüe ES/EN (packs, cómo funciona, ranking, legal, age-gate).
-- Cata en vivo multijugador (Supabase Realtime): `/room/:code` + `/play/:code`.
-- Revelación + puntuación + flujo guiado del host + podio final.
+> Foto de estado completa y maestra: **`docs/ESTADO-COMPLETO-Tastia.md`** (roadmap detallado en §6).
+> Este archivo es el resumen de secuencia.
 
-## 🔜 En curso — Backend (Supabase)
-Diseño en `docs/BACKEND.md`. Migraciones por dominio:
-- **0001 Fundación** ✅ — clientes, proveedores, catálogo (productos + vinos + notas de cata), inventario.
-- **0002 Finanzas** — compras, facturación de proveedores, órdenes/ventas.
-- **0003 Packs** — tiers (básico/normal/premium), componentes (bolsa, copas, abridor, tarjetas, sobre),
-  ensamblado random de 4 vinos por banda de precio, envío (península 24 h).
-- **0004 Gamificación** — avatar (proveedor + voz + persona), banco de preguntas.
-- **0005 Branding** — artes de impresión, logos, imagen de marca (Storage).
+## ✅ Hecho
+- **Bucle de negocio de punta a punta** (comprar → pedido → recibo con QR → activar sala → jugar → podio),
+  con Stripe en modo **TEST/demo** (sin claves LIVE, sin cobro real).
+- **Juego desde la BD (§5.6b):** 3 edge functions `quiz-bootstrap`/`quiz-close`/`session-finish`
+  **desplegadas y verificadas en prod** (23-jun). Preguntas coherentes (derivación FR-12 con distractores
+  del **mismo atributo**); anti-spoiler (las respuestas viven solo en `quiz-close`).
+- **Admin del juego** (ajustes · banco de preguntas · clasificación de vinos) en `/admin`.
+- **Esquema + RLS del juego + migración `0013`** aplicados/verificados en prod.
+- **Landing pública** (en `dev`): retirado el gate "en construcción"; `/admin` sigue protegido.
+- i18n ES/CA/EN/FR.
 
-## 🧩 Funcional / producto
-- **Avatar del sommelier** (el "wow"): decidir proveedor (HeyGen / Anam / Tavus) + API key → iframe en la Sala.
-- Sustituir los 4 vinos de muestra por reales.
-- Panel de **admin** (crear productos, importar proveedores por CSV, subir imágenes, gestionar preguntas/branding).
-- Checkout real con Stripe (ahora es stub) + recibo por email + generación de QR de la sala.
-- Limpiar copy inventada de la landing (testimonios/ranking) → marcar lo no construido como "Próximamente".
+## ⏳ Siguiente (vía crítica)
+1. **Validación end-to-end** con datos reales (Ignacio): compra → activar → sala → juego desde BD → podio,
+   multijugador, admin.
+2. **Publicar `dev → main`** para que la landing pública (y el resto del carril) lleguen a tastia.org.
 
-## 🎯 Decisiones abiertas del equipo
-- Nombres y rangos de precio definitivos de los packs.
-- Proveedor de avatar + presupuesto (coste por minuto).
-- Logística real (almacén, transportista, zonas de envío).
+## ⛔ Bloqueado a propósito (no son olvidos)
+- **§5.9 estado de sesión en vivo / reloj en servidor** — espera la **pregunta de cliente #6**
+  (¿la sesión pausa+reanuda al recaer el host?). Specs congeladas: estado en vivo efímero (presence+broadcast).
+- **Ficha de cata server-side para el avatar** — espera el contrato/consumidor del avatar (Andrés).
+
+## 🎯 Decisiones abiertas / negocio (David)
+- **Stripe:** se queda en **TEST/demo** (sin LIVE, sin cobro real).
+- **Email §B2:** causa raíz arreglada en código; falta dominio verificado en Resend + `RESEND_FROM` en Vercel.
+- **Avatar-sommelier** (Andrés): proveedor (HeyGen / Anam / Tavus) + voz ElevenLabs + coste por minuto.
+- Datos legales (dirección real, autónomo vs S.L.), pricing y logística definitivos.

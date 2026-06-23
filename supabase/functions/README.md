@@ -43,9 +43,12 @@ functions/
 
 ## Desplegar (quien tenga las credenciales del proyecto)
 
+> ✅ **Ya desplegadas en prod** (23-jun, proyecto `tyuehzsqvjpjysxdihsh`): `quiz-bootstrap`/`quiz-close`/
+> `session-finish` `ACTIVE`, `verify_jwt=true` (acepta la publishable key). Para re-desplegar tras un
+> cambio en `_shared/`, **desde la raíz del repo** (los imports se resuelven contra el CWD):
+
 ```bash
-supabase link --project-ref tyuehzsqvjpjysxdihsh   # una vez
-supabase functions deploy quiz-bootstrap quiz-close session-finish
+supabase functions deploy quiz-bootstrap quiz-close session-finish --project-ref tyuehzsqvjpjysxdihsh
 ```
 
 `verify_jwt = true` (en `supabase/config.toml`): aunque los clientes son anónimos (sin sesión),

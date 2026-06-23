@@ -1,7 +1,7 @@
 # Checklist de integración BD ↔ cliente (§5.6b) — para validar end-to-end
 
-> ✅ Las 3 edge functions **ya están implementadas** en `supabase/functions/` devolviendo exactamente
-> estos campos. Falta **desplegar** (`supabase functions deploy`) y correr este checklist contra la BD real.
+> ✅ Las 3 edge functions **ya están desplegadas en prod** (23-jun) en `supabase/functions/` devolviendo
+> exactamente estos campos. Pendiente solo correr este checklist contra la BD real (validación e2e).
 
 *El cliente (en `dev`) ya llama a las 3 edge functions con FALLBACK a demo. Para que el modo **BD** real
 funcione, las functions de Salvador deben devolver EXACTAMENTE estos campos (mismos nombres/forma). Si no
@@ -84,7 +84,7 @@ cliente LEE de verdad (extraído de `src/lib/quiz-source.ts` y `src/lib/session-
 **Ahora mismo (sin deploy) — modo DEMO:** en el preview, `/room/TEST` (Sala) + `/play/TEST` (móvil):
 - Debe jugar de punta a punta con badge **"Datos demo"**; al podio final NO llama a `session-finish`.
 
-**Cuando Salvador despliegue (`supabase functions deploy`) — modo BD:**
+**Ya desplegadas (23-jun) — a verificar en modo BD:**
 - [ ] La Sala arranca SIN badge "Datos demo" (→ `quiz-bootstrap` respondió bien con settings+questions válidos).
 - [ ] La cuenta atrás usa los tiempos de la BD; editar un tiempo en `/admin` → "Gamificación" cambia la duración.
 - [ ] Al cerrar cada pregunta, el reveal marca la opción correcta (de `quiz-close`) y reparte puntos.

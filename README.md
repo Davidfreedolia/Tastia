@@ -4,7 +4,7 @@ Catas de vino en grupo, gamificadas y moderadas en directo por un **sommelier-av
 Compras un pack físico (4 vinos + accesorios), escaneas un QR y un sommelier guía una cata a ciegas
 con tus amigos: apuestas, puntos y podio. Bilingüe **ES/EN**. Proyecto cooperativo de 5.
 
-> **Estado:** en construcción. La web pública muestra una pantalla de acceso; detrás está toda la app.
+> **Estado:** en `dev` la web ya es **pública** (retirado el gate "en construcción"); en `main`/producción sigue la pantalla de acceso hasta el próximo `dev → main`. El juego desde la BD ya está vivo (edge functions desplegadas en prod).
 
 ---
 
@@ -26,8 +26,8 @@ viene prefijado en `/login`; solo hay que escribir la contraseña (compartida po
 ## ✅ Qué está montado
 
 **Front (desplegado):**
-- **Puerta de acceso:** `/` pantalla naranja con icono → `/login` (Supabase) → `/landing` (web completa).
-  Sin sesión, `/landing` redirige a `/`.
+- **Acceso:** en `dev`, `/` redirige directo a `/landing` (web **pública**); el equipo entra a `/admin`
+  por `/login` (Supabase). En `main` sigue la puerta "en construcción" (`/` → `/login` → `/landing`) hasta `dev → main`.
 - **Cata en vivo (multijugador, Supabase Realtime):**
   - `/room/:code` — Sala (pantalla grande): avatar [placeholder], marcador, control del host.
   - `/play/:code` — Companion (móvil): unirse, ronda activa, enviar apuesta.
@@ -76,8 +76,8 @@ commitean — la publishable key es pública pero el `.env` va en `.gitignore`).
 ## 🗺️ Roadmap para terminar
 
 **Producto / pago**
-- [ ] **Stripe en modo test:** edge functions `create-checkout` + `stripe-webhook` (el webhook llama a
-  `assemble_order_pack`, genera `access_code` + QR y el recibo). Necesita la `sk_test_…`.
+- [x] **Stripe en modo test:** checkout (server fn en Vercel) + webhook (`orders` + `access_code`) +
+  recibo (email Resend + QR) ya construidos, en modo **TEST/demo** (sin claves LIVE: no hay cobro real).
 - [ ] **Avatar del sommelier (el "wow"):** elegir proveedor (HeyGen / Anam / Tavus) + API key → iframe en la Sala.
 - [ ] Vinos reales (ahora hay 4 de muestra en `src/lib/wines.ts`).
 - [ ] Limpiar copy inventada de la landing (testimonios/ranking) → marcar lo no construido como "Próximamente".
