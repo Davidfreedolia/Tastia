@@ -1,30 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { LogoIcon } from "@/components/logo";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-// Pantalla "en construcción": fondo naranja + icono grande (sacacorchos) → /login.
+// La raíz va directa a la landing pública: la web ya no está tras el gate "en construcción".
+// El acceso del equipo sigue disponible en /login (para entrar a /admin, que sí queda protegido).
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [{ title: "Tastia" }, { name: "robots", content: "noindex" }],
-  }),
-  component: Construction,
+  beforeLoad: () => {
+    throw redirect({ to: "/landing" });
+  },
 });
-
-function Construction() {
-  return (
-    <main
-      className="grid min-h-screen place-items-center"
-      style={{
-        background:
-          "radial-gradient(120% 120% at 20% 85%, #F2913E 0%, #E85E22 42%, #D8451A 100%)",
-      }}
-    >
-      <a
-        href="/login"
-        aria-label="Entrar"
-        className="block rounded-2xl p-8 transition-transform duration-300 hover:scale-105 active:scale-95"
-      >
-        <LogoIcon className="h-28 w-28 text-[#2B1A12] sm:h-36 sm:w-36" />
-      </a>
-    </main>
-  );
-}
