@@ -1,7 +1,7 @@
 # 🍷 Tastia — Estado completo del proyecto
 
 > **Documento maestro** del estado de la cata gamificada. Punto de entrada único: enlaza a los documentos
-> de detalle. _Última actualización: 2026-06-22._
+> de detalle. _Última actualización: 2026-06-23._
 > Producción = rama `main` (Vercel, dominio **tastia.org**) · Integración = `dev`.
 
 ---

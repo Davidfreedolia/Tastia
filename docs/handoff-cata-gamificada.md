@@ -98,7 +98,8 @@ Nuestro carril (cliente del juego + comercio + admin + landing) está **cerrado*
 ### Validación y diseño (tras nuestro carril)
 3. **Revisión end-to-end — Ignacio.** Validar el flujo completo con datos/secretos reales: compra (test) →
    pedido → `/activar` → sala → juego desde la BD → podio; multijugador (presence, reconexión, host ausente);
-   el admin (§5.8a/b/c). Reportar regresiones a quien corresponda por carril.
+   el admin (§5.8a/b/c). Reportar regresiones a quien corresponda por carril. **URLs y guion de prueba:**
+   `docs/integracion-bd-checklist.md` §0 (base `dev`: `tastia-git-dev-freedolias-projects-77c959bb.vercel.app` → `/room/TEST` + `/play/TEST`).
 4. **Diseño + diseño a producción — Quique.** Revisión de diseño y sistema premium/anti-pompós; la **Sala**
    (con el avatar), la **tienda** y el **companion móvil**; llevar el diseño a producción.
 
