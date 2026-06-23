@@ -155,10 +155,6 @@
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
-@keyframes reveal-up {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 @keyframes ring-pulse {
   0% { box-shadow: 0 0 0 0 oklch(0.382 0.13 18 / 0.45); }
   70% { box-shadow: 0 0 0 18px oklch(0.382 0.13 18 / 0); }
@@ -181,14 +177,6 @@
   animation: ring-pulse 2.2s ease-out infinite;
 }
 
-.reveal {
-  opacity: 0;
-  transform: translateY(24px);
-}
-.reveal.in {
-  animation: reveal-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
-}
-
 @utility hover-lift {
   transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.35s;
 }
@@ -202,6 +190,137 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .reveal { opacity: 1; transform: none; }
 }
+
+/* ============ Logo ============ */
+.logo-ia { color: oklch(46% 0.03 30); }
+.logo-ia--light { color: var(--cream); }
+
+/* ============ How it works — steps ============ */
+.steps-list { margin-top: 16vh; }
+
+.step-item { position: relative; }
+.step-item[data-step="0"] { z-index: 4; }
+.step-item[data-step="1"] { z-index: 3; }
+.step-item[data-step="2"] { z-index: 2; }
+.step-item[data-step="3"] { z-index: 1; }
+
+.step-card { min-height: 210px; }
+.step-card-body { color: var(--foreground); }
+
+.step-watermark {
+  margin-top: -16vh;
+  color: color-mix(in oklab, var(--foreground) 14%, transparent);
+}
+.step-watermark[data-step="0"] { margin-top: -14vh; }
+.step-watermark-icon + .step-watermark-icon { margin-left: -1rem; }
+
+.step-number {
+  width: calc(var(--text-5xl) * 1.6);
+  height: calc(var(--text-5xl) * 1.6);
+  font-size: var(--text-5xl);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.step-number[data-step="1"] { background: var(--olive); color: var(--primary-foreground); }
+.step-number[data-step="2"] { background: var(--gold); color: var(--ink); }
+.step-number[data-step="3"] { background: var(--blush); color: var(--ink); }
+
+.step-title { font-size: var(--text-2xl); }
+.step-desc { color: color-mix(in oklab, var(--foreground) 72%, transparent); }
+
+/* ============ Pillars ============ */
+.pillar-title { font-size: var(--text-5xl); line-height: 3rem; }
+.pillar-title--tight { line-height: 3rem; }
+.pillar-blush { background: var(--blush); }
+
+/* ============ Friends tasting image ============ */
+.play-bg {
+  background-image:
+    linear-gradient(
+      color-mix(in oklab, var(--ink) 60%, transparent),
+      color-mix(in oklab, var(--ink) 60%, transparent)
+    ),
+    url("./assets/product-friends.jpg");
+}
+
+/* Logo TastIA del welcome del jugador: 5% más grande que el del landing. */
+.play-welcome-logo {
+  transform: scale(1.05);
+  transform-origin: center;
+}
+
+.friends-image {
+  left: -18vw;
+  width: 66vw;
+  transform: scaleY(1.2);
+  transform-origin: center;
+}
+
+/* ============ Packs ============ */
+.pack-buy-btn { border-radius: 0.5rem; height: 3.5rem; }
+
+/* ============ Podium ============ */
+.podium-card { border-radius: 1.5rem; }
+.podium-place { font-size: var(--text-2xl); }
+.podium-place[data-place="1"] { font-size: var(--text-4xl); color: #ffffff; }
+.podium-place[data-place="2"] { font-size: var(--text-3xl); }
+
+/* Scroll-driven podium slide-in (order 3 → 2 → 1) */
+@supports (animation-timeline: view()) {
+  .podium-card {
+    opacity: 0;
+    animation: podium-slide-in linear both;
+    animation-timeline: view();
+    animation-range: cover 5% cover 45%;
+  }
+  .podium-card[data-place="3"] { animation-range: cover 5% cover 30%; }
+  .podium-card[data-place="2"] { animation-range: cover 15% cover 40%; }
+  .podium-card[data-place="1"] { animation-range: cover 25% cover 50%; }
+}
+@keyframes podium-slide-in {
+  from { opacity: 0; transform: translateY(48px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ Ranking rules ============ */
+.rules-card { background: transparent; }
+.rules-bg {
+  background: var(--cream);
+  border-radius: 50% 50% 0 0 / 28% 28% 0 0;
+  width: 100vw !important;
+  bottom: -4rem !important;
+}
+.rules-title { font-size: var(--text-5xl); line-height: 3rem; color: var(--wine); }
+.rules-list { margin-top: 5vh; }
+.rules-pts { font-size: var(--text-4xl); }
+.rules-text { font-size: 1rem; }
+
+/* Scroll-driven count-up for rules numbers (CSS only) */
+@property --rules-n {
+  syntax: '<integer>';
+  initial-value: 0;
+  inherits: false;
+}
+.rules-pts {
+  counter-reset: n var(--rules-n);
+}
+.rules-pts::before {
+  content: '+' counter(n) ' pts';
+}
+@supports (animation-timeline: view()) {
+  .rules-item { animation: rules-countup linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
+  .rules-item[data-target="20"] { --rules-target: 20; }
+  .rules-item[data-target="30"] { --rules-target: 30; }
+  .rules-item[data-target="15"] { --rules-target: 15; }
+  .rules-item[data-target="25"] { --rules-target: 25; }
+  .rules-item[data-target="20"] .rules-pts { animation: rules-countup-20 linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
+  .rules-item[data-target="30"] .rules-pts { animation: rules-countup-30 linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
+  .rules-item[data-target="15"] .rules-pts { animation: rules-countup-15 linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
+  .rules-item[data-target="25"] .rules-pts { animation: rules-countup-25 linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
+}
+@keyframes rules-countup-20 { from { --rules-n: 0; } to { --rules-n: 20; } }
+@keyframes rules-countup-30 { from { --rules-n: 0; } to { --rules-n: 30; } }
+@keyframes rules-countup-15 { from { --rules-n: 0; } to { --rules-n: 15; } }
+@keyframes rules-countup-25 { from { --rules-n: 0; } to { --rules-n: 25; } }
 

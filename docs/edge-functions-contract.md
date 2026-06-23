@@ -1,5 +1,11 @@
 # Contrato de Edge Functions — Cata gamificada (§5.6b)
 
+> ✅ **DESPLEGADO en prod** (23-jun) en `supabase/functions/` (`quiz-bootstrap`, `quiz-close`,
+> `session-finish`) conforme a este contrato, incluida la **derivación FR-12** (si no hay banco de
+> preguntas, se derivan de la ficha + taxonomía con el mismo algoritmo determinista del cliente; las
+> preguntas de gamificación reparten distractores **del mismo atributo**). Pendiente solo **validar**
+> end-to-end. Detalle y deploy: `supabase/functions/README.md`.
+
 *Lo que el **cliente** (la Sala/Companion) necesita de las **edge functions** de backend, para que se
 construyan a medida y los dos lados no se pisen. Propuesto desde el cliente; lo implementa quien lleva
 el backend (Salvador, sobre su esquema §5.6–§5.9 ya LIVE). El cliente mantiene el Realtime

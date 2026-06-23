@@ -1,10 +1,12 @@
 # Estado del proyecto — Cata gamificada de Tastia
 
+> ⚠️ **Documento histórico (21-jun).** Estado vigente y maestro: **`ESTADO-COMPLETO-Tastia.md`**. Se conserva como foto de aquel momento; varios "pendientes" de abajo ya están hechos (edge functions desplegadas en prod, landing pública en `dev`).
+
 *Documento de estado a 21 jun 2026. Foto completa: qué está hecho (equipo entero), qué está en curso,
 qué falta, y un **checklist de go-live**. Proyecto cooperativo de 5.*
 
 > **Repo:** https://github.com/Davidfreedolia/Tastia (privado) · ramas `main` (producción) y `dev` (integración, HEAD `348b07f`)
-> **Producción:** https://tastia.org — **todavía con la pantalla de acceso**; el juego vive en `dev` y previews. Se publica con `dev → main` cuando se decida.
+> **Producción:** https://tastia.org — la pantalla de acceso sigue en `main`; **en `dev` ya se ha retirado (landing pública)**. El juego vive en `dev` y previews. Se publica con `dev → main` cuando se decida.
 > **Preview de `dev`:** `https://tastia-git-dev-freedolias-projects-77c959bb.vercel.app` → `/room/TEST` (Sala) + `/play/TEST` (móvil).
 > **Supabase:** `tyuehzsqvjpjysxdihsh` (cuenta aparte, plan Free).
 
@@ -59,7 +61,7 @@ en `docs/integracion-bd-checklist.md`.
 | Quién | Qué | Estado |
 |---|---|---|
 | **Salvador** (`sahlvah`) | **BD §5.6–§5.9** (tablas + `ranking_mensual` + bucket `winners`) | ✅ en `dev` (#7) |
-| **Salvador** | **Edge functions** `quiz-bootstrap`/`quiz-close`/`session-finish` (anti-spoiler opción B) | 🟡 **PR #10 abierto, pendiente `supabase functions deploy`** |
+| **Salvador** / carril nuestro | **Edge functions** `quiz-bootstrap`/`quiz-close`/`session-finish` (anti-spoiler opción B) | ✅ **Desplegadas en prod (23-jun)**, smoke-test OK |
 | **Andrés** | **Avatar-sommelier (§5.4)** (IA con cara y voz, iframe en la Sala) | 🔧 en curso |
 
 ---

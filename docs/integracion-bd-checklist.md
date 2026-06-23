@@ -1,11 +1,47 @@
 # Checklist de integración BD ↔ cliente (§5.6b) — para validar end-to-end
 
+> ✅ Las 3 edge functions **ya están desplegadas en prod** (23-jun) en `supabase/functions/` devolviendo
+> exactamente estos campos. Pendiente solo correr este checklist contra la BD real (validación e2e).
+
 *El cliente (en `dev`) ya llama a las 3 edge functions con FALLBACK a demo. Para que el modo **BD** real
 funcione, las functions de Salvador deben devolver EXACTAMENTE estos campos (mismos nombres/forma). Si no
 coinciden, el cliente cae a demo (badge "Datos demo") o no puntúa — sin romperse. Esto es lo que el
 cliente LEE de verdad (extraído de `src/lib/quiz-source.ts` y `src/lib/session-finish.ts`).*
 
 > Fuente cliente: `quiz-source.ts` (bootstrap/close) · `use-room-channel.ts` (orquestación) · `session-finish.ts` (payload).
+
+---
+
+## 0. Entornos y URLs (prueba e2e) — actualizado 23-jun
+
+> **Hazlo en el preview de `dev`** (tiene el cliente más reciente + landing pública). Las edge functions ya
+> están **vivas en Supabase prod** (`tyuehzsqvjpjysxdihsh`), así que el juego corre en **modo BD** desde
+> cualquier frontend apuntado a ese proyecto. **NO uses tastia.org** (`main`) para esto: va por detrás (merge #25).
+
+**Base `dev`:** `https://tastia-git-dev-freedolias-projects-77c959bb.vercel.app` (alias estable; último deploy `dev` = `355ff87`, READY)
+
+| Qué | URL |
+|-----|-----|
+| Sala (host, pantalla grande) | `…/room/TEST` |
+| Companion (jugador, móvil) | `…/play/TEST` |
+| Admin | `…/admin` → login `hola@tastia.org` + contraseña de equipo |
+| Landing / tienda (pública en `dev`) | `…/` (redirige a `/landing`) |
+| Activar (canje de código) | `…/activar?code=<ACCESS_CODE>` |
+
+**Dos caminos de prueba:**
+
+- **A) Juego desde BD — valida las edge functions (sin Stripe):** abre `/room/TEST` (host) + `/play/TEST` en
+  2-3 móviles → la Sala debe arrancar **SIN** badge "Datos demo" (= `quiz-bootstrap` respondió) → juega las 4
+  fases × 4 vinos → el `reveal` marca la correcta y reparte puntos (`quiz-close`) → el podio final crea fila en
+  `game_sessions` + foto del ganador en el bucket `winners` (`session-finish`). Recorre las secciones 1-3 de
+  abajo **campo a campo**.
+- **B) Compra → activar (Stripe TEST):** requiere los secretos de Stripe en Vercel (David). Si están: landing →
+  carrito → `4242 4242 4242 4242` → recibo con QR/`access_code` → `/activar?code=…` → host en la Sala. Si no
+  están, el carrito dice "Próximamente" (honesto) y esta rama no se prueba aún.
+
+**Notas:** en `dev` no hace falta login para landing/room/play (gate retirado); `/admin` sí. `TEST` es el código
+de prueba (resuelve 4 vinos activos si no hay pedido pagado). Si el alias de `dev` diera 404, coge la URL del
+último deploy de `dev` en el dashboard de Vercel (proyecto `tastia`).
 
 ---
 
@@ -81,7 +117,7 @@ cliente LEE de verdad (extraído de `src/lib/quiz-source.ts` y `src/lib/session-
 **Ahora mismo (sin deploy) — modo DEMO:** en el preview, `/room/TEST` (Sala) + `/play/TEST` (móvil):
 - Debe jugar de punta a punta con badge **"Datos demo"**; al podio final NO llama a `session-finish`.
 
-**Cuando Salvador despliegue (`supabase functions deploy`) — modo BD:**
+**Ya desplegadas (23-jun) — a verificar en modo BD:**
 - [ ] La Sala arranca SIN badge "Datos demo" (→ `quiz-bootstrap` respondió bien con settings+questions válidos).
 - [ ] La cuenta atrás usa los tiempos de la BD; editar un tiempo en `/admin` → "Gamificación" cambia la duración.
 - [ ] Al cerrar cada pregunta, el reveal marca la opción correcta (de `quiz-close`) y reparte puntos.
