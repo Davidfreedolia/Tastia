@@ -99,11 +99,13 @@ secretos en cuentas de David (Stripe/Resend/Supabase).
 
 ## 6. 🗺️ Roadmap (secuencia)
 
-1. **Backend funcional** (Salvador) — vía crítica: sin esto el juego corre en demo y el admin no guarda. Las **edge functions ya están desplegadas en prod** (23-jun) y el esquema/RLS del juego + `0013` están aplicados → el backend ya es funcional. Queda la validación e2e.
-2. **Avatar Tasti** (Andrés) — en paralelo; depende de la ficha server-side de Salvador.
-3. **Revisión end-to-end** (Ignacio) — tras nuestro carril, con todo conectado.
-4. **Diseño a producción** (Quique).
-5. **Activación / negocio** (David) — secretos test, email, compliance; **Stripe se queda en TEST/demo** (sin go-live).
+1. ✅ **Backend funcional** (carril nuestro / "Salvador") — **HECHO** (23-jun): 3 edge functions desplegadas y verificadas en prod; esquema/RLS del juego + `0013` aplicados; quiz desde BD con **preguntas coherentes** (fix de la derivación FR-12 — distractores del mismo atributo — verificado en vivo). Único pendiente: la **validación e2e** con datos reales (Ignacio).
+2. ⛔ **Avatar Tasti** (Andrés) — **bloqueado**: depende de la ficha de cata server-side, que a su vez espera el contrato/consumidor del avatar. No se construye sin desbloquear.
+3. ⏳ **Revisión end-to-end** (Ignacio) — ahora que el backend está vivo: compra→activar→sala→juego desde BD→podio, multijugador, admin.
+4. ⏳ **Diseño a producción** (Quique).
+5. ⏳ **Activación / negocio** (David) — secretos test, email §B2 (causa raíz arreglada; falta dominio Resend + `RESEND_FROM`), compliance; **Stripe se queda en TEST/demo** (sin go-live).
+
+> **Bloqueado a propósito (no son olvidos):** §5.9 estado de sesión EN VIVO / reloj en servidor (espera la **pregunta de cliente #6**: ¿la sesión pausa+reanuda al recaer el host?) y la **ficha server-side del avatar** (espera a Andrés). Ver `deferred-work.md`.
 
 **Pipeline:** `feat/*` → PR a `dev` → revisión adversarial → `dev`→`main`. Ignacio hace el e2e; Quique el pase de diseño a producción.
 
