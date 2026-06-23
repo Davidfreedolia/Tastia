@@ -4,7 +4,7 @@ Catas de vino en grupo, gamificadas y moderadas en directo por un **sommelier-av
 Compras un pack físico (4 vinos + accesorios), escaneas un QR y un sommelier guía una cata a ciegas
 con tus amigos: apuestas, puntos y podio. Bilingüe **ES/EN**. Proyecto cooperativo de 5.
 
-> **Estado:** en `dev` la web ya es **pública** (retirado el gate "en construcción"); en `main`/producción sigue la pantalla de acceso hasta el próximo `dev → main`. El juego desde la BD ya está vivo (edge functions desplegadas en prod).
+> **Estado:** la web es **pública en producción** (tastia.org) — retirado el gate "en construcción". El juego desde la BD ya está vivo (edge functions desplegadas en prod). El acceso de equipo (`/admin`) sigue protegido por login.
 
 ---
 
@@ -26,8 +26,8 @@ viene prefijado en `/login`; solo hay que escribir la contraseña (compartida po
 ## ✅ Qué está montado
 
 **Front (desplegado):**
-- **Acceso:** en `dev`, `/` redirige directo a `/landing` (web **pública**); el equipo entra a `/admin`
-  por `/login` (Supabase). En `main` sigue la puerta "en construcción" (`/` → `/login` → `/landing`) hasta `dev → main`.
+- **Acceso:** `/` redirige directo a `/landing` (web **pública**). El equipo entra al panel por el enlace
+  **Admin** → `/admin`; sin sesión redirige a `/login` (Supabase) y, tras entrar, va a `/admin`.
 - **Cata en vivo (multijugador, Supabase Realtime):**
   - `/room/:code` — Sala (pantalla grande): avatar [placeholder], marcador, control del host.
   - `/play/:code` — Companion (móvil): unirse, ronda activa, enviar apuesta.

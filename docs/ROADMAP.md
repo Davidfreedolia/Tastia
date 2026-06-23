@@ -13,13 +13,13 @@ Equipo de 5 · decisiones por consenso. Estado a 2026-06-23.
   del **mismo atributo**); anti-spoiler (las respuestas viven solo en `quiz-close`).
 - **Admin del juego** (ajustes · banco de preguntas · clasificación de vinos) en `/admin`.
 - **Esquema + RLS del juego + migración `0013`** aplicados/verificados en prod.
-- **Landing pública** (en `dev`): retirado el gate "en construcción"; `/admin` sigue protegido.
+- **Landing pública en producción** (tastia.org): retirado el gate "en construcción"; `/admin` sigue protegido (login de equipo).
 - i18n ES/CA/EN/FR.
 
 ## ⏳ Siguiente (vía crítica)
 1. **Validación end-to-end** con datos reales (Ignacio): compra → activar → sala → juego desde BD → podio,
    multijugador, admin.
-2. **Publicar `dev → main`** para que la landing pública (y el resto del carril) lleguen a tastia.org.
+2. **Publicar nuevas tandas** con `dev → main` (la primera ya está en tastia.org: landing pública + carril del juego).
 
 ## ⛔ Bloqueado a propósito (no son olvidos)
 - **§5.9 estado de sesión en vivo / reloj en servidor** — espera la **pregunta de cliente #6**
