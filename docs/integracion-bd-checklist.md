@@ -16,7 +16,7 @@ cliente LEE de verdad (extraído de `src/lib/quiz-source.ts` y `src/lib/session-
 
 > **Hazlo en el preview de `dev`** (tiene el cliente más reciente + landing pública). Las edge functions ya
 > están **vivas en Supabase prod** (`tyuehzsqvjpjysxdihsh`), así que el juego corre en **modo BD** desde
-> cualquier frontend apuntado a ese proyecto. **NO uses tastia.org** (`main`) para esto: va por detrás (merge #25).
+> cualquier frontend apuntado a ese proyecto. Sirve **tanto el preview de `dev` como tastia.org** (`main`), ya al día.
 
 **Base `dev`:** `https://tastia-git-dev-freedolias-projects-77c959bb.vercel.app` (alias estable; último deploy `dev` = `355ff87`, READY)
 

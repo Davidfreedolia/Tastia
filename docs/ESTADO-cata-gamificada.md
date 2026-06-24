@@ -6,7 +6,7 @@
 qué falta, y un **checklist de go-live**. Proyecto cooperativo de 5.*
 
 > **Repo:** https://github.com/Davidfreedolia/Tastia (privado) · ramas `main` (producción) y `dev` (integración, HEAD `348b07f`)
-> **Producción:** https://tastia.org — la pantalla de acceso sigue en `main`; **en `dev` ya se ha retirado (landing pública)**. El juego vive en `dev` y previews. Se publica con `dev → main` cuando se decida.
+> **Producción:** https://tastia.org — **landing pública** (retirado el gate "en construcción"); el juego desde la BD está vivo. `dev` y `main` al día.
 > **Preview de `dev`:** `https://tastia-git-dev-freedolias-projects-77c959bb.vercel.app` → `/room/TEST` (Sala) + `/play/TEST` (móvil).
 > **Supabase:** `tyuehzsqvjpjysxdihsh` (cuenta aparte, plan Free).
 
