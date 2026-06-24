@@ -210,7 +210,7 @@
 
 .step-watermark {
   margin-top: -16vh;
-  color: color-mix(in oklab, var(--foreground) 14%, transparent);
+  color: color-mix(in oklab, var(--foreground) 28%, transparent);
 }
 .step-watermark[data-step="0"] { margin-top: -14vh; }
 .step-watermark-icon + .step-watermark-icon { margin-left: -1rem; }
@@ -257,6 +257,18 @@
   transform-origin: center;
 }
 
+.friends-image-mobile {
+  width: 180vw;
+  margin-left: 50%;
+  transform: translateX(-50%);
+  border-radius: 0 0 50% 50% / 0 0 22% 22%;
+}
+.friends-image-mobile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* ============ Packs ============ */
 .pack-buy-btn { border-radius: 0.5rem; height: 3.5rem; }
 
@@ -291,36 +303,93 @@
   width: 100vw !important;
   bottom: -4rem !important;
 }
+@media (max-width: 768px) {
+  .rules-bg {
+    width: 180vw !important;
+    border-radius: 50% 50% 0 0 / 18% 18% 0 0;
+  }
+}
 .rules-title { font-size: var(--text-5xl); line-height: 3rem; color: var(--wine); }
 .rules-list { margin-top: 5vh; }
 .rules-pts { font-size: var(--text-4xl); }
 .rules-text { font-size: 1rem; }
 
-/* Scroll-driven count-up for rules numbers (CSS only) */
-@property --rules-n {
-  syntax: '<integer>';
-  initial-value: 0;
-  inherits: false;
+/* ============ Glitter glow (final podium top 3) ============ */
+@keyframes glitter-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 12px 2px color-mix(in oklab, var(--glitter-color) 35%, transparent),
+      0 0 28px 8px color-mix(in oklab, var(--glitter-color) 18%, transparent),
+      0 0 60px 18px color-mix(in oklab, var(--glitter-color) 8%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 22px 4px color-mix(in oklab, var(--glitter-color) 60%, transparent),
+      0 0 48px 14px color-mix(in oklab, var(--glitter-color) 32%, transparent),
+      0 0 90px 28px color-mix(in oklab, var(--glitter-color) 14%, transparent);
+  }
 }
-.rules-pts {
-  counter-reset: n var(--rules-n);
+@keyframes glitter-sparkle {
+  0%, 100% { opacity: 0.35; transform: translate(0, 0) scale(1); }
+  50%      { opacity: 0.9;  transform: translate(0, -2px) scale(1.08); }
 }
-.rules-pts::before {
-  content: '+' counter(n) ' pts';
+
+.glitter-glow {
+  position: relative;
+  animation: glitter-glow 3.2s ease-in-out infinite;
 }
-@supports (animation-timeline: view()) {
-  .rules-item { animation: rules-countup linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
-  .rules-item[data-target="20"] { --rules-target: 20; }
-  .rules-item[data-target="30"] { --rules-target: 30; }
-  .rules-item[data-target="15"] { --rules-target: 15; }
-  .rules-item[data-target="25"] { --rules-target: 25; }
-  .rules-item[data-target="20"] .rules-pts { animation: rules-countup-20 linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
-  .rules-item[data-target="30"] .rules-pts { animation: rules-countup-30 linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
-  .rules-item[data-target="15"] .rules-pts { animation: rules-countup-15 linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
-  .rules-item[data-target="25"] .rules-pts { animation: rules-countup-25 linear both; animation-timeline: view(); animation-range: cover 30% cover 70%; }
+.glitter-glow::before,
+.glitter-glow::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 12% 18%, var(--glitter-color) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 82% 28%, var(--glitter-color) 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at 32% 78%, var(--glitter-color) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 68% 88%, var(--glitter-color) 0 1.4px, transparent 2.2px),
+    radial-gradient(circle at 50% 6%,  var(--glitter-color) 0 1px,   transparent 1.8px),
+    radial-gradient(circle at 95% 60%, var(--glitter-color) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 6% 52%,  var(--glitter-color) 0 1px,   transparent 1.8px);
+  filter: drop-shadow(0 0 3px var(--glitter-color));
+  animation: glitter-sparkle 2.6s ease-in-out infinite;
 }
-@keyframes rules-countup-20 { from { --rules-n: 0; } to { --rules-n: 20; } }
-@keyframes rules-countup-30 { from { --rules-n: 0; } to { --rules-n: 30; } }
-@keyframes rules-countup-15 { from { --rules-n: 0; } to { --rules-n: 15; } }
-@keyframes rules-countup-25 { from { --rules-n: 0; } to { --rules-n: 25; } }
+.glitter-glow::after {
+  inset: -10px;
+  background-image:
+    radial-gradient(circle at 22% 8%,  var(--glitter-color) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 92% 14%, var(--glitter-color) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 8% 86%,  var(--glitter-color) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 78% 96%, var(--glitter-color) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 46% 48%, var(--glitter-color) 0 1px, transparent 1.8px);
+  animation-duration: 3.4s;
+  animation-delay: -1.1s;
+}
+.glitter-glow[data-place="1"] { --glitter-color: oklch(0.86 0.17 88);  /* gold */ }
+.glitter-glow[data-place="2"] { --glitter-color: oklch(0.82 0.02 250); /* silver */ }
+.glitter-glow[data-place="3"] { --glitter-color: oklch(0.72 0.13 60);  /* bronze */ }
+
+/* ============ Answer reveal animations ============ */
+@keyframes shake-x {
+  0%, 100% { transform: translateX(0); }
+  15%      { transform: translateX(-8px); }
+  30%      { transform: translateX(7px); }
+  45%      { transform: translateX(-5px); }
+  60%      { transform: translateX(4px); }
+  75%      { transform: translateX(-2px); }
+  90%      { transform: translateX(1px); }
+}
+@keyframes rubberband-x {
+  0%   { transform: scaleX(1); }
+  30%  { transform: scaleX(1.25) scaleY(0.85); }
+  40%  { transform: scaleX(0.78) scaleY(1.12); }
+  55%  { transform: scaleX(1.12) scaleY(0.92); }
+  70%  { transform: scaleX(0.94) scaleY(1.04); }
+  85%  { transform: scaleX(1.03) scaleY(0.98); }
+  100% { transform: scaleX(1); }
+}
+.answer-shake     { animation: shake-x 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+.answer-rubberband { animation: rubberband-x 0.9s ease-out both; transform-origin: center; }
 

@@ -391,7 +391,14 @@ function PlayerQuiz({
           const correct = isReveal && i === correctIndex;
           // Base: mismo lenguaje visual que el host (/room ?mock=quiz) — borde --muted + bg blanco.
           // En reveal: verde para la correcta y primary para tu fallo; en quiz: primary para tu selección.
-          const cls = isReveal
+          const anim = isReveal
+            ? selected && correct
+              ? " answer-rubberband"
+              : selected && !correct
+                ? " answer-shake"
+                : ""
+            : "";
+          const cls = (isReveal
             ? correct
               ? "border-green-600 bg-green-600/15 font-semibold"
               : selected
@@ -399,7 +406,7 @@ function PlayerQuiz({
                 : "border-muted bg-white"
             : selected
               ? "border-primary bg-primary/15 font-semibold"
-              : "border-muted bg-white hover:border-primary/60";
+              : "border-muted bg-white hover:border-primary/60") + anim;
           return (
             <button
               key={i}
@@ -457,19 +464,23 @@ function CompanionScore({
     .slice()
     .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0));
   const rank = ranked.findIndex((p) => p.id === meId) + 1;
+  const glitter = final && rank >= 1 && rank <= 3;
 
   return (
     <div className="flex min-h-[calc(100vh-5rem)] items-center">
-      <div className="w-full rounded-2xl border border-primary/40 bg-card p-5 text-center">
+      <div
+        className={`w-full rounded-2xl border border-primary/40 bg-card p-5 text-center ${glitter ? "glitter-glow" : ""}`}
+        data-place={glitter ? rank : undefined}
+      >
         <p className="serif text-2xl font-bold">{title}</p>
         <p className="mt-3 serif text-7xl font-bold text-primary">{state.scores[meId] ?? 0} pts</p>
         {rank > 0 && (
           <p className="mt-8 text-sm text-foreground/70">
             {final ? (
               rank <= 3 ? (
-                <span className="inline-flex items-center gap-2 text-[1.1em]">
+                <span className="inline-flex items-center gap-2 text-[1.5rem] font-bold">
                   <MedalIcon place={rank as 1 | 2 | 3} />
-                  {rank === 1 ? "¡Ganas!" : rank === 2 ? "2º puesto" : "3er puesto"}
+                  {rank === 1 ? "¡Ganas!" : rank === 2 ? "2º puesto" : "3º puesto"}
                 </span>
               ) : (
                 `Puesto ${rank} de ${ranked.length}`
