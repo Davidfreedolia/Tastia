@@ -57,9 +57,18 @@ export const strings = {
     es: "Hasta 8 jugadores en la misma sala, desde casa o incluso en remoto. El sommelier de IA guía la cata a ciegas, con apuestas, puntuaciones y ranking en tiempo real.",
     en: "Up to 8 players in the same room, from home or even remotely. The AI sommelier hosts the blind tasting with bets, scores and a live ranking.",
   },
-  friends_item_1: { es: "Hasta 8 amigos en la sala", en: "Up to 8 friends in the room" },
-  friends_item_2: { es: "Cata a ciegas con fundas opacas", en: "Blind tasting with opaque sleeves" },
-  friends_item_3: { es: "Quinielas, puntos y ranking en vivo", en: "Guesses, points and live ranking" },
+  friends_item_1: {
+    es: "Hasta 8 jugadores en la misma sala, desde casa o incluso en remoto",
+    en: "Up to 8 players in the same room, from home or even remotely",
+  },
+  friends_item_2: {
+    es: "El sommelier IA guía la cata",
+    en: "The AI sommelier hosts the tasting",
+  },
+  friends_item_3: {
+    es: "Apuestas, puntuaciones y ranking en tiempo real",
+    en: "Bets, scores and live ranking",
+  },
 
   packs_title: { es: "Elige tu pack", en: "Choose your pack" },
   packs_sub: {
@@ -317,10 +326,13 @@ export const strings = {
   rank_p3_prize: { es: "Pack Winelover + decantador de autor", en: "Winelover Pack + designer decanter" },
   rank_pts: { es: "pts", en: "pts" },
   rank_rules_title: { es: "Cómo se puntúa", en: "How scoring works" },
-  rank_rule_1: { es: "+20 pts · Variedad de uva", en: "+20 pts · Grape variety" },
-  rank_rule_2: { es: "+30 pts · D.O.", en: "+30 pts · Region (D.O.)" },
-  rank_rule_3: { es: "+15 pts · Rango de precio", en: "+15 pts · Price range" },
-  rank_rule_4: { es: "+25 pts · Rango de añada", en: "+25 pts · Vintage range" },
+  rank_rule_1: { es: "+10 pts · Vista", en: "+10 pts · Sight" },
+  rank_rule_2: { es: "+10 pts · Nariz", en: "+10 pts · Nose" },
+  rank_rule_3: { es: "+10 pts · Gusto", en: "+10 pts · Taste" },
+  rank_rule_4: { es: "+20 pts · Variedad de uva", en: "+20 pts · Grape variety" },
+  rank_rule_5: { es: "+30 pts · D.O.", en: "+30 pts · Region (D.O.)" },
+  rank_rule_6: { es: "+15 pts · Rango de precio", en: "+15 pts · Price range" },
+  rank_rule_7: { es: "+25 pts · Rango de añada", en: "+25 pts · Vintage range" },
   rank_cta: { es: "Entrar al ranking", en: "Join the ranking" },
   rank_disclaimer_title: {
     es: "Cada pack jugado cuenta.",

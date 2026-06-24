@@ -36,9 +36,10 @@ import {
 } from "lucide-react";
 import { useGsapScene, gsap } from "@/hooks/use-gsap";
 import heroPoster from "@/assets/hero-poster.jpg";
-import packWineloverImg from "@/assets/pack-winelover.jpg";
-import packEnologyImg from "@/assets/pack-enology.jpg";
-import packDeluxeImg from "@/assets/pack-deluxe.jpg";
+import heroVideo from "@/assets/tastIA_hero_vid.mp4";
+import packWineloverImg from "@/assets/tastIA_winelover.jpeg";
+import packEnologyImg from "@/assets/tastIA_enology.jpeg";
+import packDeluxeImg from "@/assets/tastIA_deluxe.jpeg";
 import winner1 from "@/assets/winner-1.jpg";
 import winner2 from "@/assets/winner-2.jpg";
 import winner3 from "@/assets/winner-3.jpg";
@@ -184,10 +185,10 @@ function Hero({ onCta }: { onCta: () => void }) {
 
     tl.to(poster, { scale: 1, filter: "brightness(1)", ease: "power2.out", duration: 1 }, 0)
       .to(overlay, { opacity: 0.7, duration: 1, ease: "power1.out" }, 0)
-      .to(block, { clipPath: "inset(0 0% 0 0)", ease: "expo.out", duration: 1.2 }, 0.2)
-      .to(ticks, { scaleX: 1, ease: "power2.out", duration: 0.6, stagger: 0.08 }, 0.4)
-      .to(lines, { yPercent: 0, opacity: 1, ease: "expo.out", duration: 1, stagger: 0.25 }, 0.5)
-      .to(cta, { opacity: 1, y: 0, ease: "power2.out", duration: 0.6 }, 1.2);
+      .to(block, { clipPath: "inset(0 0% 0 0)", ease: "expo.out", duration: 0.9 }, 0)
+      .to(ticks, { scaleX: 1, ease: "power2.out", duration: 0.5, stagger: 0.06 }, 0.1)
+      .to(lines, { yPercent: 0, opacity: 1, ease: "expo.out", duration: 0.8, stagger: 0.15 }, 0.15)
+      .to(cta, { opacity: 1, y: 0, ease: "power2.out", duration: 0.5 }, 0.5);
 
     // Subtle ambient float on the wine block (independent of scroll)
     gsap.to(block, {
@@ -201,12 +202,35 @@ function Hero({ onCta }: { onCta: () => void }) {
 
   return (
     <section ref={sceneRef} id="top" className="relative">
-      <div className="hero-pin relative h-screen min-h-[560px] overflow-hidden">
-        <img
-          src={heroPoster}
-          alt=""
+      <div className="hero-pin relative h-screen min-h-[560px] overflow-hidden bg-ink">
+        <video
+          src={heroVideo}
+          poster={heroPoster}
+          autoPlay
+          loop
+          muted
+          playsInline
           aria-hidden
-          className="hero-poster absolute inset-0 h-full w-full object-cover will-change-transform"
+          ref={(el) => {
+            if (!el) return;
+            el.playbackRate = 0.75;
+            const FADE = 0.6;
+            let raf = 0;
+            const tick = () => {
+              const d = el.duration;
+              if (d) {
+                const remain = d - el.currentTime;
+                let o = 1;
+                if (remain < FADE) o = Math.max(0, remain / FADE);
+                else if (el.currentTime < FADE) o = Math.min(1, el.currentTime / FADE);
+                el.style.opacity = String(o);
+              }
+              raf = requestAnimationFrame(tick);
+            };
+            raf = requestAnimationFrame(tick);
+            return () => cancelAnimationFrame(raf);
+          }}
+          className="hero-poster absolute inset-0 h-full w-full object-cover will-change-transform transition-opacity duration-200"
         />
         <div
           aria-hidden
@@ -308,6 +332,7 @@ function HowItWorks() {
     if (reduced) return;
 
     if (!desktop) {
+      gsap.set(watermarks, { opacity: 0.32 });
       gsap.from(header, { y: 24, opacity: 0, duration: 0.7, ease: "power2.out" });
       gsap.from(items, {
         y: 30,
@@ -358,7 +383,7 @@ function HowItWorks() {
       )
       .to(
         watermarks,
-        { opacity: 0.18, scale: 1, duration: 1, ease: "power2.out", stagger: 0.35 },
+        { opacity: 0.32, scale: 1, duration: 1, ease: "power2.out", stagger: 0.35 },
         0.55,
       )
       .to(pillars, { y: 0, opacity: 1, duration: 1, ease: "expo.out", stagger: 0.25 }, 2.0);
@@ -384,7 +409,7 @@ function HowItWorks() {
             <p className="mt-3 text-foreground/70">{t("how_sub")}</p>
           </div>
 
-          <ol className="steps-list grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0 mt-10">
+          <ol className="steps-list grid gap-24 sm:gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0 mt-10">
             {steps.map((s, i) => {
               const Icons = s.icons;
               return (
@@ -458,13 +483,12 @@ function FriendsTasting() {
     const img = scope.querySelector<HTMLElement>(".friends-image img");
     const tag = scope.querySelector<HTMLElement>(".friends-tag");
     const title = scope.querySelector<HTMLElement>(".friends-title");
-    const desc = scope.querySelector<HTMLElement>(".friends-desc");
     const items = scope.querySelectorAll<HTMLElement>(".friends-item");
 
     if (reduced) return;
 
     if (!desktop) {
-      gsap.from([tag, title, desc], {
+      gsap.from([tag, title], {
         y: 24,
         opacity: 0,
         stagger: 0.12,
@@ -487,7 +511,7 @@ function FriendsTasting() {
 
     gsap.set(image, { clipPath: "circle(0% at 20% 50%)" });
     gsap.set(img, { scale: 1.25 });
-    gsap.set([tag, title, desc], { y: 40, opacity: 0 });
+    gsap.set([tag, title], { y: 40, opacity: 0 });
     gsap.set(items, { x: -30, opacity: 0 });
 
     const tl = gsap.timeline({
@@ -505,8 +529,7 @@ function FriendsTasting() {
       .to(img, { scale: 1, ease: "power2.out", duration: 1.4 }, 0)
       .to(tag, { y: 0, opacity: 1, ease: "power2.out", duration: 0.6 }, 0.5)
       .to(title, { y: 0, opacity: 1, ease: "expo.out", duration: 0.9 }, 0.65)
-      .to(desc, { y: 0, opacity: 1, ease: "power2.out", duration: 0.7 }, 0.95)
-      .to(items, { x: 0, opacity: 1, ease: "power2.out", duration: 0.6, stagger: 0.2 }, 1.2);
+      .to(items, { x: 0, opacity: 1, ease: "power2.out", duration: 0.6, stagger: 0.2 }, 0.95);
 
     // Ambient: gentle parallax drift on the image
     gsap.to(img, {
@@ -520,7 +543,7 @@ function FriendsTasting() {
 
   return (
     <section ref={sceneRef} className="relative overflow-hidden bg-gold">
-      <div className="friends-pin relative min-h-[95vh] flex items-center py-14 md:py-20">
+      <div className="friends-pin relative md:min-h-[95vh] flex items-start md:items-center pt-0 pb-14 md:py-20">
         {/* Desktop: full-height rounded image, left-aligned with 5vw overflow past viewport */}
         <div className="friends-image hidden md:block absolute inset-y-0 rounded-r-full rounded-l-none overflow-hidden pointer-events-none">
           <img
@@ -534,38 +557,35 @@ function FriendsTasting() {
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6 w-full">
           <div className="grid gap-8 md:grid-cols-2 items-center">
             {/* Mobile-only inline image */}
-            <div className="md:hidden">
-              <div className="relative rounded-3xl overflow-hidden">
+            <div className="md:hidden min-w-0 overflow-hidden -mx-4 sm:-mx-6 -mt-14">
+              <div className="friends-image-mobile relative overflow-hidden h-[48vh]">
                 <img
                   src={tastingTableImg}
                   alt="Amigos en una cata a ciegas con Tastia"
                   loading="lazy"
-                  className="w-full h-auto object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
               </div>
             </div>
             {/* Desktop spacer keeping right column aligned */}
             <div className="hidden md:block" aria-hidden />
-            <div className="flex flex-col justify-center">
+            <div className="flex flex-col justify-center min-w-0">
               <span className="friends-tag text-[11px] tracking-[0.25em] uppercase font-bold text-ink/70">
                 {t("friends_tag")}
               </span>
               <h2 className="friends-title mt-3 serif text-3xl sm:text-4xl md:text-[2.75rem] leading-[1.05] font-bold text-ink">
                 {t("friends_title")}
               </h2>
-              <p className="friends-desc mt-4 text-base leading-relaxed text-ink/80 max-w-md">
-                {t("friends_desc")}
-              </p>
               <ul className="mt-6 space-y-3">
                 {[t("friends_item_1"), t("friends_item_2"), t("friends_item_3")].map((item) => (
                   <li
                     key={item}
-                    className="friends-item flex items-start gap-3 text-sm text-ink/80"
+                    className="friends-item flex items-start gap-3 text-base text-ink/80 min-w-0 w-full"
                   >
-                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-none bg-olive text-cream mt-0.5">
-                      <Check className="h-3 w-3" aria-hidden />
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-olive text-cream mt-0.5">
+                      <Check className="h-4 w-4" aria-hidden />
                     </span>
-                    <span>{item}</span>
+                    <span className="min-w-0 flex-1 break-words">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -1010,28 +1030,34 @@ function Ranking({ onCta: _onCta }: { onCta: () => void }) {
               <div className="text-center">
                 <h3 className="rules-title serif font-bold">{t("rank_rules_title")}</h3>
               </div>
-              <ul className="rules-list grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[t("rank_rule_1"), t("rank_rule_2"), t("rank_rule_3"), t("rank_rule_4")].map(
-                  (r) => {
-                    const [pts, ...rest] = r.split(" · ");
-                    const text = rest.join(" · ").replace(/\bacertar\s+/gi, "");
-                    const target = parseInt(pts.replace(/\D/g, ""), 10);
-                    return (
-                      <li
-                        key={r}
-                        data-target={target}
-                        className="rules-item text-ink text-center"
-                      >
-                        <h3 className="rules-pts serif font-bold leading-none" aria-label={pts} />
-                        <p className="rules-text mt-2 flex items-center justify-center gap-2 text-ink/85">
-                          <Check className="h-4 w-4 text-primary shrink-0" aria-hidden />
-                          <span>{text}</span>
-                        </p>
-                      </li>
-                    );
-                  },
-                )}
-              </ul>
+              <div className="rules-list flex flex-col gap-[5vh]">
+                {[
+                  [t("rank_rule_1"), t("rank_rule_2"), t("rank_rule_3")],
+                  [t("rank_rule_4"), t("rank_rule_5"), t("rank_rule_6"), t("rank_rule_7")],
+                ].map((row, rowIdx) => (
+                  <ul
+                    key={rowIdx}
+                    className="flex flex-wrap justify-center gap-4"
+                  >
+                    {row.map((r) => {
+                      const [pts, ...rest] = r.split(" · ");
+                      const text = rest.join(" · ").replace(/\bacertar\s+/gi, "");
+                      return (
+                        <li
+                          key={r}
+                          className="rules-item text-ink text-center basis-[calc(50%-0.5rem)] md:basis-[calc(25%-0.75rem)] grow-0 shrink-0 rounded-2xl px-4 py-4 bg-[color-mix(in_oklab,var(--input)_35%,transparent)]"
+                        >
+                          <h3 className="rules-pts serif font-bold leading-none">{pts}</h3>
+                          <p className="rules-text mt-2 flex items-center justify-center gap-2 text-ink/85">
+                            <Check className="h-4 w-4 text-primary shrink-0" aria-hidden />
+                            <span>{text}</span>
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ))}
+              </div>
             </div>
           </div>
         </div>
