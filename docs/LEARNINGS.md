@@ -218,3 +218,58 @@ sustituirá por HeyGen/Anam/Tavus.
   value `bg-[color-mix(in_oklab,var(--input)_35%,transparent)]`. Nunca `style={{}}` en JSX.
 - **Recordar margin-fallback de `vh`**: usar siempre `vh` para spacing vertical en mobile y `rem`
   para horizontal. `gap-[5vh]` entre secciones / filas funciona bien en este proyecto.
+
+## 2026-06-25 · Vista TV (`/tv/$code`) + clips del sommelier por fase
+
+### Rol `viewer` en el canal Realtime
+- La TV se conecta al mismo canal Supabase Realtime como `viewer`: tracking de presencia con
+  `isViewer: true`, escucha de `state` y `player` broadcasts, **no juega ni aparece en listas**.
+- Host y jugadores filtran `!isViewer` al construir su lista de participantes. Sin ese filtro la
+  TV se contaría como un jugador fantasma con score 0 y romper el podio.
+- `/tv` reutiliza `HostQuiz`, `Podium` y `SetupNotice` exportados desde `routes/room/$code.tsx` —
+  no duplicar UI; el tablero se escala con `scale-110` y `w-[min(56vw,820px)]` para legibilidad
+  a distancia.
+
+### `clip-map.ts`: derivación pura desde `RoomState`
+- Patrón: `clipKey(state)` devuelve una unión literal estable (`lobby`, `playing:<fase>:<step>`,
+  `wine_podium`, `final_podium`) y `CLIPS: Partial<Record<ClipKey, string>>` mapea a URLs. Una
+  entrada faltante = sin clip = asoma el `play-bg`. Permite cablear stage-a-stage sin tocar UI.
+- **`<video key={stageKey}>` es obligatorio**: cambiar solo `src` en el mismo `<video>` NO re-dispara
+  `autoPlay` en todos los navegadores; el `key` fuerza remount y arranque limpio en cada cambio
+  de fase. Mismo truco vale para el `useState(false)` de `clipEnded`: resetear con
+  `useEffect(() => setClipEnded(false), [stageKey])`.
+
+### Host NO reproduce clips — solo `/tv`
+- Si ambos reproducen, al castear la pestaña del host a la TV se oye **doble audio** desfasado
+  (la pestaña original + la TV).
+- Decisión: `/room` se queda con `play-bg` estático; toda la reproducción vive en `/tv`. El host
+  abre `/tv/<code>` en una pestaña secundaria (píldora de cast con `CastTvDialog`) y casteá esa.
+
+### Cast: no hay atajo programático fiable
+- Sin **Cast Receiver app id registrado** en Google, no se puede iniciar Chromecast vía API. El
+  patrón práctico es: botón "Abrir vista TV" → `window.open('/tv/<code>')` → el anfitrión pulsa
+  "Enviar a dispositivo" del menú de Chrome manualmente.
+- Onboarding único de la píldora con `sessionStorage` por sala (`tastia:cast-hint:<code>`) para no
+  molestar entre recargas pero recordar el flujo la primera vez.
+
+### Refactor scope: no toques la state machine "para encajar clips"
+- Los clips del sommelier de Beronia (00–11) sugerían **2 sub-preguntas en gamificación** (uva +
+  clasif/precio) y un par de stages transicionales (intro `Bienvenida`, outro `Cierre`). Implementar
+  eso tocaba `session.ts` (Stage/Fase types, `advanceState`, `FASES`, `FASE_LABEL`, `FASE_SECONDS`),
+  `mock-room.ts`, scoring (`/play` puntos por pregunta), datos demo, edge functions, tests, y la
+  UI de `/room` y `/tv` para los nuevos stages.
+- **Regla:** un cambio que parecía "rellenar un map" era en realidad un refactor de la máquina con
+  implicaciones de scoring. Antes de aceptar tareas pequeñas que cruzan el state machine, listar
+  blast radius (state types, advanceState, scoring, settings, tests, mocks, UI) y confirmar.
+- Decisión final: mapear los clips que encajan limpio (11 de 12) y dejar `09_clasifprecio` parkeado
+  en un comentario en `CLIPS` hasta que se decida split formal de fase.
+
+### Fallback de fin de clip
+- Al `onEnded` ocultamos el `<video>` y mostramos un mensaje centrado (Fraunces 500, `#fff`) sobre
+  `play-bg`: "Te dejamos unos instantes para que disfrutes del vino, ahora continuamos."
+- El `play-bg` ya está en el `<div>` raíz, así que no hace falta una segunda capa visual: basta con
+  desmontar el `<video>`. Aplicar `pointer-events-none` al `<p>` para no bloquear UI.
+
+### Timers
+- Todas las fases (`vista`, `olfato`, `gusto`, `gamificacion`) normalizadas a **60s** para dar
+  margen a la narración del sommelier y a la conversación entre amigos.
