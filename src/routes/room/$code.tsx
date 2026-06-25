@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { Cast as CastIcon } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { CastTvDialog } from "@/components/CastTvDialog";
 import { Countdown } from "@/components/Countdown";
 import { useRoomChannel } from "@/lib/use-room-channel";
 import { mockRoom, type MockScenario } from "@/lib/mock-room";
@@ -59,7 +62,7 @@ function RoomPage() {
   if (!room.configured) return <SetupNotice />;
 
   const { state, participants, advance, reset, connected, answers, answeredIds, finishState } = room;
-  const players = participants.filter((p) => !p.isHost);
+  const players = participants.filter((p) => !p.isHost && !p.isViewer);
 
   const isLobby = state.stage === "lobby";
   const isFinal = state.stage === "final_podium";
@@ -70,17 +73,36 @@ function RoomPage() {
 
   const host = participants.find((p) => p.isHost);
 
+  // El diálogo de cast se abre solo desde la píldora del header (no automático),
+  // así no se mira en la TV cuando el anfitrión espeja la pestaña.
+  const [castOpen, setCastOpen] = useState(false);
+  // `casting` = el anfitrión ya ha abierto la vista TV al menos una vez en esta sesión.
+  // Sirve sólo para tintar el icono de la píldora (no hay API de navegador fiable que
+  // diga si la pestaña /tv sigue casteándose; lo tratamos como una intención).
+  const [casting, setCasting] = useState(false);
+  // Onboarding único de la píldora: aparece la primera vez en la sesión y se descarta
+  // con "Entendido". Persistimos por sala para no molestar entre recargas.
+  const castHintKey = `tastia:cast-hint:${code}`;
+  const [showCastHint, setShowCastHint] = useState(false);
+  useEffect(() => {
+    if (scenario !== null) return;
+    try {
+      if (sessionStorage.getItem(castHintKey) !== "1") setShowCastHint(true);
+    } catch {/* sessionStorage no disponible: mostramos igualmente. */}
+  }, [castHintKey, scenario]);
+  const dismissCastHint = () => {
+    setShowCastHint(false);
+    try {
+      sessionStorage.setItem(castHintKey, "1");
+    } catch {/* sin persistencia → reaparecerá tras un reload. */}
+  };
+
+  // El host NO reproduce clips: solo `/tv` los reproduce para evitar solapamiento
+  // de audio cuando el anfitrión castea la pestaña a la TV.
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      {/* Avatar del sommelier — iframe a pantalla completa; el resto del layout va por encima. */}
-      {/* TODO: sustituir por el iframe del proveedor real (HeyGen / Anam / Tavus). */}
-      <iframe
-        className="fixed inset-0 z-0 h-full w-full border-0 bg-ink"
-        src="https://www.youtube.com/embed/ycKMCy8JAco?autoplay=1&mute=1&loop=1&playlist=ycKMCy8JAco&controls=0&modestbranding=1&rel=0&playsinline=1"
-        title="Sommelier-avatar (placeholder)"
-        allow="autoplay; encrypted-media; picture-in-picture"
-        allowFullScreen
-      />
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground play-bg bg-cover bg-center bg-no-repeat">
+
 
       {/* Top bar overlay — fondo ink/50 con texto en cream (light mode). */}
       <header className="fixed left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-between gap-3 bg-ink/50 px-5 py-3 text-cream">
@@ -95,6 +117,42 @@ function RoomPage() {
           </div>
         </div>
         <div className="flex items-center gap-4 text-sm text-cream">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setCastOpen(true)}
+              aria-label="Enviar a TV"
+              title="Enviar a TV"
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                casting
+                  ? "text-[color:var(--wine)]"
+                  : "text-white hover:bg-[color-mix(in_oklab,var(--foreground)_25%,transparent)]"
+              }`}
+            >
+              <CastIcon className="h-6 w-6" strokeWidth={2} />
+            </button>
+            {showCastHint && (
+              <div
+                role="dialog"
+                aria-label="Enviar a TV"
+                className="absolute right-0 top-full z-20 mt-2 w-56 rounded bg-[color:var(--cream)] p-3 text-center shadow-lg"
+              >
+                {/* Pico apuntando a la píldora (arriba-derecha del tooltip). */}
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-1.5 right-3 h-3 w-3 rotate-45 bg-[color:var(--cream)]"
+                />
+                <p className="font-sans text-sm font-medium text-[color:var(--ink)]">Enviar a TV</p>
+                <button
+                  type="button"
+                  onClick={dismissCastHint}
+                  className="mt-2 inline-flex w-full items-center justify-center rounded-md bg-[color:var(--wine)] px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--wine-deep)]"
+                >
+                  Entendido
+                </button>
+              </div>
+            )}
+          </div>
           <span className="flex items-center gap-2">
             {host && <HeaderAvatar name={host.name} photo={host.photo} />}
             <span
@@ -145,6 +203,13 @@ function RoomPage() {
           Los jugadores se unen en <span className="font-semibold">tastia.app/play/{code}</span>
         </p>
       </div>
+
+      <CastTvDialog
+        code={code}
+        open={castOpen}
+        onOpenChange={setCastOpen}
+        onCastStarted={() => setCasting(true)}
+      />
     </div>
   );
 }
@@ -290,7 +355,7 @@ function FinishIndicator({ finishState }: { finishState: "idle" | "saving" | "sa
  * indicador de quién/cuántos han respondido; en `reveal` resalta la correcta (`reveal.correctOptionIndex`)
  * y marca ✓/✗ por jugador (no respondió = ✗). Si aún no hay `activeQuestion`, muestra "cargando…".
  */
-function HostQuiz({
+export function HostQuiz({
   state,
   players,
   answers,
@@ -528,7 +593,7 @@ function Avatar({
 }
 
 /** Podio (parcial o final) calculado desde `scores`. */
-function Podium({
+export function Podium({
   title,
   players,
   scores,
@@ -572,7 +637,7 @@ function Podium({
   );
 }
 
-function SetupNotice() {
+export function SetupNotice() {
   return (
     <div className="grid min-h-screen place-items-center bg-background px-6 text-center">
       <div className="max-w-md">

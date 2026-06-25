@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
@@ -41,12 +41,28 @@ function PlayPage() {
     mock === undefined ? null : mock === "1" || mock === "" ? "quiz" : mock;
 
   if (scenario) return <MockCompanion code={code} scenario={scenario} />;
+  // Persistimos la identidad del jugador por sala en sessionStorage para que un reload
+  // no le obligue a registrarse de nuevo. La rehidratación va dentro de un useEffect
+  // para no romper el match SSR/CSR (sessionStorage solo existe en el cliente).
+  const sessionKey = `tastia:play:${code}`;
   const [name, setName] = useState("");
   const [joined, setJoined] = useState(false);
   // §5.11 — foto opcional: data-URL reducido (~128px JPEG) o null (avatar de iniciales).
   const [photo, setPhoto] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(sessionKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { name?: string; photo?: string | null };
+      if (saved.name) {
+        setName(saved.name);
+        setPhoto(saved.photo ?? null);
+        setJoined(true);
+      }
+    } catch {/* sessionStorage no disponible/corrupto: seguimos sin restaurar. */}
+  }, [sessionKey]);
 
   if (!supabaseConfigured) return <SetupNotice />;
 
@@ -74,7 +90,12 @@ function PlayPage() {
             e.preventDefault();
             // Solo unir si hay nombre y la foto ya no se está procesando: evita que Enter
             // sortee el botón deshabilitado y entre con la foto a medio resolver.
-            if (name.trim() && !processing) setJoined(true);
+            if (name.trim() && !processing) {
+              try {
+                sessionStorage.setItem(sessionKey, JSON.stringify({ name: name.trim(), photo }));
+              } catch {/* sessionStorage no disponible (modo incógnito estricto): seguimos sin persistir. */}
+              setJoined(true);
+            }
           }}
           className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 text-center"
         >
@@ -202,7 +223,7 @@ function CompanionView({
   };
 }) {
   const { state, participants, meId, submitAnswer, myAnswer } = room;
-  const players = participants.filter((p) => !p.isHost);
+  const players = participants.filter((p) => !p.isHost && !p.isViewer);
 
   return (
     <div className={`min-h-screen bg-background text-foreground ${PLAY_BG}`}>
@@ -460,7 +481,7 @@ function CompanionScore({
   final?: boolean;
 }) {
   const ranked = participants
-    .filter((p) => !p.isHost)
+    .filter((p) => !p.isHost && !p.isViewer)
     .slice()
     .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0));
   const rank = ranked.findIndex((p) => p.id === meId) + 1;
