@@ -14,6 +14,7 @@ import { Route as LandingRouteImport } from './routes/landing'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ActivarRouteImport } from './routes/activar'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TvCodeRouteImport } from './routes/tv/$code'
 import { Route as RoomCodeRouteImport } from './routes/room/$code'
 import { Route as PlayCodeRouteImport } from './routes/play/$code'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe-webhook'
@@ -43,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TvCodeRoute = TvCodeRouteImport.update({
+  id: '/tv/$code',
+  path: '/tv/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RoomCodeRoute = RoomCodeRouteImport.update({
   id: '/room/$code',
   path: '/room/$code',
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/play/$code': typeof PlayCodeRoute
   '/room/$code': typeof RoomCodeRoute
+  '/tv/$code': typeof TvCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/play/$code': typeof PlayCodeRoute
   '/room/$code': typeof RoomCodeRoute
+  '/tv/$code': typeof TvCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/play/$code': typeof PlayCodeRoute
   '/room/$code': typeof RoomCodeRoute
+  '/tv/$code': typeof TvCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/api/stripe-webhook'
     | '/play/$code'
     | '/room/$code'
+    | '/tv/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/api/stripe-webhook'
     | '/play/$code'
     | '/room/$code'
+    | '/tv/$code'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/api/stripe-webhook'
     | '/play/$code'
     | '/room/$code'
+    | '/tv/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   PlayCodeRoute: typeof PlayCodeRoute
   RoomCodeRoute: typeof RoomCodeRoute
+  TvCodeRoute: typeof TvCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tv/$code': {
+      id: '/tv/$code'
+      path: '/tv/$code'
+      fullPath: '/tv/$code'
+      preLoaderRoute: typeof TvCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/room/$code': {
       id: '/room/$code'
       path: '/room/$code'
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   PlayCodeRoute: PlayCodeRoute,
   RoomCodeRoute: RoomCodeRoute,
+  TvCodeRoute: TvCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

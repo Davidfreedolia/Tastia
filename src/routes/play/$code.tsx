@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
@@ -41,12 +41,28 @@ function PlayPage() {
     mock === undefined ? null : mock === "1" || mock === "" ? "quiz" : mock;
 
   if (scenario) return <MockCompanion code={code} scenario={scenario} />;
+  // Persistimos la identidad del jugador por sala en sessionStorage para que un reload
+  // no le obligue a registrarse de nuevo. La rehidratación va dentro de un useEffect
+  // para no romper el match SSR/CSR (sessionStorage solo existe en el cliente).
+  const sessionKey = `tastia:play:${code}`;
   const [name, setName] = useState("");
   const [joined, setJoined] = useState(false);
   // §5.11 — foto opcional: data-URL reducido (~128px JPEG) o null (avatar de iniciales).
   const [photo, setPhoto] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(sessionKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { name?: string; photo?: string | null };
+      if (saved.name) {
+        setName(saved.name);
+        setPhoto(saved.photo ?? null);
+        setJoined(true);
+      }
+    } catch {/* sessionStorage no disponible/corrupto: seguimos sin restaurar. */}
+  }, [sessionKey]);
 
   if (!supabaseConfigured) return <SetupNotice />;
 
@@ -74,7 +90,12 @@ function PlayPage() {
             e.preventDefault();
             // Solo unir si hay nombre y la foto ya no se está procesando: evita que Enter
             // sortee el botón deshabilitado y entre con la foto a medio resolver.
-            if (name.trim() && !processing) setJoined(true);
+            if (name.trim() && !processing) {
+              try {
+                sessionStorage.setItem(sessionKey, JSON.stringify({ name: name.trim(), photo }));
+              } catch {/* sessionStorage no disponible (modo incógnito estricto): seguimos sin persistir. */}
+              setJoined(true);
+            }
           }}
           className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 text-center"
         >
@@ -202,7 +223,7 @@ function CompanionView({
   };
 }) {
   const { state, participants, meId, submitAnswer, myAnswer } = room;
-  const players = participants.filter((p) => !p.isHost);
+  const players = participants.filter((p) => !p.isHost && !p.isViewer);
 
   return (
     <div className={`min-h-screen bg-background text-foreground ${PLAY_BG}`}>
@@ -391,7 +412,14 @@ function PlayerQuiz({
           const correct = isReveal && i === correctIndex;
           // Base: mismo lenguaje visual que el host (/room ?mock=quiz) — borde --muted + bg blanco.
           // En reveal: verde para la correcta y primary para tu fallo; en quiz: primary para tu selección.
-          const cls = isReveal
+          const anim = isReveal
+            ? selected && correct
+              ? " answer-rubberband"
+              : selected && !correct
+                ? " answer-shake"
+                : ""
+            : "";
+          const cls = (isReveal
             ? correct
               ? "border-green-600 bg-green-600/15 font-semibold"
               : selected
@@ -399,7 +427,7 @@ function PlayerQuiz({
                 : "border-muted bg-white"
             : selected
               ? "border-primary bg-primary/15 font-semibold"
-              : "border-muted bg-white hover:border-primary/60";
+              : "border-muted bg-white hover:border-primary/60") + anim;
           return (
             <button
               key={i}
@@ -453,23 +481,27 @@ function CompanionScore({
   final?: boolean;
 }) {
   const ranked = participants
-    .filter((p) => !p.isHost)
+    .filter((p) => !p.isHost && !p.isViewer)
     .slice()
     .sort((a, b) => (state.scores[b.id] ?? 0) - (state.scores[a.id] ?? 0));
   const rank = ranked.findIndex((p) => p.id === meId) + 1;
+  const glitter = final && rank >= 1 && rank <= 3;
 
   return (
     <div className="flex min-h-[calc(100vh-5rem)] items-center">
-      <div className="w-full rounded-2xl border border-primary/40 bg-card p-5 text-center">
+      <div
+        className={`w-full rounded-2xl border border-primary/40 bg-card p-5 text-center ${glitter ? "glitter-glow" : ""}`}
+        data-place={glitter ? rank : undefined}
+      >
         <p className="serif text-2xl font-bold">{title}</p>
         <p className="mt-3 serif text-7xl font-bold text-primary">{state.scores[meId] ?? 0} pts</p>
         {rank > 0 && (
           <p className="mt-8 text-sm text-foreground/70">
             {final ? (
               rank <= 3 ? (
-                <span className="inline-flex items-center gap-2 text-[1.1em]">
+                <span className="inline-flex items-center gap-2 text-[1.5rem] font-bold">
                   <MedalIcon place={rank as 1 | 2 | 3} />
-                  {rank === 1 ? "¡Ganas!" : rank === 2 ? "2º puesto" : "3er puesto"}
+                  {rank === 1 ? "¡Ganas!" : rank === 2 ? "2º puesto" : "3º puesto"}
                 </span>
               ) : (
                 `Puesto ${rank} de ${ranked.length}`

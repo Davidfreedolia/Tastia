@@ -40,7 +40,7 @@ function makeId() {
   return c?.randomUUID ? c.randomUUID() : `p_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-type Role = "host" | "player";
+type Role = "host" | "player" | "viewer";
 
 /**
  * Conecta a un canal Realtime `room:{code}`.
@@ -356,13 +356,14 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     channelRef.current = channel;
 
     channel.on("presence", { event: "sync" }, () => {
-      const ps = channel.presenceState<{ name: string; isHost: boolean; photo?: string }>();
+      const ps = channel.presenceState<{ name: string; isHost: boolean; isViewer?: boolean; photo?: string }>();
       const list: Participant[] = Object.entries(ps).map(([id, metas]) => {
         const m = metas[0];
         return {
           id,
           name: m?.name ?? "Invitado",
           isHost: !!m?.isHost,
+          isViewer: !!m?.isViewer,
           score: stateRef.current.scores[id] ?? 0,
           // §5.11 — foto en vivo desde la metadata de presence (data-URL reducido); opcional.
           photo: m?.photo,
@@ -375,7 +376,8 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     });
 
     channel.on("broadcast", { event: "state" }, ({ payload }) => {
-      if (role !== "player") return;
+      // Tanto el jugador como el espectador (vista TV) adoptan el estado autoritativo.
+      if (role !== "player" && role !== "viewer") return;
       // Guarda de monotonía: ignora estados más antiguos que el ya adoptado
       // (broadcasts reordenados o reenvíos de catch-up retrasados).
       const next = payload as RoomState;
@@ -383,7 +385,10 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
     });
 
     channel.on("broadcast", { event: "player" }, ({ payload }) => {
-      if (role !== "host") return;
+      // El host acumula respuestas para puntuar; el viewer (vista TV) las acumula
+      // SOLO para mostrar el progreso ("X de N han respondido") y los ✓/✗ en reveal.
+      // El viewer no puntúa: la sola asignación a `answersRec` no tiene efectos colaterales.
+      if (role !== "host" && role !== "viewer") return;
       const ev = payload as PlayerEvent;
       if (ev.kind !== "answer") return; // "ready" no afecta al estado de la cata aquí.
 
@@ -416,8 +421,9 @@ export function useRoomChannel(opts: { code: string; role: Role; name?: string; 
       if (status === "SUBSCRIBED") {
         setConnected(true);
         await channel.track({
-          name: name ?? (role === "host" ? "Sala" : "Invitado"),
+          name: name ?? (role === "host" ? "Sala" : role === "viewer" ? "TV" : "Invitado"),
           isHost: role === "host",
+          isViewer: role === "viewer",
           // §5.11 — foto en vivo (data-URL ~128px JPEG) en presence; ausente si no hay.
           ...(photo ? { photo } : {}),
         });

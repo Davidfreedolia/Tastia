@@ -54,6 +54,9 @@ export type Participant = {
   id: string;
   name: string;
   isHost: boolean;
+  /** Espectador de solo lectura (vista cinemática `/tv/$code`): no juega, no puntúa.
+   *  Tracked en presence para que el host re-difunda estado al conectarse. */
+  isViewer?: boolean;
   score: number;
   /** Foto en vivo opcional (§5.11): data-URL reducido (~128px JPEG) que viaja en la
    *  metadata de presence. Si no hay foto, la Sala pinta el avatar de iniciales. */
@@ -147,10 +150,10 @@ export type RoomState = {
 
 /** Duración del quiz por fase, en segundos (§5.3). Constantes; configurables = §5.8. */
 export const FASE_SECONDS: Record<Fase, number> = {
-  vista: 30,
-  olfato: 30,
-  gusto: 45,
-  gamificacion: 30,
+  vista: 60,
+  olfato: 60,
+  gusto: 60,
+  gamificacion: 60,
 };
 
 /**
