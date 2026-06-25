@@ -36,6 +36,11 @@ function TvPage() {
     setClipEnded(false);
   }, [stageKey]);
 
+  // Chrome bloquea el autoplay con audio sin gesto previo del usuario. Arrancamos
+  // el vídeo `muted` (autoplay sí permitido) y mostramos un botón "Activar audio"
+  // que, al pulsarlo una vez, des-silencia para el resto de la sesión.
+  const [muted, setMuted] = useState(true);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground play-bg bg-cover bg-center bg-no-repeat">
       {/* Avatar del sommelier — vídeo a pantalla completa, igual que la sala. Si
@@ -47,8 +52,19 @@ function TvPage() {
           src={clipUrl}
           autoPlay
           playsInline
+          muted={muted}
           onEnded={() => setClipEnded(true)}
         />
+      )}
+
+      {clipUrl && muted && (
+        <button
+          type="button"
+          onClick={() => setMuted(false)}
+          className="fixed bottom-6 right-6 z-20 inline-flex items-center gap-2 rounded-full bg-ink/80 px-5 py-2.5 text-sm font-semibold text-cream shadow-lg backdrop-blur transition-colors hover:bg-ink"
+        >
+          🔇 Activar audio
+        </button>
       )}
 
       {clipUrl && clipEnded && (
