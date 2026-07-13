@@ -1,0 +1,539 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
+<title>Tastia — Deck de inversores</title>
+<style>
+  :root{
+    color-scheme: light;
+    /* Tastia — paleta "Mediterráneo soleado" (de la web) */
+    --cream:#FBF3E7; --cream-2:#FFFCF7; --paper:#FFFFFF;
+    --ink:#2B1A12; --ink-soft:#6B5647; --line:#E6D8C4;
+    --orange:#E85E22; --orange-deep:#D8451A; --orange-lite:#F2913E;
+    --saffron:#E8A93E; --saffron-lite:#F3C763;
+    --green:#2F5D3A; --green-deep:#20402A;
+    --blush:#F6D9C7;
+    --maxw:1180px;
+    --serif:Georgia,"Iowan Old Style","Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--cream); color:var(--ink);
+    font-family:var(--sans); line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    scroll-snap-type:y mandatory; overflow-x:hidden;
+  }
+  ::selection{background:var(--orange);color:#fff}
+
+  /* ---------- slides ---------- */
+  .slide{
+    position:relative; min-height:100vh; width:100%;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:clamp(2rem,6vw,6rem) clamp(1.4rem,7vw,8rem);
+    scroll-snap-align:start; overflow:hidden;
+  }
+  .wrap{width:100%;max-width:var(--maxw);margin:0 auto}
+
+  .slide--cream{background:var(--cream)}
+  .slide--paper{background:var(--cream-2)}
+  .slide--sunset{
+    background:
+      radial-gradient(120% 130% at 18% 88%, var(--orange-lite) 0%, var(--orange) 44%, var(--orange-deep) 100%);
+    color:#fff;
+  }
+  .slide--green{background:radial-gradient(130% 130% at 85% 10%, var(--green) 0%, var(--green-deep) 100%);color:var(--cream)}
+  .slide--ink{background:radial-gradient(120% 120% at 78% 15%, #3a2418 0%, var(--ink) 62%, #180d07 100%);color:var(--cream)}
+
+  /* ---------- type ---------- */
+  .eyebrow{
+    font-size:.78rem; font-weight:700; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--orange); margin:0 0 1.1rem;
+    display:inline-flex; align-items:center; gap:.6rem;
+  }
+  .slide--sunset .eyebrow,.slide--green .eyebrow,.slide--ink .eyebrow{color:var(--saffron-lite)}
+  .eyebrow::before{content:"";width:26px;height:2px;background:currentColor;display:inline-block}
+
+  h1,h2{font-family:var(--serif);font-weight:700;letter-spacing:-.02em;line-height:1.03;text-wrap:balance;margin:0}
+  .display-xl{font-size:clamp(2.7rem,7vw,5.6rem)}
+  .display{font-size:clamp(2.1rem,4.8vw,3.9rem)}
+  .display-sm{font-size:clamp(1.7rem,3.6vw,2.7rem)}
+  .lead{font-size:clamp(1.08rem,1.9vw,1.45rem);color:var(--ink-soft);max-width:60ch;margin:1.4rem 0 0}
+  .slide--sunset .lead,.slide--green .lead,.slide--ink .lead{color:rgba(255,255,255,.86)}
+  .fine{font-size:.82rem;color:var(--ink-soft)}
+  .slide--sunset .fine,.slide--green .fine,.slide--ink .fine{color:rgba(255,255,255,.7)}
+
+  /* ---------- brand mark ---------- */
+  .mark{display:inline-flex;align-items:center;gap:.7rem;font-family:var(--serif);font-weight:700;font-size:1.5rem;letter-spacing:-.02em}
+  .mark .glyph{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--orange);color:#fff;flex:none}
+  .slide--sunset .mark .glyph{background:#fff;color:var(--orange-deep)}
+  .mark .ia{color:var(--orange)}
+  .slide--sunset .mark .ia{color:#fff;opacity:.9}
+  .mark svg{width:26px;height:26px}
+
+  /* ---------- layout helpers ---------- */
+  .cols{display:grid;gap:clamp(1rem,2.4vw,2rem)}
+  .c3{grid-template-columns:repeat(3,1fr)}
+  .c2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:820px){.c3,.c2{grid-template-columns:1fr}}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:1.5rem 1.5rem 1.6rem;
+    box-shadow:0 18px 40px -30px rgba(43,26,18,.5)}
+  .slide--green .card,.slide--ink .card{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);box-shadow:none;backdrop-filter:blur(2px)}
+  .card h3{font-family:var(--serif);font-size:1.28rem;margin:.2rem 0 .5rem;letter-spacing:-.01em}
+  .card p{margin:0;color:var(--ink-soft);font-size:.98rem}
+  .slide--green .card p,.slide--ink .card p{color:rgba(255,255,255,.8)}
+  .card .num{font-family:var(--serif);font-size:1rem;color:var(--orange);font-weight:700}
+  .slide--green .card .num,.slide--ink .card .num{color:var(--saffron-lite)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:1.7rem}
+  .chip{font-size:.86rem;font-weight:600;padding:.42rem .9rem;border-radius:999px;border:1px solid var(--line);background:var(--cream-2)}
+  .slide--green .chip,.slide--ink .chip{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:#fff}
+
+  .pill{display:inline-flex;align-items:center;gap:.5rem;font-size:.8rem;font-weight:700;letter-spacing:.02em;
+    padding:.4rem .85rem;border-radius:999px;background:var(--saffron);color:var(--ink)}
+  .pill.done{background:rgba(47,93,58,.14);color:var(--green)}
+  .slide--green .pill.done{background:rgba(255,255,255,.14);color:#fff}
+  .dot-live{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 0 currentColor}
+
+  .data{border:1px dashed var(--orange);color:var(--orange-deep);background:rgba(232,94,34,.06);
+    font-weight:700;font-size:.74rem;letter-spacing:.04em;padding:.28rem .6rem;border-radius:7px;display:inline-block}
+  .slide--green .data,.slide--ink .data{border-color:var(--saffron-lite);color:var(--saffron-lite);background:rgba(243,199,99,.1)}
+
+  /* checklist */
+  .check{list-style:none;margin:1.4rem 0 0;padding:0;display:grid;gap:.7rem}
+  .check li{display:flex;gap:.75rem;align-items:flex-start;font-size:1.02rem}
+  .check .tick{flex:none;width:22px;height:22px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;font-size:.72rem;margin-top:.15rem}
+  .slide--green .check .tick{background:var(--saffron);color:var(--ink)}
+  .check.todo .tick{background:transparent;border:2px dashed currentColor;color:var(--orange)}
+
+  /* steps */
+  .steps{counter-reset:s;display:grid;gap:1.1rem;margin-top:2rem}
+  .step{display:grid;grid-template-columns:auto 1fr;gap:1.3rem;align-items:start;padding-bottom:1.1rem;border-bottom:1px solid var(--line)}
+  .step:last-child{border-bottom:0}
+  .step .n{font-family:var(--serif);font-weight:700;font-size:clamp(1.8rem,3.2vw,2.6rem);color:var(--orange);line-height:1}
+  .step h3{margin:.1rem 0 .35rem;font-family:var(--serif);font-size:1.35rem;letter-spacing:-.01em}
+  .step p{margin:0;color:var(--ink-soft)}
+
+  /* device frames (placeholders) */
+  .frames{display:grid;grid-template-columns:1.5fr 1fr;gap:1.4rem;margin-top:2rem;align-items:end}
+  @media(max-width:820px){.frames{grid-template-columns:1fr}}
+  .browser,.phone{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 26px 60px -34px rgba(43,26,18,.6)}
+  .browser .bar{height:34px;background:var(--cream);display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid var(--line)}
+  .browser .bar i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}
+  .screen{aspect-ratio:16/10;display:grid;place-items:center;gap:.5rem;text-align:center;
+    background:radial-gradient(120% 120% at 20% 90%,var(--blush),var(--cream-2));color:var(--ink-soft);padding:1rem}
+  .phone{border-radius:26px;padding:8px;background:var(--ink)}
+  .phone .screen{aspect-ratio:9/16;border-radius:18px;background:radial-gradient(120% 120% at 50% 10%,var(--saffron-lite),var(--cream-2))}
+  .ph-label{font-weight:700;font-size:.82rem;letter-spacing:.02em;color:var(--ink)}
+  .ph-sub{font-size:.72rem}
+
+  /* ---- product mockups (representación, no captura) ---- */
+  .browser .url{margin-left:8px;font-size:11px;color:var(--ink-soft);background:var(--cream-2);border:1px solid var(--line);border-radius:6px;padding:2px 9px}
+  .sala-body{display:grid;grid-template-columns:1fr 36%;gap:12px;padding:14px;background:linear-gradient(180deg,var(--cream-2),#fff);min-height:236px}
+  .sala-main{display:flex;flex-direction:column;gap:10px}
+  .q-eyebrow{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--orange)}
+  .q{font-family:var(--serif);font-size:clamp(1rem,1.5vw,1.35rem);font-weight:700;letter-spacing:-.01em;line-height:1.12}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:auto}
+  .opt{font-size:11px;font-weight:600;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  .opt.hot{background:var(--orange);color:#fff;border-color:var(--orange);box-shadow:0 8px 18px -9px var(--orange)}
+  .sala-side{display:flex;flex-direction:column;gap:9px}
+  .avatarTile{position:relative;border-radius:12px;aspect-ratio:1;overflow:hidden;display:grid;align-content:end;justify-items:center;padding:8px;
+    background:radial-gradient(120% 120% at 50% 22%,#F6C56A,#E85E22 68%,#B23410)}
+  .avatarTile .face{position:absolute;top:16%;left:50%;transform:translateX(-50%);width:40%;aspect-ratio:1;border-radius:50%;background:linear-gradient(160deg,#fff,#ffe6c9);box-shadow:0 6px 16px rgba(0,0,0,.22)}
+  .avatarTile small{position:relative;color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(0,0,0,.28);padding:2px 7px;border-radius:999px}
+  .score{display:grid;gap:5px}
+  .score .row{display:flex;align-items:center;gap:6px;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 7px;color:var(--ink)}
+  .score .row b{width:15px;height:15px;border-radius:50%;background:var(--saffron);color:var(--ink);font-size:9px;display:grid;place-items:center;font-weight:800;flex:none}
+  .score .row .pts{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:800;color:var(--orange-deep)}
+  .phone-body{padding:13px 12px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,#fff,var(--cream-2));min-height:352px;border-radius:16px}
+  .p-top{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--orange)}
+  .p-q{font-family:var(--serif);font-size:15px;font-weight:700;line-height:1.15;color:var(--ink)}
+  .p-opts{display:grid;gap:7px;margin-top:2px}
+  .p-opts span{font-size:12px;font-weight:600;padding:10px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  .p-opts span.sel{background:var(--orange);color:#fff;border-color:var(--orange)}
+  .p-cta{margin-top:auto;text-align:center;font-size:12px;font-weight:800;color:#fff;background:var(--green);padding:11px;border-radius:11px}
+  .p-name{text-align:center;font-size:11px;color:var(--ink-soft);font-weight:700}
+
+  /* ---- avatar hero (slide 6) ---- */
+  .avatar-hero{width:100%;max-width:330px;aspect-ratio:4/5;border-radius:22px;margin-left:auto;position:relative;overflow:hidden;
+    background:radial-gradient(120% 100% at 50% 18%,#F6C56A,#E85E22 60%,#A62E0E);box-shadow:0 30px 70px -30px rgba(0,0,0,.6)}
+  .avatar-hero .face{position:absolute;top:15%;left:50%;transform:translateX(-50%);width:46%;aspect-ratio:1;border-radius:50%;
+    background:linear-gradient(160deg,#fff,#ffe9cf);box-shadow:0 12px 34px rgba(0,0,0,.28)}
+  .avatar-hero .wave{position:absolute;left:0;right:0;bottom:22%;height:32px;display:flex;gap:5px;align-items:center;justify-content:center}
+  .avatar-hero .wave i{width:5px;height:12px;background:rgba(255,255,255,.92);border-radius:3px}
+  .avatar-hero .wave i:nth-child(2){height:27px}.avatar-hero .wave i:nth-child(3){height:18px}
+  .avatar-hero .wave i:nth-child(4){height:31px}.avatar-hero .wave i:nth-child(5){height:15px}
+  .avatar-hero .wave i:nth-child(6){height:23px}.avatar-hero .wave i:nth-child(7){height:13px}
+  .avatar-hero .tag{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:800;letter-spacing:.08em;
+    color:#fff;background:rgba(0,0,0,.3);padding:5px 12px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
+
+  /* comparison */
+  .cmp-scroll{overflow-x:auto;margin-top:1.8rem}
+  table.cmp{border-collapse:collapse;width:100%;min-width:560px;font-size:.95rem}
+  table.cmp th,table.cmp td{padding:.75rem .8rem;text-align:center;border-bottom:1px solid var(--line)}
+  table.cmp th:first-child,table.cmp td:first-child{text-align:left;font-weight:600}
+  table.cmp thead th{font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+  table.cmp tr.me{background:linear-gradient(90deg,rgba(232,94,34,.09),rgba(232,169,62,.09));}
+  table.cmp tr.me td:first-child{font-family:var(--serif);font-weight:700;color:var(--orange-deep)}
+  .yes{color:var(--green);font-weight:800}
+  .no{color:var(--line);font-weight:800}
+
+  /* footer line */
+  .foot{position:absolute;left:clamp(1.4rem,7vw,8rem);right:clamp(1.4rem,7vw,8rem);bottom:clamp(1.4rem,4vw,2.4rem);
+    display:flex;justify-content:space-between;align-items:center;gap:1rem;font-size:.8rem;color:var(--ink-soft)}
+  .slide--sunset .foot,.slide--green .foot,.slide--ink .foot{color:rgba(255,255,255,.75)}
+
+  /* ---------- fixed chrome ---------- */
+  .brandmini{position:fixed;top:20px;left:22px;z-index:30;display:flex;align-items:center;gap:.5rem;
+    font-family:var(--serif);font-weight:700;font-size:1.05rem;color:var(--ink);mix-blend-mode:normal}
+  .brandmini .g{width:30px;height:30px;border-radius:9px;background:var(--orange);color:#fff;display:grid;place-items:center}
+  .brandmini svg{width:18px;height:18px}
+  .counter{position:fixed;bottom:20px;left:22px;z-index:30;font-family:var(--serif);font-weight:700;font-size:.95rem;
+    color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:.05em}
+  .progress{position:fixed;top:0;left:0;height:4px;background:var(--orange);width:0;z-index:40;transition:width .25s ease}
+  .rail{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:30;display:flex;flex-direction:column;gap:11px}
+  .rail button{width:10px;height:10px;padding:0;border:none;border-radius:50%;background:var(--ink);opacity:.25;cursor:pointer;transition:opacity .2s,transform .2s}
+  .rail button:hover{opacity:.6}
+  .rail button[aria-current="true"]{opacity:1;transform:scale(1.5);background:var(--orange)}
+  .rail button:focus-visible,.hint:focus-visible{outline:2px solid var(--orange);outline-offset:3px}
+  /* keep chrome legible on dark slides via mix */
+  @media (max-width:640px){.rail{display:none}.brandmini,.counter{font-size:.9rem}}
+
+  .hint{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;background:none;border:none;color:#fff;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:.3rem;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+  .hint .arw{width:22px;height:22px;animation:bob 1.8s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+  /* reveal */
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}
+  @media (prefers-reduced-motion:reduce){
+    .reveal{opacity:1;transform:none;transition:none}
+    .hint .arw{animation:none}
+    html{scroll-behavior:auto}
+  }
+</style>
+
+<!-- fixed chrome -->
+<div class="progress" id="progress"></div>
+<div class="brandmini">
+  <span class="g">
+    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M8 14C8 11.79 9.79 10 12 10H36C38.21 10 40 11.79 40 14V16C40 18.21 38.21 20 36 20H12C9.79 20 8 18.21 8 16V14Z" fill="currentColor"/><rect x="22" y="20" width="4" height="6" rx="1" fill="currentColor"/><path d="M24 26C24 26 20 27 20 30C20 33 24 34 24 34C24 34 28 35 28 38C28 41 24 42 24 42" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </span>
+  <span>Tast<span style="color:var(--orange)">IA</span></span>
+</div>
+<div class="counter" id="counter">01 / 12</div>
+<nav class="rail" id="rail" aria-label="Ir a la diapositiva"></nav>
+
+<main id="deck">
+
+  <!-- 1 · PORTADA -->
+  <section class="slide slide--sunset" data-title="Portada">
+    <div class="wrap">
+      <div class="mark reveal"><span class="glyph"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M8 14C8 11.79 9.79 10 12 10H36C38.21 10 40 11.79 40 14V16C40 18.21 38.21 20 36 20H12C9.79 20 8 18.21 8 16V14Z" fill="currentColor"/><rect x="22" y="20" width="4" height="6" rx="1" fill="currentColor"/><path d="M24 26C24 26 20 27 20 30C20 33 24 34 24 34C24 34 28 35 28 38C28 41 24 42 24 42" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Tast<span class="ia">IA</span></span></div>
+      <p class="eyebrow reveal d1" style="margin-top:2.4rem">Presentación para inversores · 2026</p>
+      <h1 class="display-xl reveal d1">Catas de vino<br>que se juegan.</h1>
+      <p class="lead reveal d2">Pide el pack, escanea el QR y un sommelier de IA —con cara y voz— guía una cata a ciegas con tus amigos. Sin registros, sin pijería.</p>
+    </div>
+    <div class="foot"><span>Freedolia</span><span>tastia.org</span></div>
+    <button class="hint" onclick="go(1)" aria-label="Siguiente diapositiva">
+      <span>Desliza</span>
+      <svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+  </section>
+
+  <!-- 2 · PROBLEMA -->
+  <section class="slide slide--cream" data-title="El problema">
+    <div class="wrap">
+      <p class="eyebrow reveal">El problema</p>
+      <h2 class="display reveal d1">El vino intimida justo a quien más querría disfrutarlo.</h2>
+      <div class="cols c3" style="margin-top:2.6rem">
+        <div class="card reveal d1"><h3>Lenguaje de club</h3><p>Taninos, retrogusto, notas de sotobosque. Para mucha gente el vino habla en un idioma que excluye más que invita.</p></div>
+        <div class="card reveal d2"><h3>Caro y solemne</h3><p>Los cursos y catas guiadas cuestan tiempo y dinero, y demasiadas veces pecan de pretenciosos.</p></div>
+        <div class="card reveal d3"><h3>Social, sin producto</h3><p>El vino se bebe en grupo, pero no existe una <em>experiencia</em> divertida, guiada y accesible para hacerlo en casa.</p></div>
+      </div>
+    </div>
+    <div class="foot"><span>El problema</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 3 · SOLUCIÓN -->
+  <section class="slide slide--green" data-title="La solución">
+    <div class="wrap">
+      <p class="eyebrow reveal">La solución</p>
+      <h2 class="display reveal d1">Tastia convierte la cata en un juego para compartir.</h2>
+      <p class="lead reveal d2">Un pack de 4 vinos llega a casa. Escaneáis un QR y un sommelier de IA guía una cata a ciegas multijugador: apostáis por cada vino, sumáis puntos y coronáis a un ganador en el podio.</p>
+      <div class="chips reveal d3">
+        <span class="chip">🍷 Pack físico a domicilio</span>
+        <span class="chip">🤖 Sommelier de IA</span>
+        <span class="chip">📱 Multijugador en vivo</span>
+        <span class="chip">✨ Sin registro</span>
+      </div>
+    </div>
+    <div class="foot"><span>La solución</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 4 · CÓMO FUNCIONA -->
+  <section class="slide slide--paper" data-title="Cómo funciona">
+    <div class="wrap">
+      <p class="eyebrow reveal">Cómo funciona</p>
+      <h2 class="display-sm reveal d1">De la caja al podio, en tres pasos.</h2>
+      <div class="steps">
+        <div class="step reveal d1"><div class="n">01</div><div><h3>Pides tu pack</h3><p>Cuatro vinos seleccionados + copas y accesorios, a domicilio en 24&nbsp;h.</p></div></div>
+        <div class="step reveal d2"><div class="n">02</div><div><h3>Escaneas el QR</h3><p>La Sala aparece en la pantalla grande; cada móvil se convierte en un mando.</p></div></div>
+        <div class="step reveal d3"><div class="n">03</div><div><h3>Jugáis a ciegas</h3><p>Variedad, D.O., precio y añada. Cada acierto suma puntos: gana quien mejor cata.</p></div></div>
+      </div>
+    </div>
+    <div class="foot"><span>Cómo funciona</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 5 · PRODUCTO -->
+  <section class="slide slide--cream" data-title="Producto">
+    <div class="wrap">
+      <p class="eyebrow reveal">Producto</p>
+      <h2 class="display reveal d1">No es una maqueta: está en producción.</h2>
+      <p class="lead reveal d2">El juego completo funciona hoy en <strong>tastia.org</strong> — sala en pantalla, móviles como mando, revelación con puntos y podio final.</p>
+      <div class="frames reveal d3">
+        <div class="browser">
+          <div class="bar"><i></i><i></i><i></i><span class="url">tastia.org/room/TEST</span></div>
+          <div class="sala-body">
+            <div class="sala-main">
+              <div class="q-eyebrow">Vino 2 · Ronda 6 / 16</div>
+              <div class="q">¿De qué D.O. es este vino?</div>
+              <div class="opts">
+                <span class="opt">Rioja</span>
+                <span class="opt hot">Ribera del Duero</span>
+                <span class="opt">Priorat</span>
+                <span class="opt">Rías Baixas</span>
+              </div>
+            </div>
+            <div class="sala-side">
+              <div class="avatarTile"><span class="face"></span><small>Sommelier</small></div>
+              <div class="score">
+                <div class="row"><b>1</b> Marc <span class="pts">320</span></div>
+                <div class="row"><b>2</b> Ana <span class="pts">290</span></div>
+                <div class="row"><b>3</b> Tú <span class="pts">265</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="phone">
+          <div class="phone-body">
+            <div class="p-top">Vino 2 · Gusto</div>
+            <div class="p-q">¿Cómo es su paso en boca?</div>
+            <div class="p-opts">
+              <span>Fresco y ligero</span>
+              <span class="sel">Potente y carnoso</span>
+              <span>Dulce y suave</span>
+              <span>Ácido y vivo</span>
+            </div>
+            <div class="p-cta">Enviar apuesta</div>
+            <div class="p-name">Ana · 290 pts</div>
+          </div>
+        </div>
+      </div>
+      <p class="fine reveal d4" style="margin-top:1rem">Representación del producto — el juego funciona hoy en <strong>tastia.org</strong>. Sustituible por capturas reales de una partida en vivo.</p>
+    </div>
+    <div class="foot"><span>Producto</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 6 · WOW / AVATAR -->
+  <section class="slide slide--ink" data-title="El diferenciador">
+    <div class="wrap">
+      <div class="cols c2" style="align-items:center;gap:clamp(1.5rem,4vw,3.5rem)">
+        <div>
+          <p class="eyebrow reveal">El diferenciador</p>
+          <h2 class="display reveal d1">Un sommelier con cara y voz.</h2>
+          <p class="lead reveal d2">El avatar de IA presenta la cata como un anfitrión: introduce cada vino, lanza las preguntas y revela el resultado. Convierte una degustación en un <em>show</em>.</p>
+          <p class="reveal d3" style="margin-top:1.5rem;max-width:52ch;color:rgba(255,255,255,.8)">Barrera de entrada real: <strong style="color:#fff">pack físico + IA generativa + experiencia en vivo</strong>. No es "otra app de vino".</p>
+          <div class="reveal d3" style="margin-top:1.6rem"><span class="pill"><span class="dot-live"></span>Avatar en integración</span></div>
+        </div>
+        <div class="reveal d2">
+          <div class="avatar-hero">
+            <span class="face"></span>
+            <div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <span class="tag">Sommelier de IA · en vivo</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>El diferenciador</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 7 · MERCADO -->
+  <section class="slide slide--cream" data-title="Oportunidad">
+    <div class="wrap">
+      <p class="eyebrow reveal">Oportunidad</p>
+      <h2 class="display reveal d1">Vino, regalo, ocio social y team-building en un mismo producto.</h2>
+      <div class="cols c3" style="margin-top:2.4rem">
+        <div class="card reveal d1"><div class="num">TAM</div><h3><span class="data">DATO</span></h3><p>Mercado total: consumo de vino + experiencias de ocio en grupo.</p></div>
+        <div class="card reveal d2"><div class="num">SAM</div><h3><span class="data">DATO</span></h3><p>Hogares y empresas que compran experiencias / regalos gastronómicos.</p></div>
+        <div class="card reveal d3"><div class="num">SOM</div><h3><span class="data">DATO</span></h3><p>Alcanzable a 3 años en el mercado inicial (España).</p></div>
+      </div>
+      <p class="fine reveal d4" style="margin-top:1.2rem">Cifras pendientes de <strong>estudio de mercado</strong>. Tendencias a favor: experiencias &gt; objetos · gamificación · IA generativa asequible.</p>
+    </div>
+    <div class="foot"><span>Oportunidad</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 8 · MODELO -->
+  <section class="slide slide--paper" data-title="Modelo de negocio">
+    <div class="wrap">
+      <p class="eyebrow reveal">Modelo de negocio</p>
+      <h2 class="display reveal d1">Ingreso físico + software, con recurrencia.</h2>
+      <div class="cols c2" style="margin-top:2.2rem">
+        <div class="card reveal d1"><h3>B2C — directo al consumidor</h3><p style="margin-bottom:.7rem">Venta de packs por gamas (básico → premium).</p><p><strong style="color:var(--ink)">Suscripción "cata del mes"</strong> para recurrencia.</p></div>
+        <div class="card reveal d2"><h3>B2B — a empresas y marcas</h3><p style="margin-bottom:.7rem">Eventos de empresa y team-building.</p><p>Bodegas y marcas en <strong style="color:var(--ink)">marca blanca</strong>; tiendas de vino.</p></div>
+      </div>
+      <p class="fine reveal d3" style="margin-top:1.3rem">Margen = producto físico + software escalable. Precios de gama y márgenes: <span class="data">DATO</span></p>
+    </div>
+    <div class="foot"><span>Modelo de negocio</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 9 · ESTADO / TRACCIÓN -->
+  <section class="slide slide--green" data-title="Estado">
+    <div class="wrap">
+      <p class="eyebrow reveal">Estado</p>
+      <h2 class="display reveal d1">El riesgo técnico ya está resuelto.</h2>
+      <div class="cols c2" style="margin-top:2rem;align-items:start">
+        <div class="reveal d2">
+          <span class="pill done"><span class="dot-live"></span>En producción hoy</span>
+          <ul class="check">
+            <li><span class="tick">✓</span> Web pública en tastia.org</li>
+            <li><span class="tick">✓</span> Juego desde base de datos (funciones en la nube desplegadas)</li>
+            <li><span class="tick">✓</span> Compra con Stripe (modo prueba) + recibo con QR</li>
+            <li><span class="tick">✓</span> Panel de administración</li>
+            <li><span class="tick">✓</span> Multi-idioma ES / CA / EN / FR</li>
+          </ul>
+        </div>
+        <div class="reveal d3">
+          <span class="pill">Siguiente</span>
+          <ul class="check todo">
+            <li><span class="tick">○</span> Sommelier-avatar en vivo</li>
+            <li><span class="tick">○</span> Packs con vinos reales y logística</li>
+            <li><span class="tick">○</span> Primeras ventas / pilotos B2B</li>
+          </ul>
+          <p class="fine" style="margin-top:1rem;color:rgba(255,255,255,.8)">Señales de tracción: <span class="data">DATO</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Estado</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 10 · COMPETENCIA -->
+  <section class="slide slide--cream" data-title="Posicionamiento">
+    <div class="wrap">
+      <p class="eyebrow reveal">Posicionamiento</p>
+      <h2 class="display reveal d1">Nadie junta las tres cosas.</h2>
+      <div class="cmp-scroll reveal d2">
+        <table class="cmp">
+          <thead><tr><th></th><th>Pack físico</th><th>Guía experta</th><th>Juego en vivo</th></tr></thead>
+          <tbody>
+            <tr><td>Cursos / catas guiadas</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td></tr>
+            <tr><td>Apps de vino (p. ej. Vivino)</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td></tr>
+            <tr><td>Kits de cata sin guiar</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td></tr>
+            <tr><td>Escape rooms / ocio en grupo</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+            <tr class="me"><td>Tastia</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fine reveal d3" style="margin-top:1.2rem">El sommelier de IA + el pack + el juego multijugador en vivo son, juntos, la propuesta única.</p>
+    </div>
+    <div class="foot"><span>Posicionamiento</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 11 · ROADMAP -->
+  <section class="slide slide--paper" data-title="Roadmap">
+    <div class="wrap">
+      <p class="eyebrow reveal">Roadmap</p>
+      <h2 class="display reveal d1">De producto a plataforma.</h2>
+      <div class="cols c3" style="margin-top:2.2rem">
+        <div class="card reveal d1"><div class="num">Corto</div><h3>Salir a vender</h3><p>Avatar en vivo · packs reales · Stripe en real · primeras ventas.</p></div>
+        <div class="card reveal d2"><div class="num">Medio</div><h3>Crecer</h3><p>Suscripción "cata del mes" · canal B2B (eventos, marca blanca) · más idiomas.</p></div>
+        <div class="card reveal d3"><div class="num">Largo</div><h3>Escalar la plataforma</h3><p>La misma tecnología para otras experiencias: cerveza, aceite, quesos.</p></div>
+      </div>
+    </div>
+    <div class="foot"><span>Roadmap</span><span>Tastia · Deck de inversores</span></div>
+  </section>
+
+  <!-- 12 · CIERRE -->
+  <section class="slide slide--sunset" data-title="Cierre">
+    <div class="wrap">
+      <p class="eyebrow reveal">Freedolia</p>
+      <h2 class="display-xl reveal d1">Hagamos que el<br>vino se juegue.</h2>
+      <div class="cols c2 reveal d2" style="margin-top:2.4rem;align-items:start">
+        <div>
+          <p class="fine" style="text-transform:uppercase;letter-spacing:.14em;margin:0 0 .5rem">Equipo</p>
+          <p style="margin:0;font-size:1.15rem"><strong>David</strong> · <strong>Isabel</strong> — Freedolia</p>
+        </div>
+        <div>
+          <p class="fine" style="text-transform:uppercase;letter-spacing:.14em;margin:0 0 .5rem">La ronda</p>
+          <p style="margin:0;font-size:1.15rem">Importe y uso de fondos: <span class="data">DATO</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>tastia.org</span><span>david@freedolia.com</span></div>
+  </section>
+
+</main>
+
+<script>
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var rail = document.getElementById('rail');
+  var progress = document.getElementById('progress');
+  var counter = document.getElementById('counter');
+  var pad = function(n){return (n<10?'0':'')+n;};
+
+  // build rail dots
+  slides.forEach(function(s,i){
+    var b=document.createElement('button');
+    b.setAttribute('aria-label',(i+1)+'. '+(s.dataset.title||''));
+    b.addEventListener('click',function(){go(i,true);});
+    rail.appendChild(b);
+  });
+  var dots = Array.prototype.slice.call(rail.children);
+
+  function setActive(i){
+    dots.forEach(function(d,j){d.setAttribute('aria-current', j===i?'true':'false');});
+    counter.textContent = pad(i+1)+' / '+pad(slides.length);
+    progress.style.width = ((i)/(slides.length-1))*100 + '%';
+    var dark = slides[i].className.indexOf('sunset')>-1 || slides[i].className.indexOf('green')>-1 || slides[i].className.indexOf('ink')>-1;
+    document.querySelectorAll('.brandmini,.counter').forEach(function(el){el.style.color = dark? '#fff':'var(--ink)';});
+    document.querySelector('.brandmini .g').style.background = dark? 'rgba(255,255,255,.16)':'var(--orange)';
+    dots.forEach(function(d){ if(d.getAttribute('aria-current')!=='true') d.style.background = dark? '#fff':'var(--ink)'; });
+  }
+
+  var current = 0;
+  function go(i,smooth){
+    i = Math.max(0, Math.min(slides.length-1, i));
+    slides[i].scrollIntoView({behavior: smooth===false?'auto':'smooth'});
+  }
+  window.go = go;
+
+  // observe which slide is centered
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting && e.intersectionRatio>0.55){
+        current = slides.indexOf(e.target);
+        setActive(current);
+      }
+    });
+  },{threshold:[0.55]});
+  slides.forEach(function(s){io.observe(s);});
+
+  // reveal on enter
+  var ro = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting) e.target.classList.add('in'); });
+  },{threshold:0.2});
+  document.querySelectorAll('.reveal').forEach(function(el){ro.observe(el);});
+
+  // keyboard nav
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();go(current+1);}
+    else if(e.key==='ArrowUp'||e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();go(current-1);}
+    else if(e.key==='Home'){e.preventDefault();go(0);}
+    else if(e.key==='End'){e.preventDefault();go(slides.length-1);}
+  });
+
+  setActive(0);
+</script>
+</body></html>
