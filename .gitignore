@@ -39,3 +39,6 @@ deno.lock
 .env
 .env.*
 !.env.example
+
+# Clips del sommelier (vídeos grandes → viven en Supabase Storage, no en git)
+Tasti/
