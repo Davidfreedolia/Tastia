@@ -42,3 +42,4 @@ deno.lock
 
 # Clips del sommelier (vídeos grandes → viven en Supabase Storage, no en git)
 Tasti/
+.gstack/
