@@ -1,8 +1,8 @@
 // Sube los clips del sommelier (Beronia_*.mp4) al bucket público `videos` de Supabase Storage.
 // Los consume la vista /tv/$code (ver src/lib/clip-map.ts). El host castea /tv a la TV.
 //
-// Requisitos: Node 18+ (fetch global). El bucket `videos` debe existir antes
-//   (migración supabase/migrations/20260625130000_videos_bucket.sql).
+// Requisitos: Node 18+ (fetch global) y la service_role del proyecto. El script CREA el
+//   bucket `videos` (público) si no existe — no hace falta tocar el panel de Supabase.
 //
 // Uso (PowerShell, en la raíz del repo):
 //   $env:SUPABASE_URL="https://tyuehzsqvjpjysxdihsh.supabase.co"
@@ -37,6 +37,27 @@ const EXPECTED = [
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error("✗ Falta SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY en el entorno.");
   process.exit(1);
+}
+
+// Crea el bucket `videos` (público) si no existe — así NO hace falta entrar al panel de Supabase.
+{
+  const mk = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true }),
+  });
+  if (mk.ok) {
+    console.log(`✓ Bucket "${BUCKET}" creado (público).`);
+  } else {
+    const b = await mk.text().catch(() => "");
+    if (mk.status === 409 || /already exists|Duplicate|resource already exists/i.test(b)) {
+      console.log(`· Bucket "${BUCKET}" ya existía.`);
+    } else {
+      console.error(`✗ No pude crear el bucket "${BUCKET}": ${mk.status} ${b}`);
+      console.error("  (¿La service_role es correcta? Debe ser la de ESTE proyecto: tyuehzsqvjpjysxdihsh.)");
+      process.exit(1);
+    }
+  }
 }
 
 let files;
