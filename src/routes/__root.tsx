@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -34,7 +35,9 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+// El router nou tipa l'error com a unknown: pot arribar qualsevol cosa llançada.
+function ErrorComponent({ error: llancat, reset }: ErrorComponentProps) {
+  const error = llancat instanceof Error ? llancat : new Error(String(llancat));
   console.error(error);
   const router = useRouter();
   useEffect(() => {
